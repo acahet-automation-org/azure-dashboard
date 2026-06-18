@@ -1,3 +1,5 @@
+import path from "path";
+import { fileURLToPath } from "url";
 import express from "express";
 import {
     getDashboardData,
@@ -7,83 +9,79 @@ import {
     computeSuiteStats,
     computeRunCards,
 } from "./dashboardData.js";
-import { renderDashboardPage } from "./views/dashboardView.js";
-import { renderSuitesPage } from "./views/suitesView.js";
-import { renderRunsPage } from "./views/runsView.js";
+
+const __dirname = path.dirname(
+    fileURLToPath(import.meta.url)
+);
+
+const clientDist = path.join(
+    __dirname,
+    "../client/dist"
+);
 
 const app = express();
 
-app.use(express.static("public"));
+app.use(express.static(clientDist));
 
-app.get("/", async (_, res) => {
+app.get("/api/suites", async (_, res) => {
     try {
         const allTestCases =
             await getDashboardData();
 
-        const suiteStats =
-            computeSuiteStats(allTestCases);
-
-        res.send(
-            renderSuitesPage(suiteStats)
+        res.json(
+            computeSuiteStats(allTestCases)
         );
     } catch (error: any) {
         console.error(error);
 
-        res.status(500).send(
-            error.message
-        );
+        res.status(500).json({
+            message: error.message,
+        });
     }
 });
 
-app.get("/dashboard", async (_, res) => {
+app.get("/api/dashboard", async (_, res) => {
     try {
         const allTestCases =
             await getDashboardData();
 
-        const stats =
-            computeDashboardStats(
+        res.json({
+            stats: computeDashboardStats(
                 allTestCases
-            );
-
-        res.send(
-            renderDashboardPage(
-                stats,
-                getCacheTimestamp()
-            )
-        );
+            ),
+            cacheTimestamp: getCacheTimestamp(),
+        });
     } catch (error: any) {
         console.error(error);
 
-        res.status(500).send(
-            error.message
-        );
+        res.status(500).json({
+            message: error.message,
+        });
     }
 });
 
-app.get(
-    "/last-5-runs",
-    async (_, res) => {
-        try {
-            const runCards =
-                await computeRunCards();
+app.get("/api/runs", async (_, res) => {
+    try {
+        res.json(await computeRunCards());
+    } catch (error: any) {
+        console.error(error);
 
-            res.send(
-                renderRunsPage(runCards)
-            );
-        } catch (error: any) {
-            console.error(error);
-
-            res.status(500).send(
-                error.message
-            );
-        }
+        res.status(500).json({
+            message: error.message,
+        });
     }
-);
+});
 
-app.get("/refresh", (_, res) => {
+app.post("/api/refresh", (_, res) => {
     clearDashboardCache();
 
-    res.redirect("/dashboard");
+    res.status(204).end();
+});
+
+app.get(/^(?!\/api).*/, (_, res) => {
+    res.sendFile(
+        path.join(clientDist, "index.html")
+    );
 });
 
 app.listen(3000, () => {
