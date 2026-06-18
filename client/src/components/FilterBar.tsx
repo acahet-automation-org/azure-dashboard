@@ -1,4 +1,5 @@
 import { Dropdown, Option, Input, Field, makeStyles, tokens } from "@fluentui/react-components";
+import { ChevronDownRegular } from "@fluentui/react-icons";
 
 export interface DashboardFilters {
     area: string;
@@ -17,6 +18,15 @@ const useStyles = makeStyles({
     field: {
         minWidth: "180px",
         flex: "1 1 180px",
+    },
+    chevron: {
+        color: tokens.colorBrandForeground1,
+        fontSize: "18px",
+    },
+    dropdownButton: {
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
     },
 });
 
@@ -39,6 +49,8 @@ export function FilterBar({
         <div className={styles.bar}>
             <Field label="Area Path" className={styles.field}>
                 <Dropdown
+                    expandIcon={<ChevronDownRegular className={styles.chevron} />}
+                    button={{ className: styles.dropdownButton }}
                     value={filters.area || "All Areas"}
                     selectedOptions={filters.area ? [filters.area] : [""]}
                     onOptionSelect={(_, data) =>
@@ -60,6 +72,8 @@ export function FilterBar({
 
             <Field label="Suite" className={styles.field}>
                 <Dropdown
+                    expandIcon={<ChevronDownRegular className={styles.chevron} />}
+                    button={{ className: styles.dropdownButton }}
                     value={filters.suite || "All Suites"}
                     selectedOptions={filters.suite ? [filters.suite] : [""]}
                     onOptionSelect={(_, data) =>
@@ -77,6 +91,8 @@ export function FilterBar({
 
             <Field label="Priority" className={styles.field}>
                 <Dropdown
+                    expandIcon={<ChevronDownRegular className={styles.chevron} />}
+                    button={{ className: styles.dropdownButton }}
                     value={
                         filters.priority
                             ? `Priority ${filters.priority}`
