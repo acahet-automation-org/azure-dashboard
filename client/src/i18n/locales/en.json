@@ -1,0 +1,220 @@
+{
+    "common": {
+        "title": "QA Dashboard"
+    },
+    "nav": {
+        "primary": "Primary",
+        "suites": "Browse by Suite",
+        "dashboard": "Full Dashboard",
+        "runs": "Last 10 Runs",
+        "plans": "Test Plans",
+        "automation": "Automation",
+        "execution": "Test Execution",
+        "defects": "Defect Management",
+        "refresh": "Refresh Now",
+        "refreshing": "Refreshing...",
+        "refreshFailed": "Refresh failed: {{message}}"
+    },
+    "outcome": {
+        "Passed": "Passed",
+        "Failed": "Failed",
+        "Blocked": "Blocked",
+        "NotRun": "Not Run",
+        "ariaLabel": "Outcome: {{outcome}}"
+    },
+    "suitesPage": {
+        "empty": "No suites found."
+    },
+    "dashboardPage": {
+        "title": "QA Dashboard",
+        "lastRefresh": "Last Refresh: {{date}} (cache duration: 5 minutes)",
+        "priority": "Priority {{value}}",
+        "emptyFiltered": "No test cases match the current filters.",
+        "stats": {
+            "total": "Total Test Cases",
+            "withOpenBugs": "With Open Bugs",
+            "withoutOpenBugs": "Without Open Bugs",
+            "activeBugs": "Active Bugs",
+            "closedBugs": "Closed Bugs",
+            "passed": "Passed",
+            "failed": "Failed",
+            "blocked": "Blocked",
+            "notRun": "Not Run",
+            "passRate": "Pass Rate"
+        }
+    },
+    "runsPage": {
+        "title": "QA Dashboard - Last 10 Runs",
+        "empty": "No test runs found."
+    },
+    "plansPage": {
+        "title": "Test Plans",
+        "empty": "No test plans found."
+    },
+    "planDetailPage": {
+        "title": "Test Plan {{id}}",
+        "backToPlans": "Back to Test Plans",
+        "openInAzureDevOps": "Open in Azure DevOps",
+        "suitesTitle": "Test Suites",
+        "empty": "No test suites found.",
+        "suiteEmpty": "No test cases in this suite."
+    },
+    "automationDashboardPage": {
+        "title": "Automation Dashboard",
+        "minutes": "{{value}} min",
+        "kpis": {
+            "automatedTests": "Automated Tests",
+            "manualTests": "Manual Tests",
+            "automationCoveragePct": "Automation Coverage %",
+            "flakyTests": "Flaky Tests",
+            "automationSuccessRate": "Automation Success Rate"
+        },
+        "ciCd": {
+            "pipelineSuccessRate": "Pipeline Success Rate",
+            "pipelineFailureRate": "Pipeline Failure Rate",
+            "avgPipelineDuration": "Average Pipeline Duration",
+            "testExecutionTime": "Test Execution Time"
+        },
+        "charts": {
+            "coverageByModule": "Automation Coverage by Module",
+            "flakyTestRanking": "Flaky Test Ranking",
+            "pipelineSuccessTrend": "Pipeline Success Trend"
+        }
+    },
+    "testExecutionPage": {
+        "title": "Test Execution",
+        "sections": {
+            "metrics": "Execution Metrics",
+            "trends": "Trends",
+            "coverage": "Coverage",
+            "visuals": "Visuals"
+        },
+        "metrics": {
+            "total": "Total Test Cases",
+            "executed": "Executed Tests",
+            "passed": "Passed",
+            "failed": "Failed",
+            "blocked": "Blocked",
+            "notRun": "Not Run"
+        },
+        "trends": {
+            "passRate": "Pass Rate Trend",
+            "dailyExecution": "Daily Execution Progress",
+            "failedTests": "Failed Tests Trend"
+        },
+        "coverage": {
+            "tableLabel": "Coverage by suite",
+            "tabs": {
+                "requirements": "Requirements",
+                "userStory": "User Story",
+                "feature": "Feature"
+            },
+            "columns": {
+                "name": "Name",
+                "total": "Total",
+                "executed": "Executed",
+                "coverage": "Coverage %",
+                "passRate": "Pass Rate"
+            }
+        },
+        "risk": {
+            "title": "Risk Coverage",
+            "tableLabel": "Coverage by priority",
+            "highRisk": "High Risk",
+            "priorityLabel": "Priority {{value}}",
+            "columns": {
+                "priority": "Priority",
+                "total": "Total",
+                "passRate": "Pass Rate",
+                "failed": "Failed"
+            }
+        },
+        "visuals": {
+            "executionFunnel": "Execution Funnel",
+            "burnUp": "Test Progress Burn-up",
+            "passFailTrend": "Pass/Fail Trend",
+            "totalLine": "Total Test Cases",
+            "executedLine": "Executed (cumulative)",
+            "funnel": {
+                "total": "Total",
+                "executed": "Executed",
+                "passed": "Passed"
+            }
+        }
+    },
+    "defectManagementPage": {
+        "title": "Defect Management",
+        "stats": {
+            "totalOpen": "Open Bugs",
+            "totalClosed": "Closed Bugs",
+            "mttr": "Mean Time to Resolution",
+            "reopenedBugs": "Reopened Bugs",
+            "duplicateRate": "Duplicate Bug Rate",
+            "bugsPerStory": "Bugs per Story",
+            "days": "{{value}} days",
+            "notAvailable": "N/A"
+        },
+        "charts": {
+            "trend": "Bug Trend Over Time",
+            "opened": "Opened",
+            "closed": "Closed",
+            "openTotal": "Open Total",
+            "bySeverity": "Bugs by Severity",
+            "byPriority": "Bugs by Priority",
+            "byComponent": "Defects by Component/Module",
+            "byTeam": "Defects by Team",
+            "aging": "Defect Aging"
+        }
+    },
+    "filterBar": {
+        "areaPath": "Area Path",
+        "allAreas": "All Areas",
+        "suite": "Suite",
+        "allSuites": "All Suites",
+        "priority": "Priority",
+        "allPriorities": "All Priorities",
+        "search": "Search",
+        "searchPlaceholder": "Search test case title..."
+    },
+    "suiteCard": {
+        "total": "Total: {{count}}",
+        "summary": "Passed {{passed}} · Failed {{failed}} · Blocked {{blocked}} · Not Run {{notRun}}",
+        "openBugs": "Open bugs: {{count}}",
+        "passRate": "Pass rate: {{rate}}%"
+    },
+    "runCard": {
+        "state": "State: {{state}}",
+        "completed": "Completed: {{date}}",
+        "completedNA": "N/A",
+        "total": "Total: {{count}}",
+        "summary": "Passed {{passed}} · Failed {{failed}} · Blocked {{blocked}} · Not Run {{notRun}}",
+        "passRate": "Pass rate: {{rate}}%"
+    },
+    "planCard": {
+        "state": "State: {{state}}",
+        "area": "Area: {{areaPath}}",
+        "iteration": "Iteration: {{iteration}}",
+        "owner": "Owner: {{owner}}"
+    },
+    "testCaseItem": {
+        "area": "Area: {{areaPath}}",
+        "bugsLinked": "Bugs linked: {{count}} ({{active}} active, {{closed}} closed)"
+    },
+    "errorState": {
+        "title": "Something went wrong",
+        "retry": "Retry"
+    },
+    "loadingState": {
+        "label": "Loading"
+    },
+    "themeSwitcher": {
+        "label": "Theme",
+        "light": "Light",
+        "dark": "Dark"
+    },
+    "languageSwitcher": {
+        "label": "Language",
+        "english": "English",
+        "italian": "Italiano"
+    }
+}

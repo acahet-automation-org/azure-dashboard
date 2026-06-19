@@ -54,7 +54,7 @@ export async function getTestPoints(
 
 export async function getTestRuns() {
     const response = await azdo.get(
-        "/test/runs?api-version=7.1&$top=50"
+        "/test/runs?api-version=7.1&$top=50&includeRunDetails=true"
     );
 
     return response.data.value;
@@ -95,18 +95,83 @@ export async function getWorkItem(id: number) {
     return response.data;
 }
 
-export async function getWorkItems(ids: number[]) {
+export async function getWorkItems(
+    ids: number[],
+    fields?: string[]
+) {
     if (!ids.length) {
         return [];
     }
 
+    const chunks: number[][] = [];
+
+    for (let i = 0; i < ids.length; i += 200) {
+        chunks.push(ids.slice(i, i + 200));
+    }
+
+    const fieldsParam = fields?.length
+        ? `&fields=${fields.join(",")}`
+        : "";
+
+    const results = await Promise.all(
+        chunks.map(async (chunk) => {
+            const response = await azdo.get(
+                `/wit/workitems?ids=${chunk.join(
+                    ","
+                )}${fieldsParam}&api-version=7.1`
+            );
+
+            return response.data.value;
+        })
+    );
+
+    return results.flat();
+}
+
+const BUG_FIELDS = [
+    "System.Id",
+    "System.Title",
+    "System.State",
+    "System.Reason",
+    "System.AreaPath",
+    "System.CreatedDate",
+    "System.ChangedDate",
+    "Microsoft.VSTS.Common.Priority",
+    "Microsoft.VSTS.Common.Severity",
+    "Microsoft.VSTS.Common.ClosedDate",
+];
+
+export async function getAllBugFields(): Promise<
+    any[]
+> {
+    const ids = await getActiveBugIds();
+
+    return getWorkItems(ids, BUG_FIELDS);
+}
+
+export async function getWorkItemRevisions(
+    id: number
+): Promise<any[]> {
     const response = await azdo.get(
-        `/wit/workitems?ids=${ids.join(
-            ","
-        )}&api-version=7.1`
+        `/wit/workitems/${id}/revisions?api-version=7.1`
     );
 
     return response.data.value;
+}
+
+export async function getStoryCount(): Promise<number> {
+    const response = await azdo.post(
+        "/wit/wiql?api-version=7.1",
+        {
+            query: `
+        SELECT [System.Id]
+        FROM WorkItems
+        WHERE [System.WorkItemType] IN ('User Story', 'Product Backlog Item', 'Requirement')
+      `,
+        }
+    );
+
+    return response.data.workItems.length;
 }
 
 export function extractWorkItemIds(

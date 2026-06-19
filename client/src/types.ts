@@ -128,6 +128,11 @@ export interface DashboardStats {
     groupedByPriority: Record<string, TestCaseRow[]>;
 }
 
+export interface DashboardResponse {
+    stats: DashboardStats;
+    cacheTimestamp: number;
+}
+
 export interface TrendPoint {
     date: string;
     total: number;
@@ -142,21 +147,6 @@ export interface TrendPoint {
 export interface ExecutionTrendResponse {
     trend: TrendPoint[];
     totalTestCases: number;
-}
-
-export interface DefectRecord {
-    id: number;
-    title: string;
-    state: string;
-    reason?: string;
-    severity?: string;
-    priority?: number;
-    areaPath: string;
-    createdDate: string;
-    closedDate?: string;
-    changedDate: string;
-    reopenedCount: number;
-    url?: string;
 }
 
 export interface DefectTrendPoint {

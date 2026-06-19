@@ -1,0 +1,220 @@
+{
+    "common": {
+        "title": "QA Dashboard"
+    },
+    "nav": {
+        "primary": "Principale",
+        "suites": "Sfoglia per Suite",
+        "dashboard": "Dashboard Completa",
+        "runs": "Ultime 10 Esecuzioni",
+        "plans": "Piani di Test",
+        "automation": "Automazione",
+        "execution": "Esecuzione Test",
+        "defects": "Gestione Difetti",
+        "refresh": "Aggiorna Ora",
+        "refreshing": "Aggiornamento...",
+        "refreshFailed": "Aggiornamento non riuscito: {{message}}"
+    },
+    "outcome": {
+        "Passed": "Superato",
+        "Failed": "Fallito",
+        "Blocked": "Bloccato",
+        "NotRun": "Non Eseguito",
+        "ariaLabel": "Risultato: {{outcome}}"
+    },
+    "suitesPage": {
+        "empty": "Nessuna suite trovata."
+    },
+    "dashboardPage": {
+        "title": "QA Dashboard",
+        "lastRefresh": "Ultimo Aggiornamento: {{date}} (durata cache: 5 minuti)",
+        "priority": "Priorità {{value}}",
+        "emptyFiltered": "Nessun test case corrisponde ai filtri attuali.",
+        "stats": {
+            "total": "Test Case Totali",
+            "withOpenBugs": "Con Bug Aperti",
+            "withoutOpenBugs": "Senza Bug Aperti",
+            "activeBugs": "Bug Attivi",
+            "closedBugs": "Bug Chiusi",
+            "passed": "Superati",
+            "failed": "Falliti",
+            "blocked": "Bloccati",
+            "notRun": "Non Eseguiti",
+            "passRate": "Percentuale di Successo"
+        }
+    },
+    "runsPage": {
+        "title": "QA Dashboard - Ultime 10 Esecuzioni",
+        "empty": "Nessuna esecuzione di test trovata."
+    },
+    "plansPage": {
+        "title": "Piani di Test",
+        "empty": "Nessun piano di test trovato."
+    },
+    "planDetailPage": {
+        "title": "Piano di Test {{id}}",
+        "backToPlans": "Torna ai Piani di Test",
+        "openInAzureDevOps": "Apri in Azure DevOps",
+        "suitesTitle": "Suite di Test",
+        "empty": "Nessuna suite di test trovata.",
+        "suiteEmpty": "Nessun test case in questa suite."
+    },
+    "automationDashboardPage": {
+        "title": "Dashboard di Automazione",
+        "minutes": "{{value}} min",
+        "kpis": {
+            "automatedTests": "Test Automatizzati",
+            "manualTests": "Test Manuali",
+            "automationCoveragePct": "Copertura di Automazione %",
+            "flakyTests": "Test Instabili",
+            "automationSuccessRate": "Percentuale di Successo Automazione"
+        },
+        "ciCd": {
+            "pipelineSuccessRate": "Percentuale di Successo Pipeline",
+            "pipelineFailureRate": "Percentuale di Fallimento Pipeline",
+            "avgPipelineDuration": "Durata Media Pipeline",
+            "testExecutionTime": "Tempo di Esecuzione Test"
+        },
+        "charts": {
+            "coverageByModule": "Copertura di Automazione per Modulo",
+            "flakyTestRanking": "Classifica Test Instabili",
+            "pipelineSuccessTrend": "Andamento Successo Pipeline"
+        }
+    },
+    "testExecutionPage": {
+        "title": "Esecuzione Test",
+        "sections": {
+            "metrics": "Metriche di Esecuzione",
+            "trends": "Andamenti",
+            "coverage": "Copertura",
+            "visuals": "Visualizzazioni"
+        },
+        "metrics": {
+            "total": "Test Case Totali",
+            "executed": "Test Eseguiti",
+            "passed": "Superati",
+            "failed": "Falliti",
+            "blocked": "Bloccati",
+            "notRun": "Non Eseguiti"
+        },
+        "trends": {
+            "passRate": "Andamento Percentuale di Successo",
+            "dailyExecution": "Avanzamento Esecuzione Giornaliera",
+            "failedTests": "Andamento Test Falliti"
+        },
+        "coverage": {
+            "tableLabel": "Copertura per suite",
+            "tabs": {
+                "requirements": "Requisiti",
+                "userStory": "User Story",
+                "feature": "Feature"
+            },
+            "columns": {
+                "name": "Nome",
+                "total": "Totale",
+                "executed": "Eseguiti",
+                "coverage": "Copertura %",
+                "passRate": "Percentuale di Successo"
+            }
+        },
+        "risk": {
+            "title": "Copertura del Rischio",
+            "tableLabel": "Copertura per priorità",
+            "highRisk": "Alto Rischio",
+            "priorityLabel": "Priorità {{value}}",
+            "columns": {
+                "priority": "Priorità",
+                "total": "Totale",
+                "passRate": "Percentuale di Successo",
+                "failed": "Falliti"
+            }
+        },
+        "visuals": {
+            "executionFunnel": "Funnel di Esecuzione",
+            "burnUp": "Avanzamento Test (Burn-up)",
+            "passFailTrend": "Andamento Superati/Falliti",
+            "totalLine": "Test Case Totali",
+            "executedLine": "Eseguiti (cumulativo)",
+            "funnel": {
+                "total": "Totale",
+                "executed": "Eseguiti",
+                "passed": "Superati"
+            }
+        }
+    },
+    "defectManagementPage": {
+        "title": "Gestione Difetti",
+        "stats": {
+            "totalOpen": "Bug Aperti",
+            "totalClosed": "Bug Chiusi",
+            "mttr": "Tempo Medio di Risoluzione",
+            "reopenedBugs": "Bug Riaperti",
+            "duplicateRate": "Percentuale Bug Duplicati",
+            "bugsPerStory": "Bug per Story",
+            "days": "{{value}} giorni",
+            "notAvailable": "N/D"
+        },
+        "charts": {
+            "trend": "Andamento Bug nel Tempo",
+            "opened": "Aperti",
+            "closed": "Chiusi",
+            "openTotal": "Totale Aperti",
+            "bySeverity": "Bug per Gravità",
+            "byPriority": "Bug per Priorità",
+            "byComponent": "Difetti per Componente/Modulo",
+            "byTeam": "Difetti per Team",
+            "aging": "Anzianità dei Difetti"
+        }
+    },
+    "filterBar": {
+        "areaPath": "Area Path",
+        "allAreas": "Tutte le Aree",
+        "suite": "Suite",
+        "allSuites": "Tutte le Suite",
+        "priority": "Priorità",
+        "allPriorities": "Tutte le Priorità",
+        "search": "Cerca",
+        "searchPlaceholder": "Cerca per titolo del test case..."
+    },
+    "suiteCard": {
+        "total": "Totale: {{count}}",
+        "summary": "Superati {{passed}} · Falliti {{failed}} · Bloccati {{blocked}} · Non Eseguiti {{notRun}}",
+        "openBugs": "Bug aperti: {{count}}",
+        "passRate": "Percentuale di successo: {{rate}}%"
+    },
+    "runCard": {
+        "state": "Stato: {{state}}",
+        "completed": "Completato: {{date}}",
+        "completedNA": "N/D",
+        "total": "Totale: {{count}}",
+        "summary": "Superati {{passed}} · Falliti {{failed}} · Bloccati {{blocked}} · Non Eseguiti {{notRun}}",
+        "passRate": "Percentuale di successo: {{rate}}%"
+    },
+    "planCard": {
+        "state": "Stato: {{state}}",
+        "area": "Area: {{areaPath}}",
+        "iteration": "Iterazione: {{iteration}}",
+        "owner": "Responsabile: {{owner}}"
+    },
+    "testCaseItem": {
+        "area": "Area: {{areaPath}}",
+        "bugsLinked": "Bug collegati: {{count}} ({{active}} attivi, {{closed}} chiusi)"
+    },
+    "errorState": {
+        "title": "Si è verificato un errore",
+        "retry": "Riprova"
+    },
+    "loadingState": {
+        "label": "Caricamento"
+    },
+    "themeSwitcher": {
+        "label": "Tema",
+        "light": "Chiaro",
+        "dark": "Scuro"
+    },
+    "languageSwitcher": {
+        "label": "Lingua",
+        "english": "English",
+        "italian": "Italiano"
+    }
+}

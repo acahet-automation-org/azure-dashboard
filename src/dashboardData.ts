@@ -15,6 +15,10 @@ import type {
     SuiteStat,
     RunCard,
     DashboardStats,
+    TrendPoint,
+    TestPlanSummary,
+    TestSuiteSummary,
+    TestCaseSummary,
 } from "./types.js";
 
 let dashboardCache: TestCaseRow[] | null = null;
@@ -288,6 +292,9 @@ export function computeDashboardStats(
         (tc) => tc.outcome === "NotRun"
     ).length;
 
+    const executedCount =
+        passedCount + failedCount + blockedCount;
+
     const passRate = totalTestCases
         ? Math.round(
             (passedCount / totalTestCases) * 1000
@@ -305,6 +312,7 @@ export function computeDashboardStats(
         failedCount,
         blockedCount,
         notRunCount,
+        executedCount,
         passRate,
         groupedByPriority: grouped,
     };
@@ -352,6 +360,149 @@ export function computeSuiteStats(
     return suiteStats;
 }
 
+function summarizeRunStats(
+    stats: any[]
+): {
+    counts: Record<Outcome, number>;
+    total: number;
+    passRate: number;
+} {
+    const counts: Record<Outcome, number> = {
+        Passed: 0,
+        Failed: 0,
+        Blocked: 0,
+        NotRun: 0,
+    };
+
+    for (const s of stats) {
+        const outcome = (
+            s.outcome ?? ""
+        ).toLowerCase();
+
+        if (outcome === "passed") {
+            counts.Passed += s.count;
+        } else if (outcome === "failed") {
+            counts.Failed += s.count;
+        } else if (outcome === "blocked") {
+            counts.Blocked += s.count;
+        } else {
+            counts.NotRun += s.count;
+        }
+    }
+
+    const total =
+        counts.Passed +
+        counts.Failed +
+        counts.Blocked +
+        counts.NotRun;
+
+    const passRate = total
+        ? Math.round(
+            (counts.Passed / total) * 1000
+        ) / 10
+        : 0;
+
+    return { counts, total, passRate };
+}
+
+export async function computeTestPlans(): Promise<
+    TestPlanSummary[]
+> {
+    const plans = await getTestPlans();
+
+    const org = process.env.AZDO_ORG;
+    const project = encodeURIComponent(
+        process.env.AZDO_PROJECT!
+    );
+
+    return plans.map((plan: any): TestPlanSummary => ({
+        id: plan.id,
+        name: plan.name,
+        url: `https://dev.azure.com/${org}/${project}/_testPlans/define?planId=${plan.id}&suiteId=${plan.rootSuite?.id ?? plan.id}`,
+        areaPath: plan.areaPath,
+        iteration: plan.iteration,
+        state: plan.state,
+        owner: plan.owner?.displayName,
+    }));
+}
+
+export async function computePlanSuites(
+    planId: number
+): Promise<TestSuiteSummary[]> {
+    const suites = await getSuites(planId);
+
+    const testCasesBySuiteId = new Map<
+        number,
+        TestCaseSummary[]
+    >(
+        await Promise.all(
+            suites.map(
+                async (
+                    suite: any
+                ): Promise<
+                    [number, TestCaseSummary[]]
+                > => {
+                    const testCases =
+                        await getTestCases(
+                            planId,
+                            suite.id
+                        );
+
+                    return [
+                        suite.id,
+                        testCases.map((tc: any) => ({
+                            id: tc.workItem.id,
+                            title: tc.workItem.name,
+                        })),
+                    ];
+                }
+            )
+        )
+    );
+
+    const nodesById = new Map<
+        number,
+        TestSuiteSummary
+    >(
+        suites.map((suite: any) => [
+            suite.id,
+            {
+                id: suite.id,
+                name: suite.name,
+                testCases:
+                    testCasesBySuiteId.get(suite.id) ??
+                    [],
+                children: [],
+            },
+        ])
+    );
+
+    const roots: TestSuiteSummary[] = [];
+
+    for (const suite of suites) {
+        const node = nodesById.get(suite.id)!;
+        const parentId = suite.parentSuite?.id;
+        const parentNode = parentId
+            ? nodesById.get(parentId)
+            : undefined;
+
+        if (parentNode) {
+            parentNode.children.push(node);
+        } else {
+            roots.push(node);
+        }
+    }
+
+    if (
+        roots.length === 1 &&
+        roots[0].children.length > 0
+    ) {
+        return roots[0].children;
+    }
+
+    return roots;
+}
+
 export async function computeRunCards(): Promise<
     RunCard[]
 > {
@@ -381,49 +532,8 @@ export async function computeRunCards(): Promise<
                         run.id
                     );
 
-                const counts: Record<
-                    Outcome,
-                    number
-                > = {
-                    Passed: 0,
-                    Failed: 0,
-                    Blocked: 0,
-                    NotRun: 0,
-                };
-
-                for (const s of stats) {
-                    const outcome = (
-                        s.outcome ?? ""
-                    ).toLowerCase();
-
-                    if (outcome === "passed") {
-                        counts.Passed += s.count;
-                    } else if (
-                        outcome === "failed"
-                    ) {
-                        counts.Failed += s.count;
-                    } else if (
-                        outcome === "blocked"
-                    ) {
-                        counts.Blocked += s.count;
-                    } else {
-                        counts.NotRun += s.count;
-                    }
-                }
-
-                const total =
-                    counts.Passed +
-                    counts.Failed +
-                    counts.Blocked +
-                    counts.NotRun;
-
-                const passRate = total
-                    ? Math.round(
-                        (counts.Passed /
-                            total) *
-                        1000
-                    ) / 10
-                    : 0;
+                const { counts, total, passRate } =
+                    summarizeRunStats(stats);
 
                 return {
                     id: run.id,
@@ -441,4 +551,92 @@ export async function computeRunCards(): Promise<
             }
         )
     );
+}
+
+export async function computeExecutionTrend(): Promise<
+    TrendPoint[]
+> {
+    const runs = await getTestRuns();
+
+    const runStats = await Promise.all(
+        runs.map(async (run: any) => ({
+            run,
+            ...summarizeRunStats(
+                await getTestRunStatistics(run.id)
+            ),
+        }))
+    );
+
+    const byDate = new Map<
+        string,
+        {
+            passed: number;
+            failed: number;
+            blocked: number;
+            notRun: number;
+        }
+    >();
+
+    for (const { run, counts } of runStats) {
+        const rawDate =
+            run.completedDate ?? run.startedDate;
+
+        if (!rawDate) {
+            continue;
+        }
+
+        const date = new Date(rawDate)
+            .toISOString()
+            .slice(0, 10);
+
+        const bucket = byDate.get(date) ?? {
+            passed: 0,
+            failed: 0,
+            blocked: 0,
+            notRun: 0,
+        };
+
+        bucket.passed += counts.Passed;
+        bucket.failed += counts.Failed;
+        bucket.blocked += counts.Blocked;
+        bucket.notRun += counts.NotRun;
+
+        byDate.set(date, bucket);
+    }
+
+    let cumulativeExecuted = 0;
+
+    return [...byDate.keys()]
+        .sort()
+        .map((date): TrendPoint => {
+            const bucket = byDate.get(date)!;
+
+            const total =
+                bucket.passed +
+                bucket.failed +
+                bucket.blocked +
+                bucket.notRun;
+
+            cumulativeExecuted +=
+                bucket.passed +
+                bucket.failed +
+                bucket.blocked;
+
+            const passRate = total
+                ? Math.round(
+                    (bucket.passed / total) * 1000
+                ) / 10
+                : 0;
+
+            return {
+                date,
+                total,
+                passed: bucket.passed,
+                failed: bucket.failed,
+                blocked: bucket.blocked,
+                notRun: bucket.notRun,
+                passRate,
+                cumulativeExecuted,
+            };
+        });
 }

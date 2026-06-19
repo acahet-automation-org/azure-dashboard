@@ -1,3 +1,5 @@
+import path from "path";
+import { fileURLToPath } from "url";
 import express from "express";
 import {
     getDashboardData,
@@ -6,84 +8,175 @@ import {
     computeDashboardStats,
     computeSuiteStats,
     computeRunCards,
+    computeExecutionTrend,
+    computeTestPlans,
+    computePlanSuites,
 } from "./dashboardData.js";
-import { renderDashboardPage } from "./views/dashboardView.js";
-import { renderSuitesPage } from "./views/suitesView.js";
-import { renderRunsPage } from "./views/runsView.js";
+import { getAutomationDashboard } from "./automationData.js";
+import {
+    getDefectData,
+    getDefectCacheTimestamp,
+    computeDefectStats,
+    clearDefectCache,
+    getStoryCount,
+} from "./defectData.js";
+
+const __dirname = path.dirname(
+    fileURLToPath(import.meta.url)
+);
+
+const clientDist = path.join(
+    __dirname,
+    "../client/dist"
+);
 
 const app = express();
 
-app.use(express.static("public"));
+app.use(express.static(clientDist));
 
-app.get("/", async (_, res) => {
+app.get("/api/suites", async (_, res) => {
     try {
         const allTestCases =
             await getDashboardData();
 
-        const suiteStats =
-            computeSuiteStats(allTestCases);
-
-        res.send(
-            renderSuitesPage(suiteStats)
+        res.json(
+            computeSuiteStats(allTestCases)
         );
     } catch (error: any) {
         console.error(error);
 
-        res.status(500).send(
-            error.message
-        );
+        res.status(500).json({
+            message: error.message,
+        });
     }
 });
 
-app.get("/dashboard", async (_, res) => {
+app.get("/api/dashboard", async (_, res) => {
     try {
         const allTestCases =
             await getDashboardData();
 
-        const stats =
-            computeDashboardStats(
+        res.json({
+            stats: computeDashboardStats(
                 allTestCases
-            );
-
-        res.send(
-            renderDashboardPage(
-                stats,
-                getCacheTimestamp()
-            )
-        );
+            ),
+            cacheTimestamp: getCacheTimestamp(),
+        });
     } catch (error: any) {
         console.error(error);
 
-        res.status(500).send(
-            error.message
-        );
+        res.status(500).json({
+            message: error.message,
+        });
     }
 });
 
-app.get(
-    "/last-5-runs",
-    async (_, res) => {
-        try {
-            const runCards =
-                await computeRunCards();
+app.get("/api/runs", async (_, res) => {
+    try {
+        res.json(await computeRunCards());
+    } catch (error: any) {
+        console.error(error);
 
-            res.send(
-                renderRunsPage(runCards)
-            );
-        } catch (error: any) {
-            console.error(error);
-
-            res.status(500).send(
-                error.message
-            );
-        }
+        res.status(500).json({
+            message: error.message,
+        });
     }
-);
+});
 
-app.get("/refresh", (_, res) => {
+app.get("/api/execution-trend", async (_, res) => {
+    try {
+        const [trend, allTestCases] =
+            await Promise.all([
+                computeExecutionTrend(),
+                getDashboardData(),
+            ]);
+
+        res.json({
+            trend,
+            totalTestCases: allTestCases.length,
+        });
+    } catch (error: any) {
+        console.error(error);
+
+        res.status(500).json({
+            message: error.message,
+        });
+    }
+});
+
+app.get("/api/plans", async (_, res) => {
+    try {
+        res.json(await computeTestPlans());
+    } catch (error: any) {
+        console.error(error);
+
+        res.status(500).json({
+            message: error.message,
+        });
+    }
+});
+
+app.get("/api/plans/:planId/suites", async (req, res) => {
+    try {
+        const planId = Number(req.params.planId);
+
+        res.json(await computePlanSuites(planId));
+    } catch (error: any) {
+        console.error(error);
+
+        res.status(500).json({
+            message: error.message,
+        });
+    }
+});
+
+app.get("/api/automation", async (_, res) => {
+    try {
+        res.json(await getAutomationDashboard());
+    } catch (error: any) {
+        console.error(error);
+
+        res.status(500).json({
+            message: error.message,
+        });
+    }
+});
+
+app.get("/api/defects", async (_, res) => {
+    try {
+        const [records, storyCount] =
+            await Promise.all([
+                getDefectData(),
+                getStoryCount(),
+            ]);
+
+        res.json({
+            stats: computeDefectStats(
+                records,
+                storyCount
+            ),
+            cacheTimestamp: getDefectCacheTimestamp(),
+        });
+    } catch (error: any) {
+        console.error(error);
+
+        res.status(500).json({
+            message: error.message,
+        });
+    }
+});
+
+app.post("/api/refresh", (_, res) => {
     clearDashboardCache();
+    clearDefectCache();
 
-    res.redirect("/dashboard");
+    res.status(204).end();
+});
+
+app.get(/^(?!\/api).*/, (_, res) => {
+    res.sendFile(
+        path.join(clientDist, "index.html")
+    );
 });
 
 app.listen(3000, () => {
