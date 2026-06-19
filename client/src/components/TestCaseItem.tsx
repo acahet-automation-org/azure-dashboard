@@ -2,10 +2,12 @@ import {
     Card,
     Text,
     Link as FluentLink,
+    Button,
     mergeClasses,
     makeStyles,
     tokens,
 } from "@fluentui/react-components";
+import { PlayCircleRegular } from "@fluentui/react-icons";
 import { useTranslation } from "react-i18next";
 import { OutcomeBadge } from "./OutcomeBadge";
 import { BugList } from "./BugList";
@@ -24,8 +26,17 @@ const useStyles = makeStyles({
     header: {
         display: "flex",
         alignItems: "center",
+        justifyContent: "space-between",
         gap: tokens.spacingHorizontalS,
         flexWrap: "wrap",
+    },
+    title: {
+        minWidth: 0,
+    },
+    actions: {
+        display: "flex",
+        alignItems: "center",
+        gap: tokens.spacingHorizontalS,
     },
     meta: {
         color: tokens.colorNeutralForeground3,
@@ -52,19 +63,37 @@ export function TestCaseItem({ testCase }: { testCase: TestCaseRow }) {
             )}
         >
             <div className={styles.header}>
-                {testCase.testCaseUrl ? (
-                    <FluentLink
-                        href={testCase.testCaseUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        {testCase.testCaseTitle}
-                    </FluentLink>
-                ) : (
-                    <Text weight="semibold">{testCase.testCaseTitle}</Text>
-                )}
+                <div className={styles.title}>
+                    {testCase.testCaseUrl ? (
+                        <FluentLink
+                            href={testCase.testCaseUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            {testCase.testCaseTitle}
+                        </FluentLink>
+                    ) : (
+                        <Text weight="semibold">{testCase.testCaseTitle}</Text>
+                    )}
+                </div>
 
-                <OutcomeBadge outcome={testCase.outcome} />
+                <div className={styles.actions}>
+                    {testCase.lastRunUrl && (
+                        <Button
+                            as="a"
+                            href={testCase.lastRunUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            appearance="secondary"
+                            size="small"
+                            icon={<PlayCircleRegular />}
+                        >
+                            {t("testCaseItem.latestRun")}
+                        </Button>
+                    )}
+
+                    <OutcomeBadge outcome={testCase.outcome} />
+                </div>
             </div>
 
             <Text className={styles.meta} block>

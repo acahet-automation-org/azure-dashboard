@@ -205,7 +205,8 @@
     },
     "testCaseItem": {
         "area": "Area: {{areaPath}}",
-        "bugsLinked": "Bug collegati: {{count}} ({{active}} attivi, {{closed}} chiusi)"
+        "bugsLinked": "Bug collegati: {{count}} ({{active}} attivi, {{closed}} chiusi)",
+        "latestRun": "Ultima esecuzione"
     },
     "errorState": {
         "title": "Si è verificato un errore",

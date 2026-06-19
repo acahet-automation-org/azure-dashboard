@@ -9,6 +9,7 @@ import {
     getWorkItems,
     extractWorkItemIds,
     buildWorkItemUrl,
+    buildTestRunUrl,
 } from "./azdo.js";
 import type {
     TestCaseRow,
@@ -61,7 +62,8 @@ async function buildTestCaseRow(
     tc: any,
     planName: string,
     suiteName: string,
-    outcomesByTestCase: Record<number, string[]>
+    outcomesByTestCase: Record<number, string[]>,
+    lastRunByTestCase: Record<number, number>
 ): Promise<TestCaseRow> {
     const workItem = await getWorkItem(
         tc.workItem.id
@@ -87,6 +89,9 @@ async function buildTestCaseRow(
             b.fields["System.State"] !==
             "Closed"
     );
+
+    const lastRunId =
+        lastRunByTestCase[tc.workItem.id];
 
     return {
         planName,
@@ -115,6 +120,10 @@ async function buildTestCaseRow(
             state: b.fields["System.State"],
             url: buildWorkItemUrl(b.id),
         })),
+        lastRunId,
+        lastRunUrl: lastRunId
+            ? buildTestRunUrl(lastRunId)
+            : undefined,
     };
 }
 
@@ -144,6 +153,16 @@ export async function buildDashboard(): Promise<
                 string[]
             > = {};
 
+            const lastRunByTestCase: Record<
+                number,
+                number
+            > = {};
+
+            const lastRunDateByTestCase: Record<
+                number,
+                number
+            > = {};
+
             for (const point of testPoints) {
                 const tcId =
                     point.testCaseReference?.id;
@@ -159,6 +178,27 @@ export async function buildDashboard(): Promise<
                 outcomesByTestCase[tcId].push(
                     point.results?.outcome ?? "none"
                 );
+
+                const runId =
+                    point.results?.lastTestRunId;
+
+                if (runId == null) {
+                    continue;
+                }
+
+                const completedDate = new Date(
+                    point.results?.lastResultDetails
+                        ?.dateCompleted ?? 0
+                ).getTime();
+
+                if (
+                    completedDate >=
+                    (lastRunDateByTestCase[tcId] ?? -1)
+                ) {
+                    lastRunDateByTestCase[tcId] =
+                        completedDate;
+                    lastRunByTestCase[tcId] = runId;
+                }
             }
 
             const rows = await Promise.all(
@@ -167,7 +207,8 @@ export async function buildDashboard(): Promise<
                         tc,
                         plan.name,
                         suite.name,
-                        outcomesByTestCase
+                        outcomesByTestCase,
+                        lastRunByTestCase
                     )
                 )
             );
