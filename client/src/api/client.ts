@@ -2,6 +2,11 @@ import type {
     SuiteStat,
     DashboardResponse,
     RunCard,
+    AutomationDashboardResponse,
+    ExecutionTrendResponse,
+    TestPlanSummary,
+    TestSuiteSummary,
+    DefectDashboardResponse,
 } from "../types";
 
 async function getJson<T>(url: string): Promise<T> {
@@ -33,6 +38,28 @@ export function fetchDashboard(): Promise<DashboardResponse> {
 
 export function fetchRuns(): Promise<RunCard[]> {
     return getJson("/api/runs");
+}
+
+export function fetchPlans(): Promise<TestPlanSummary[]> {
+    return getJson("/api/plans");
+}
+
+export function fetchPlanSuites(
+    planId: number
+): Promise<TestSuiteSummary[]> {
+    return getJson(`/api/plans/${planId}/suites`);
+}
+
+export function fetchAutomationDashboard(): Promise<AutomationDashboardResponse> {
+    return getJson("/api/automation");
+}
+
+export function fetchExecutionTrend(): Promise<ExecutionTrendResponse> {
+    return getJson("/api/execution-trend");
+}
+
+export function fetchDefects(): Promise<DefectDashboardResponse> {
+    return getJson("/api/defects");
 }
 
 export async function postRefresh(): Promise<void> {

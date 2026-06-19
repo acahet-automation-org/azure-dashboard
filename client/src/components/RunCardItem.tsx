@@ -1,5 +1,6 @@
 import { Text, Title3, makeStyles, tokens } from "@fluentui/react-components";
 import { PlayCircleRegular } from "@fluentui/react-icons";
+import { useTranslation } from "react-i18next";
 import type { RunCard } from "../types";
 
 const useStyles = makeStyles({
@@ -29,6 +30,7 @@ const useStyles = makeStyles({
 
 export function RunCardItem({ run }: { run: RunCard }) {
     const styles = useStyles();
+    const { t, i18n } = useTranslation();
 
     return (
         <a
@@ -42,24 +44,32 @@ export function RunCardItem({ run }: { run: RunCard }) {
                 {run.name}
             </Title3>
 
-            <Text>State: {run.state}</Text>
+            <Text>{t("runCard.state", { state: run.state })}</Text>
 
             <Text>
-                Completed:{" "}
-                {run.completedDate
-                    ? new Date(run.completedDate).toLocaleString()
-                    : "N/A"}
+                {t("runCard.completed", {
+                    date: run.completedDate
+                        ? new Date(run.completedDate).toLocaleString(
+                              i18n.language
+                          )
+                        : t("runCard.completedNA"),
+                })}
             </Text>
 
-            <Text>Total: {run.total}</Text>
+            <Text>{t("runCard.total", { count: run.total })}</Text>
 
             <Text>
-                Passed {run.counts.Passed} &middot; Failed {run.counts.Failed}{" "}
-                &middot; Blocked {run.counts.Blocked} &middot; Not Run{" "}
-                {run.counts.NotRun}
+                {t("runCard.summary", {
+                    passed: run.counts.Passed,
+                    failed: run.counts.Failed,
+                    blocked: run.counts.Blocked,
+                    notRun: run.counts.NotRun,
+                })}
             </Text>
 
-            <Text className={styles.passRate}>Pass rate: {run.passRate}%</Text>
+            <Text className={styles.passRate}>
+                {t("runCard.passRate", { rate: run.passRate })}
+            </Text>
         </a>
     );
 }

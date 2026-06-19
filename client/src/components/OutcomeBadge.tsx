@@ -5,6 +5,7 @@ import {
     ErrorCircleFilled,
     SubtractCircleFilled,
 } from "@fluentui/react-icons";
+import { useTranslation } from "react-i18next";
 import type { Outcome } from "../types";
 
 const outcomeConfig: Record<
@@ -18,16 +19,18 @@ const outcomeConfig: Record<
 };
 
 export function OutcomeBadge({ outcome }: { outcome: Outcome }) {
+    const { t } = useTranslation();
     const config = outcomeConfig[outcome];
+    const label = t(`outcome.${outcome}`);
 
     return (
         <Badge
             color={config.color}
             icon={config.icon}
             appearance="filled"
-            aria-label={`Outcome: ${outcome}`}
+            aria-label={t("outcome.ariaLabel", { outcome: label })}
         >
-            {outcome}
+            {label}
         </Badge>
     );
 }

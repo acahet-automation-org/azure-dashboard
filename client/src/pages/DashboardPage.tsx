@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Accordion, Text, Title2, makeStyles, tokens } from "@fluentui/react-components";
 import {
     CheckmarkCircleFilled,
@@ -16,6 +17,7 @@ import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { fetchDashboard } from "../api/client";
+import { computeGroupStats } from "../utils/stats";
 import type { TestCaseRow } from "../types";
 
 const useStyles = makeStyles({
@@ -33,55 +35,6 @@ const useStyles = makeStyles({
         color: tokens.colorNeutralForeground3,
     },
 });
-
-function computeFilteredStats(rows: TestCaseRow[]) {
-    let withOpenBugs = 0;
-    let activeBugs = 0;
-    let closedBugs = 0;
-    let passed = 0;
-    let failed = 0;
-    let blocked = 0;
-    let notRun = 0;
-
-    for (const tc of rows) {
-        const active = tc.bugs.filter((b) => b.state !== "Closed").length;
-
-        activeBugs += active;
-        closedBugs += tc.bugs.length - active;
-
-        if (tc.hasOpenBugs) {
-            withOpenBugs++;
-        }
-
-        if (tc.outcome === "Passed") {
-            passed++;
-        } else if (tc.outcome === "Failed") {
-            failed++;
-        } else if (tc.outcome === "Blocked") {
-            blocked++;
-        } else {
-            notRun++;
-        }
-    }
-
-    const total = rows.length;
-    const passRate = total
-        ? Math.round((passed / total) * 1000) / 10
-        : 0;
-
-    return {
-        total,
-        withOpenBugs,
-        withoutOpenBugs: total - withOpenBugs,
-        activeBugs,
-        closedBugs,
-        passed,
-        failed,
-        blocked,
-        notRun,
-        passRate,
-    };
-}
 
 function matchesFilters(
     tc: TestCaseRow,
@@ -116,6 +69,7 @@ function matchesFilters(
 
 export function DashboardPage() {
     const styles = useStyles();
+    const { t, i18n } = useTranslation();
     const [searchParams] = useSearchParams();
 
     const { data, isLoading, isError, error, refetch } = useQuery({
@@ -187,14 +141,14 @@ export function DashboardPage() {
 
     const filteredStats = useMemo(
         () =>
-            computeFilteredStats(
+            computeGroupStats(
                 filteredByPriority.flatMap(([, rows]) => rows)
             ),
         [filteredByPriority]
     );
 
     return (
-        <PageLayout title="QA Dashboard">
+        <PageLayout title={t("dashboardPage.title")}>
             {isLoading && <LoadingCardGrid />}
 
             {isError && (
@@ -204,11 +158,11 @@ export function DashboardPage() {
             {data && (
                 <>
                     <Text className={styles.meta}>
-                        Last Refresh:{" "}
-                        {new Date(
-                            data.cacheTimestamp
-                        ).toLocaleString()}{" "}
-                        (cache duration: 5 minutes)
+                        {t("dashboardPage.lastRefresh", {
+                            date: new Date(data.cacheTimestamp).toLocaleString(
+                                i18n.language
+                            ),
+                        })}
                     </Text>
 
                     <FilterBar
@@ -221,54 +175,54 @@ export function DashboardPage() {
 
                     <div className={styles.statsRow}>
                         <StatCard
-                            label="Total Test Cases"
+                            label={t("dashboardPage.stats.total")}
                             value={filteredStats.total}
                         />
                         <StatCard
-                            label="With Open Bugs"
+                            label={t("dashboardPage.stats.withOpenBugs")}
                             value={filteredStats.withOpenBugs}
                             icon={<DismissCircleFilled />}
                         />
                         <StatCard
-                            label="Without Open Bugs"
+                            label={t("dashboardPage.stats.withoutOpenBugs")}
                             value={filteredStats.withoutOpenBugs}
                             icon={<CheckmarkCircleFilled />}
                         />
                         <StatCard
-                            label="Active Bugs"
+                            label={t("dashboardPage.stats.activeBugs")}
                             value={filteredStats.activeBugs}
                             icon={<BugFilled />}
                         />
                         <StatCard
-                            label="Closed Bugs"
+                            label={t("dashboardPage.stats.closedBugs")}
                             value={filteredStats.closedBugs}
                             icon={<CheckmarkCircleFilled />}
                         />
                         <StatCard
-                            label="Passed"
+                            label={t("dashboardPage.stats.passed")}
                             value={filteredStats.passed}
                         />
                         <StatCard
-                            label="Failed"
+                            label={t("dashboardPage.stats.failed")}
                             value={filteredStats.failed}
                         />
                         <StatCard
-                            label="Blocked"
+                            label={t("dashboardPage.stats.blocked")}
                             value={filteredStats.blocked}
                             icon={<ErrorCircleFilled />}
                         />
                         <StatCard
-                            label="Not Run"
+                            label={t("dashboardPage.stats.notRun")}
                             value={filteredStats.notRun}
                         />
                         <StatCard
-                            label="Pass Rate"
+                            label={t("dashboardPage.stats.passRate")}
                             value={`${filteredStats.passRate}%`}
                         />
                     </div>
 
                     {filteredByPriority.length === 0 ? (
-                        <EmptyState message="No test cases match the current filters." />
+                        <EmptyState message={t("dashboardPage.emptyFiltered")} />
                     ) : (
                         filteredByPriority.map(([priority, rows]) => {
                             const suiteGroups = new Map<
@@ -296,7 +250,9 @@ export function DashboardPage() {
                                     className={styles.priority}
                                 >
                                     <Title2 as="h2">
-                                        Priority {priority}
+                                        {t("dashboardPage.priority", {
+                                            value: priority,
+                                        })}
                                     </Title2>
 
                                     <Accordion

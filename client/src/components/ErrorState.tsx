@@ -1,4 +1,5 @@
 import { MessageBar, MessageBarBody, MessageBarTitle, Button } from "@fluentui/react-components";
+import { useTranslation } from "react-i18next";
 
 export function ErrorState({
     message,
@@ -7,14 +8,16 @@ export function ErrorState({
     message: string;
     onRetry: () => void;
 }) {
+    const { t } = useTranslation();
+
     return (
         <MessageBar intent="error">
             <MessageBarBody>
-                <MessageBarTitle>Something went wrong</MessageBarTitle>
+                <MessageBarTitle>{t("errorState.title")}</MessageBarTitle>
                 {message}
             </MessageBarBody>
             <Button appearance="secondary" onClick={onRetry}>
-                Retry
+                {t("errorState.retry")}
             </Button>
         </MessageBar>
     );

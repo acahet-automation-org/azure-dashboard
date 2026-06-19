@@ -2,21 +2,21 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { PageLayout } from "../components/PageLayout";
 import { CardGrid } from "../components/CardGrid";
-import { RunCardItem } from "../components/RunCardItem";
+import { PlanCardItem } from "../components/PlanCardItem";
 import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
-import { fetchRuns } from "../api/client";
+import { fetchPlans } from "../api/client";
 
-export function RunsPage() {
+export function PlansPage() {
     const { t } = useTranslation();
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["runs"],
-        queryFn: fetchRuns,
+        queryKey: ["plans"],
+        queryFn: fetchPlans,
     });
 
     return (
-        <PageLayout title={t("runsPage.title")}>
+        <PageLayout title={t("plansPage.title")}>
             {isLoading && <LoadingCardGrid count={10} />}
 
             {isError && (
@@ -25,11 +25,11 @@ export function RunsPage() {
 
             {data &&
                 (data.length === 0 ? (
-                    <EmptyState message={t("runsPage.empty")} />
+                    <EmptyState message={t("plansPage.empty")} />
                 ) : (
                     <CardGrid>
-                        {data.map((run) => (
-                            <RunCardItem key={run.id} run={run} />
+                        {data.map((plan) => (
+                            <PlanCardItem key={plan.id} plan={plan} />
                         ))}
                     </CardGrid>
                 ))}

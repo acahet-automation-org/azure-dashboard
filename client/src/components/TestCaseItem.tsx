@@ -6,6 +6,7 @@ import {
     makeStyles,
     tokens,
 } from "@fluentui/react-components";
+import { useTranslation } from "react-i18next";
 import { OutcomeBadge } from "./OutcomeBadge";
 import { BugList } from "./BugList";
 import type { TestCaseRow } from "../types";
@@ -35,6 +36,7 @@ const useStyles = makeStyles({
 
 export function TestCaseItem({ testCase }: { testCase: TestCaseRow }) {
     const styles = useStyles();
+    const { t } = useTranslation();
 
     const activeBugs = testCase.bugs.filter(
         (b) => b.state !== "Closed"
@@ -66,14 +68,17 @@ export function TestCaseItem({ testCase }: { testCase: TestCaseRow }) {
             </div>
 
             <Text className={styles.meta} block>
-                Area: {testCase.areaPath}
+                {t("testCaseItem.area", { areaPath: testCase.areaPath })}
             </Text>
 
             {testCase.bugs.length > 0 && (
                 <>
                     <Text className={styles.meta} block>
-                        Bugs linked: {testCase.bugs.length} ({activeBugs}{" "}
-                        active, {closedBugs} closed)
+                        {t("testCaseItem.bugsLinked", {
+                            count: testCase.bugs.length,
+                            active: activeBugs,
+                            closed: closedBugs,
+                        })}
                     </Text>
 
                     <BugList bugs={testCase.bugs} />

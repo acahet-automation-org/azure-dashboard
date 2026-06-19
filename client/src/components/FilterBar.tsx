@@ -1,5 +1,6 @@
 import { Dropdown, Option, Input, Field, makeStyles, tokens } from "@fluentui/react-components";
 import { ChevronDownRegular } from "@fluentui/react-icons";
+import { useTranslation } from "react-i18next";
 
 export interface DashboardFilters {
     area: string;
@@ -44,14 +45,18 @@ export function FilterBar({
     onChange: (next: DashboardFilters) => void;
 }) {
     const styles = useStyles();
+    const { t } = useTranslation();
+    const allAreas = t("filterBar.allAreas");
+    const allSuites = t("filterBar.allSuites");
+    const allPriorities = t("filterBar.allPriorities");
 
     return (
         <div className={styles.bar}>
-            <Field label="Area Path" className={styles.field}>
+            <Field label={t("filterBar.areaPath")} className={styles.field}>
                 <Dropdown
                     expandIcon={<ChevronDownRegular className={styles.chevron} />}
                     button={{ className: styles.dropdownButton }}
-                    value={filters.area || "All Areas"}
+                    value={filters.area || allAreas}
                     selectedOptions={filters.area ? [filters.area] : [""]}
                     onOptionSelect={(_, data) =>
                         onChange({
@@ -61,7 +66,7 @@ export function FilterBar({
                         })
                     }
                 >
-                    <Option value="">All Areas</Option>
+                    <Option value="">{allAreas}</Option>
                     {areaPaths.map((p) => (
                         <Option key={p} value={p}>
                             {p}
@@ -70,17 +75,17 @@ export function FilterBar({
                 </Dropdown>
             </Field>
 
-            <Field label="Suite" className={styles.field}>
+            <Field label={t("filterBar.suite")} className={styles.field}>
                 <Dropdown
                     expandIcon={<ChevronDownRegular className={styles.chevron} />}
                     button={{ className: styles.dropdownButton }}
-                    value={filters.suite || "All Suites"}
+                    value={filters.suite || allSuites}
                     selectedOptions={filters.suite ? [filters.suite] : [""]}
                     onOptionSelect={(_, data) =>
                         onChange({ ...filters, suite: data.optionValue ?? "" })
                     }
                 >
-                    <Option value="">All Suites</Option>
+                    <Option value="">{allSuites}</Option>
                     {suiteOptions.map((s) => (
                         <Option key={s} value={s}>
                             {s}
@@ -89,14 +94,14 @@ export function FilterBar({
                 </Dropdown>
             </Field>
 
-            <Field label="Priority" className={styles.field}>
+            <Field label={t("filterBar.priority")} className={styles.field}>
                 <Dropdown
                     expandIcon={<ChevronDownRegular className={styles.chevron} />}
                     button={{ className: styles.dropdownButton }}
                     value={
                         filters.priority
-                            ? `Priority ${filters.priority}`
-                            : "All Priorities"
+                            ? t("dashboardPage.priority", { value: filters.priority })
+                            : allPriorities
                     }
                     selectedOptions={filters.priority ? [filters.priority] : [""]}
                     onOptionSelect={(_, data) =>
@@ -106,26 +111,26 @@ export function FilterBar({
                         })
                     }
                 >
-                    <Option value="">All Priorities</Option>
+                    <Option value="">{allPriorities}</Option>
                     {priorities.map((p) => (
                         <Option
                             key={p}
                             value={String(p)}
-                            text={`Priority ${p}`}
+                            text={t("dashboardPage.priority", { value: p })}
                         >
-                            Priority {p}
+                            {t("dashboardPage.priority", { value: p })}
                         </Option>
                     ))}
                 </Dropdown>
             </Field>
 
-            <Field label="Search" className={styles.field}>
+            <Field label={t("filterBar.search")} className={styles.field}>
                 <Input
                     value={filters.search}
                     onChange={(_, data) =>
                         onChange({ ...filters, search: data.value })
                     }
-                    placeholder="Search test case title..."
+                    placeholder={t("filterBar.searchPlaceholder")}
                 />
             </Field>
         </div>

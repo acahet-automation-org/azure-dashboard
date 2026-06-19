@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Text, Title3, makeStyles, tokens } from "@fluentui/react-components";
 import { FolderRegular, BugRegular } from "@fluentui/react-icons";
+import { useTranslation } from "react-i18next";
 import type { SuiteStat } from "../types";
 
 const useStyles = makeStyles({
@@ -47,6 +48,7 @@ export function SuiteCard({
     stat: SuiteStat;
 }) {
     const styles = useStyles();
+    const { t } = useTranslation();
 
     const passRate = stat.total
         ? Math.round((stat.passed / stat.total) * 1000) / 10
@@ -62,19 +64,25 @@ export function SuiteCard({
                 {suiteName}
             </Title3>
 
-            <Text>Total: {stat.total}</Text>
+            <Text>{t("suiteCard.total", { count: stat.total })}</Text>
 
             <Text className={styles.row}>
-                Passed {stat.passed} &middot; Failed {stat.failed} &middot;
-                Blocked {stat.blocked} &middot; Not Run {stat.notRun}
+                {t("suiteCard.summary", {
+                    passed: stat.passed,
+                    failed: stat.failed,
+                    blocked: stat.blocked,
+                    notRun: stat.notRun,
+                })}
             </Text>
 
             <Text className={styles.bugs}>
                 <BugRegular aria-hidden="true" />
-                Open bugs: {stat.openBugs}
+                {t("suiteCard.openBugs", { count: stat.openBugs })}
             </Text>
 
-            <Text className={styles.passRate}>Pass rate: {passRate}%</Text>
+            <Text className={styles.passRate}>
+                {t("suiteCard.passRate", { rate: passRate })}
+            </Text>
         </Link>
     );
 }

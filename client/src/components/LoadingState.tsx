@@ -1,4 +1,5 @@
 import { Card, Skeleton, SkeletonItem, makeStyles, tokens } from "@fluentui/react-components";
+import { useTranslation } from "react-i18next";
 
 const useStyles = makeStyles({
     grid: {
@@ -16,9 +17,14 @@ const useStyles = makeStyles({
 
 export function LoadingCardGrid({ count = 6 }: { count?: number }) {
     const styles = useStyles();
+    const { t } = useTranslation();
 
     return (
-        <div className={styles.grid} aria-busy="true" aria-label="Loading">
+        <div
+            className={styles.grid}
+            aria-busy="true"
+            aria-label={t("loadingState.label")}
+        >
             {Array.from({ length: count }).map((_, i) => (
                 <Card key={i} className={styles.card}>
                     <Skeleton>
