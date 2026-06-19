@@ -4,6 +4,7 @@
     },
     "nav": {
         "primary": "Primary",
+        "home": "Go to home",
         "suites": "Browse by Suite",
         "dashboard": "Full Dashboard",
         "runs": "Last 10 Runs",

@@ -5,7 +5,7 @@ import type { TestCaseRow } from "../types";
 
 export interface ExportableRow {
     testPlan?: string;
-    suiteName: string;
+    suiteName?: string;
     testCaseTitle?: string;
     outcome?: string;
     linkedDefects?: string;
@@ -14,6 +14,65 @@ export interface ExportableRow {
 export interface SuiteBugTotal {
     suiteName: string;
     totalBugs: number;
+}
+
+export interface SuiteHeaderStats {
+    suiteName: string;
+    total: number;
+    passed: number;
+    failed: number;
+    blocked: number;
+    notRun: number;
+    openBugs: number;
+    closedBugs: number;
+}
+
+export function buildSuiteHeaderStats(
+    rows: TestCaseRow[]
+): SuiteHeaderStats {
+    const bugStateById = new Map<number, string>();
+    let passed = 0;
+    let failed = 0;
+    let blocked = 0;
+    let notRun = 0;
+
+    for (const row of rows) {
+        if (row.outcome === "Passed") {
+            passed++;
+        } else if (row.outcome === "Failed") {
+            failed++;
+        } else if (row.outcome === "Blocked") {
+            blocked++;
+        } else {
+            notRun++;
+        }
+
+        for (const bug of row.bugs) {
+            bugStateById.set(bug.id, bug.state);
+        }
+    }
+
+    let openBugs = 0;
+    let closedBugs = 0;
+
+    for (const state of bugStateById.values()) {
+        if (state === "Closed") {
+            closedBugs++;
+        } else {
+            openBugs++;
+        }
+    }
+
+    return {
+        suiteName: rows[0]?.suiteName ?? "",
+        total: rows.length,
+        passed,
+        failed,
+        blocked,
+        notRun,
+        openBugs,
+        closedBugs,
+    };
 }
 
 export function buildSuiteBugTotals(rows: TestCaseRow[]): SuiteBugTotal[] {
@@ -166,7 +225,8 @@ export function exportToPdf(
     filename: string,
     title: string,
     rows: ExportableRow[],
-    suiteBugTotals?: SuiteBugTotal[]
+    suiteBugTotals?: SuiteBugTotal[],
+    suiteHeader?: SuiteHeaderStats
 ): void {
     const columns = activeColumns(rows);
     const doc = new jsPDF({
@@ -177,6 +237,43 @@ export function exportToPdf(
     doc.text(title, 14, 15);
 
     let nextY = 22;
+
+    if (suiteHeader) {
+        doc.setFontSize(11);
+        doc.text(`Suite: ${suiteHeader.suiteName}`, 14, nextY);
+        nextY += 5;
+
+        autoTable(doc, {
+            startY: nextY,
+            head: [
+                [
+                    "Total Tests",
+                    "Passed",
+                    "Failed",
+                    "Not Run",
+                    "Blocked",
+                    "Bugs Open",
+                    "Bugs Closed",
+                ],
+            ],
+            body: [
+                [
+                    String(suiteHeader.total),
+                    String(suiteHeader.passed),
+                    String(suiteHeader.failed),
+                    String(suiteHeader.notRun),
+                    String(suiteHeader.blocked),
+                    String(suiteHeader.openBugs),
+                    String(suiteHeader.closedBugs),
+                ],
+            ],
+            styles: { fontSize: 8 },
+            headStyles: { fillColor: [0, 90, 158] },
+        });
+
+        nextY = (doc as unknown as { lastAutoTable: { finalY: number } })
+            .lastAutoTable.finalY + 10;
+    }
 
     if (rows.length > 0) {
         autoTable(doc, {
@@ -193,7 +290,7 @@ export function exportToPdf(
             .lastAutoTable.finalY + 10;
     }
 
-    if (suiteBugTotals && suiteBugTotals.length > 0) {
+    if (!suiteHeader && suiteBugTotals && suiteBugTotals.length > 0) {
         doc.setFontSize(12);
         doc.text("Total bugs by suite", 14, nextY);
         nextY += 4;

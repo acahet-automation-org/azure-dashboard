@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
     TabList,
     Tab,
@@ -32,6 +32,15 @@ const useStyles = makeStyles({
         borderBottomStyle: "solid",
         borderBottomColor: tokens.colorNeutralStroke2,
         backgroundColor: tokens.colorNeutralBackground1,
+    },
+    logoLink: {
+        display: "flex",
+        alignItems: "center",
+        flexShrink: 0,
+    },
+    logo: {
+        height: "32px",
+        width: "auto",
     },
     tabs: {
         overflowX: "auto",
@@ -104,6 +113,10 @@ export function NavBar() {
 
     return (
         <nav className={styles.bar} aria-label={t("nav.primary")}>
+            <Link to="/" className={styles.logoLink} aria-label={t("nav.home")}>
+                <img src="/login_itas.svg" alt={t("nav.home")} className={styles.logo} />
+            </Link>
+
             <TabList
                 className={styles.tabs}
                 selectedValue={valueForPath(location.pathname)}

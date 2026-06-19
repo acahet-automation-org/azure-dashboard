@@ -21,6 +21,7 @@ import { fetchDashboard } from "../api/client";
 import { computeGroupStats } from "../utils/stats";
 import {
     buildSuiteBugTotals,
+    buildSuiteHeaderStats,
     exportToCsv,
     exportToExcel,
     exportToPdf,
@@ -168,25 +169,37 @@ export function DashboardPage() {
     );
 
     const handleExport = (format: ExportFormat) => {
-        const rows: ExportableRow[] = filteredTestCases.map((tc) => ({
-            testPlan: tc.planName,
-            suiteName: tc.suiteName,
-            testCaseTitle: tc.testCaseTitle,
-            outcome: t(`outcome.${tc.outcome}`),
-            linkedDefects: tc.bugs
-                .map((bug) => `#${bug.id}: ${bug.title} (${bug.state})`)
-                .join("\n"),
-        }));
+        const isSingleSuiteFiltered = Boolean(filters.suite);
+
+        const buildRows = (includeSuiteColumn: boolean): ExportableRow[] =>
+            filteredTestCases.map((tc) => ({
+                testPlan: tc.planName,
+                ...(includeSuiteColumn ? { suiteName: tc.suiteName } : {}),
+                testCaseTitle: tc.testCaseTitle,
+                outcome: t(`outcome.${tc.outcome}`),
+                linkedDefects: tc.bugs
+                    .map((bug) => `#${bug.id}: ${bug.title} (${bug.state})`)
+                    .join("\n"),
+            }));
         const suiteBugTotals = buildSuiteBugTotals(filteredTestCases);
         const filename = `dashboard-export-${Date.now()}`;
         const title = t("dashboardPage.title");
 
         if (format === "csv") {
-            exportToCsv(filename, rows, suiteBugTotals);
+            exportToCsv(filename, buildRows(true), suiteBugTotals);
         } else if (format === "excel") {
-            void exportToExcel(filename, rows, suiteBugTotals);
+            void exportToExcel(filename, buildRows(true), suiteBugTotals);
+        } else if (isSingleSuiteFiltered) {
+            const suiteHeader = buildSuiteHeaderStats(filteredTestCases);
+            exportToPdf(
+                filename,
+                title,
+                buildRows(false),
+                undefined,
+                suiteHeader
+            );
         } else {
-            exportToPdf(filename, title, rows, suiteBugTotals);
+            exportToPdf(filename, title, buildRows(true), suiteBugTotals);
         }
     };
 
