@@ -183,6 +183,15 @@ export function buildWorkItemUrl(id: number): string {
     return `https://dev.azure.com/${org}/${project}/_workitems/edit/${id}`;
 }
 
+export function buildTestRunUrl(runId: number): string {
+    const org = process.env.AZDO_ORG;
+    const project = encodeURIComponent(
+        process.env.AZDO_PROJECT!
+    );
+
+    return `https://dev.azure.com/${org}/${project}/_TestManagement/Runs?runId=${runId}&_a=runCharts`;
+}
+
 export function extractWorkItemIds(
     relations: any[] = []
 ): number[] {

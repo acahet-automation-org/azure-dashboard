@@ -22,6 +22,8 @@ export interface TestCaseRow {
     hasOpenBugs: boolean;
     outcome: Outcome;
     bugs: BugInfo[];
+    lastRunId?: number;
+    lastRunUrl?: string;
 }
 
 export interface SuiteStat {

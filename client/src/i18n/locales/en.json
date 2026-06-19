@@ -205,7 +205,8 @@
     },
     "testCaseItem": {
         "area": "Area: {{areaPath}}",
-        "bugsLinked": "Bugs linked: {{count}} ({{active}} active, {{closed}} closed)"
+        "bugsLinked": "Bugs linked: {{count}} ({{active}} active, {{closed}} closed)",
+        "latestRun": "Latest run"
     },
     "errorState": {
         "title": "Something went wrong",
