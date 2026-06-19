@@ -20,6 +20,11 @@ import {
     clearDefectCache,
     getStoryCount,
 } from "./defectData.js";
+import {
+    getCommonErrorsData,
+    getCommonErrorsCacheTimestamp,
+    clearCommonErrorsCache,
+} from "./errorAggregationData.js";
 
 const __dirname = path.dirname(
     fileURLToPath(import.meta.url)
@@ -166,9 +171,30 @@ app.get("/api/defects", async (_, res) => {
     }
 });
 
+app.get("/api/common-errors", async (_, res) => {
+    try {
+        const { errors, totalFailedResults } =
+            await getCommonErrorsData();
+
+        res.json({
+            errors,
+            totalFailedResults,
+            cacheTimestamp:
+                getCommonErrorsCacheTimestamp(),
+        });
+    } catch (error: any) {
+        console.error(error);
+
+        res.status(500).json({
+            message: error.message,
+        });
+    }
+});
+
 app.post("/api/refresh", (_, res) => {
     clearDashboardCache();
     clearDefectCache();
+    clearCommonErrorsCache();
 
     res.status(204).end();
 });

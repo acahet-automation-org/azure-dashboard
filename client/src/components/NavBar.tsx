@@ -68,6 +68,7 @@ const routeForValue: Record<string, string> = {
     automation: "/automation-dashboard",
     execution: "/test-execution",
     defects: "/defects",
+    commonErrors: "/common-errors",
 };
 
 function valueForPath(pathname: string): string {
@@ -95,6 +96,10 @@ function valueForPath(pathname: string): string {
         return "defects";
     }
 
+    if (pathname === "/common-errors") {
+        return "commonErrors";
+    }
+
     return "suites";
 }
 
@@ -116,6 +121,7 @@ export function NavBar() {
             queryClient.invalidateQueries({ queryKey: ["automation"] });
             queryClient.invalidateQueries({ queryKey: ["execution-trend"] });
             queryClient.invalidateQueries({ queryKey: ["defects"] });
+            queryClient.invalidateQueries({ queryKey: ["common-errors"] });
         },
     });
 
@@ -146,6 +152,7 @@ export function NavBar() {
                 <Tab value="automation">{t("nav.automation")}</Tab>
                 <Tab value="execution">{t("nav.execution")}</Tab>
                 <Tab value="defects">{t("nav.defects")}</Tab>
+                <Tab value="commonErrors">{t("nav.commonErrors")}</Tab>
             </TabList>
 
             <div className={styles.controls}>

@@ -12,6 +12,7 @@
         "automation": "Automazione",
         "execution": "Esecuzione Test",
         "defects": "Gestione Difetti",
+        "commonErrors": "Errori Comuni",
         "refresh": "Aggiorna Ora",
         "refreshing": "Aggiornamento...",
         "refreshFailed": "Aggiornamento non riuscito: {{message}}"
@@ -171,6 +172,21 @@
             "withoutLinkedTestCase": "Difetti Senza Test Case Collegati",
             "excludeClosed": "Escludi difetti chiusi",
             "noGaps": "Nessun difetto senza un test case collegato."
+        }
+    },
+    "commonErrorsPage": {
+        "title": "Errori Comuni",
+        "empty": "Nessun risultato di test fallito con messaggi di errore trovato.",
+        "kpis": {
+            "totalFailedResults": "Risultati Falliti Totali",
+            "uniqueSignatures": "Firme di Errore Univoche",
+            "topErrorCount": "Occorrenze dell'Errore Principale"
+        },
+        "charts": {
+            "topErrors": "Errori Principali per Frequenza"
+        },
+        "table": {
+            "affectedTestCases": "Test Case Interessati ({{count}})"
         }
     },
     "filterBar": {

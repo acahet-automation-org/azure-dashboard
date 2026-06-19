@@ -148,6 +148,25 @@ export interface ExecutionTrendResponse {
     totalTestCases: number;
 }
 
+export interface AffectedTestCase {
+    id: number;
+    title: string;
+}
+
+export interface ErrorSummary {
+    signature: string;
+    sampleMessage: string;
+    count: number;
+    affectedTestCases: AffectedTestCase[];
+    lastOccurred?: string;
+}
+
+export interface CommonErrorsResponse {
+    errors: ErrorSummary[];
+    totalFailedResults: number;
+    cacheTimestamp: number;
+}
+
 export interface DefectRecord {
     id: number;
     title: string;

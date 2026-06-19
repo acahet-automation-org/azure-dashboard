@@ -7,6 +7,7 @@ import type {
     TestPlanSummary,
     TestSuiteSummary,
     DefectDashboardResponse,
+    CommonErrorsResponse,
 } from "../types";
 
 async function getJson<T>(url: string): Promise<T> {
@@ -60,6 +61,10 @@ export function fetchExecutionTrend(): Promise<ExecutionTrendResponse> {
 
 export function fetchDefects(): Promise<DefectDashboardResponse> {
     return getJson("/api/defects");
+}
+
+export function fetchCommonErrors(): Promise<CommonErrorsResponse> {
+    return getJson("/api/common-errors");
 }
 
 export async function postRefresh(): Promise<void> {

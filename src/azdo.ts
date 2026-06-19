@@ -70,6 +70,16 @@ export async function getTestRunStatistics(
     return response.data.runStatistics;
 }
 
+export async function getTestRunResults(
+    runId: number
+) {
+    const response = await azdo.get(
+        `/test/Runs/${runId}/results?api-version=7.1`
+    );
+
+    return response.data.value;
+}
+
 export async function getActiveBugIds(): Promise<number[]> {
     const response = await azdo.post(
         "/wit/wiql?api-version=7.1",
