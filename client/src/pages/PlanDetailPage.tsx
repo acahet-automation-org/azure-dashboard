@@ -23,8 +23,25 @@ import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { SuiteTreeItem } from "../components/SuiteTreeItem";
+import { ExportMenu, type ExportFormat } from "../components/ExportMenu";
 import { fetchPlanSuites } from "../api/client";
-import type { TestPlanSummary } from "../types";
+import { exportToCsv, exportToExcel, exportToPdf } from "../utils/export";
+import type { ExportableRow } from "../utils/export";
+import type { TestPlanSummary, TestSuiteSummary } from "../types";
+
+function flattenSuiteRows(
+    suites: TestSuiteSummary[],
+    testPlan: string
+): ExportableRow[] {
+    return suites.flatMap((suite) => [
+        ...suite.testCases.map((tc) => ({
+            testPlan,
+            suiteName: suite.name,
+            testCaseTitle: tc.title,
+        })),
+        ...flattenSuiteRows(suite.children, testPlan),
+    ]);
+}
 
 const useStyles = makeStyles({
     toolbar: {
@@ -85,6 +102,23 @@ export function PlanDetailPage() {
 
     const title = plan?.name ?? t("planDetailPage.title", { id: planId });
 
+    const handleExport = (format: ExportFormat) => {
+        if (!data) {
+            return;
+        }
+
+        const rows = flattenSuiteRows(data, title);
+        const filename = `plan-${planId}-export-${Date.now()}`;
+
+        if (format === "csv") {
+            exportToCsv(filename, rows);
+        } else if (format === "excel") {
+            void exportToExcel(filename, rows);
+        } else {
+            exportToPdf(filename, title, rows);
+        }
+    };
+
     return (
         <PageLayout title={title}>
             <div className={styles.toolbar}>
@@ -92,6 +126,11 @@ export function PlanDetailPage() {
                     <ArrowLeftRegular />
                     {t("planDetailPage.backToPlans")}
                 </Link>
+
+                <ExportMenu
+                    onExport={handleExport}
+                    disabled={!data || data.length === 0}
+                />
 
                 {plan?.url && (
                     <Button

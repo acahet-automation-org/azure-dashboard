@@ -12,6 +12,7 @@ export interface BugInfo {
 }
 
 export interface TestCaseRow {
+    planName: string;
     areaPath: string;
     suiteName: string;
     testCaseId: number;

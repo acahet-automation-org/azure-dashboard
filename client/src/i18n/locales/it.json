@@ -222,5 +222,11 @@
         "label": "Lingua",
         "english": "English",
         "italian": "Italiano"
+    },
+    "exportMenu": {
+        "label": "Esporta",
+        "pdf": "Esporta come PDF",
+        "csv": "Esporta come CSV",
+        "excel": "Esporta come Excel"
     }
 }

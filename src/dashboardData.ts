@@ -59,6 +59,7 @@ export function resolveOutcome(
 
 async function buildTestCaseRow(
     tc: any,
+    planName: string,
     suiteName: string,
     outcomesByTestCase: Record<number, string[]>
 ): Promise<TestCaseRow> {
@@ -88,6 +89,7 @@ async function buildTestCaseRow(
     );
 
     return {
+        planName,
         areaPath:
             workItem.fields[
             "System.AreaPath"
@@ -163,6 +165,7 @@ export async function buildDashboard(): Promise<
                 testCases.map((tc: any) =>
                     buildTestCaseRow(
                         tc,
+                        plan.name,
                         suite.name,
                         outcomesByTestCase
                     )
