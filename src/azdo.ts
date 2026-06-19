@@ -174,6 +174,15 @@ export async function getStoryCount(): Promise<number> {
     return response.data.workItems.length;
 }
 
+export function buildWorkItemUrl(id: number): string {
+    const org = process.env.AZDO_ORG;
+    const project = encodeURIComponent(
+        process.env.AZDO_PROJECT!
+    );
+
+    return `https://dev.azure.com/${org}/${project}/_workitems/edit/${id}`;
+}
+
 export function extractWorkItemIds(
     relations: any[] = []
 ): number[] {

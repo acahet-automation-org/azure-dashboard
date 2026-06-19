@@ -8,6 +8,7 @@ import {
     getWorkItem,
     getWorkItems,
     extractWorkItemIds,
+    buildWorkItemUrl,
 } from "./azdo.js";
 import type {
     TestCaseRow,
@@ -58,6 +59,7 @@ export function resolveOutcome(
 
 async function buildTestCaseRow(
     tc: any,
+    planName: string,
     suiteName: string,
     outcomesByTestCase: Record<number, string[]>
 ): Promise<TestCaseRow> {
@@ -87,6 +89,7 @@ async function buildTestCaseRow(
     );
 
     return {
+        planName,
         areaPath:
             workItem.fields[
             "System.AreaPath"
@@ -110,6 +113,7 @@ async function buildTestCaseRow(
             id: b.id,
             title: b.fields["System.Title"],
             state: b.fields["System.State"],
+            url: buildWorkItemUrl(b.id),
         })),
     };
 }
@@ -161,6 +165,7 @@ export async function buildDashboard(): Promise<
                 testCases.map((tc: any) =>
                     buildTestCaseRow(
                         tc,
+                        plan.name,
                         suite.name,
                         outcomesByTestCase
                     )
@@ -265,7 +270,7 @@ export function computeDashboardStats(
                 (tc) => tc.priority
             )
         ),
-    ].sort((a, b) => b - a);
+    ].sort((a, b) => a - b);
 
     const totalTestCases = allTestCases.length;
 

@@ -16,8 +16,17 @@ import { SuiteGroup } from "../components/SuiteGroup";
 import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
+import { ExportMenu, type ExportFormat } from "../components/ExportMenu";
 import { fetchDashboard } from "../api/client";
 import { computeGroupStats } from "../utils/stats";
+import {
+    buildSuiteBugTotals,
+    buildSuiteHeaderStats,
+    exportToCsv,
+    exportToExcel,
+    exportToPdf,
+    type ExportableRow,
+} from "../utils/export";
 import type { TestCaseRow } from "../types";
 
 const useStyles = makeStyles({
@@ -33,6 +42,13 @@ const useStyles = makeStyles({
     },
     meta: {
         color: tokens.colorNeutralForeground3,
+    },
+    metaRow: {
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: tokens.spacingHorizontalM,
     },
 });
 
@@ -136,7 +152,7 @@ export function DashboardPage() {
                     ] as [string, TestCaseRow[]]
             )
             .filter(([, rows]) => rows.length > 0)
-            .sort(([a], [b]) => Number(b) - Number(a));
+            .sort(([a], [b]) => Number(a) - Number(b));
     }, [data, filters]);
 
     const filteredStats = useMemo(
@@ -146,6 +162,46 @@ export function DashboardPage() {
             ),
         [filteredByPriority]
     );
+
+    const filteredTestCases = useMemo(
+        () => filteredByPriority.flatMap(([, rows]) => rows),
+        [filteredByPriority]
+    );
+
+    const handleExport = (format: ExportFormat) => {
+        const isSingleSuiteFiltered = Boolean(filters.suite);
+
+        const buildRows = (includeSuiteColumn: boolean): ExportableRow[] =>
+            filteredTestCases.map((tc) => ({
+                testPlan: tc.planName,
+                ...(includeSuiteColumn ? { suiteName: tc.suiteName } : {}),
+                testCaseTitle: tc.testCaseTitle,
+                outcome: t(`outcome.${tc.outcome}`),
+                linkedDefects: tc.bugs
+                    .map((bug) => `#${bug.id}: ${bug.title} (${bug.state})`)
+                    .join("\n"),
+            }));
+        const suiteBugTotals = buildSuiteBugTotals(filteredTestCases);
+        const filename = `dashboard-export-${Date.now()}`;
+        const title = t("dashboardPage.title");
+
+        if (format === "csv") {
+            exportToCsv(filename, buildRows(true), suiteBugTotals);
+        } else if (format === "excel") {
+            void exportToExcel(filename, buildRows(true), suiteBugTotals);
+        } else if (isSingleSuiteFiltered) {
+            const suiteHeader = buildSuiteHeaderStats(filteredTestCases);
+            exportToPdf(
+                filename,
+                title,
+                buildRows(false),
+                undefined,
+                suiteHeader
+            );
+        } else {
+            exportToPdf(filename, title, buildRows(true), suiteBugTotals);
+        }
+    };
 
     return (
         <PageLayout title={t("dashboardPage.title")}>
@@ -157,13 +213,20 @@ export function DashboardPage() {
 
             {data && (
                 <>
-                    <Text className={styles.meta}>
-                        {t("dashboardPage.lastRefresh", {
-                            date: new Date(data.cacheTimestamp).toLocaleString(
-                                i18n.language
-                            ),
-                        })}
-                    </Text>
+                    <div className={styles.metaRow}>
+                        <Text className={styles.meta}>
+                            {t("dashboardPage.lastRefresh", {
+                                date: new Date(
+                                    data.cacheTimestamp
+                                ).toLocaleString(i18n.language),
+                            })}
+                        </Text>
+
+                        <ExportMenu
+                            onExport={handleExport}
+                            disabled={filteredTestCases.length === 0}
+                        />
+                    </div>
 
                     <FilterBar
                         areaPaths={data.stats.areaPaths}

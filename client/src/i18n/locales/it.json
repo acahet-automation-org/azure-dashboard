@@ -4,6 +4,7 @@
     },
     "nav": {
         "primary": "Principale",
+        "home": "Vai alla home",
         "suites": "Sfoglia per Suite",
         "dashboard": "Dashboard Completa",
         "runs": "Ultime 10 Esecuzioni",
@@ -152,7 +153,8 @@
             "duplicateRate": "Percentuale Bug Duplicati",
             "bugsPerStory": "Bug per Story",
             "days": "{{value}} giorni",
-            "notAvailable": "N/D"
+            "notAvailable": "N/D",
+            "withoutLinkedTestCase": "Difetti Senza Test Case Collegati"
         },
         "charts": {
             "trend": "Andamento Bug nel Tempo",
@@ -164,6 +166,11 @@
             "byComponent": "Difetti per Componente/Modulo",
             "byTeam": "Difetti per Team",
             "aging": "Anzianità dei Difetti"
+        },
+        "sections": {
+            "withoutLinkedTestCase": "Difetti Senza Test Case Collegati",
+            "excludeClosed": "Escludi difetti chiusi",
+            "noGaps": "Nessun difetto senza un test case collegato."
         }
     },
     "filterBar": {
@@ -216,5 +223,11 @@
         "label": "Lingua",
         "english": "English",
         "italian": "Italiano"
+    },
+    "exportMenu": {
+        "label": "Esporta",
+        "pdf": "Esporta come PDF",
+        "csv": "Esporta come CSV",
+        "excel": "Esporta come Excel"
     }
 }

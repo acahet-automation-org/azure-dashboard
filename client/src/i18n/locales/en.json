@@ -4,6 +4,7 @@
     },
     "nav": {
         "primary": "Primary",
+        "home": "Go to home",
         "suites": "Browse by Suite",
         "dashboard": "Full Dashboard",
         "runs": "Last 10 Runs",
@@ -152,7 +153,8 @@
             "duplicateRate": "Duplicate Bug Rate",
             "bugsPerStory": "Bugs per Story",
             "days": "{{value}} days",
-            "notAvailable": "N/A"
+            "notAvailable": "N/A",
+            "withoutLinkedTestCase": "Defects Without Linked Test Cases"
         },
         "charts": {
             "trend": "Bug Trend Over Time",
@@ -164,6 +166,11 @@
             "byComponent": "Defects by Component/Module",
             "byTeam": "Defects by Team",
             "aging": "Defect Aging"
+        },
+        "sections": {
+            "withoutLinkedTestCase": "Defects Without Linked Test Cases",
+            "excludeClosed": "Exclude closed defects",
+            "noGaps": "No defects without a linked test case."
         }
     },
     "filterBar": {
@@ -216,5 +223,11 @@
         "label": "Language",
         "english": "English",
         "italian": "Italiano"
+    },
+    "exportMenu": {
+        "label": "Export",
+        "pdf": "Export as PDF",
+        "csv": "Export as CSV",
+        "excel": "Export as Excel"
     }
 }

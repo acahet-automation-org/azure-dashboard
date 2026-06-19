@@ -1,16 +1,18 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
     TabList,
     Tab,
     Button,
     Text,
     makeStyles,
+    mergeClasses,
     tokens,
 } from "@fluentui/react-components";
 import { ArrowClockwiseRegular } from "@fluentui/react-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { postRefresh } from "../api/client";
+import { useThemeMode } from "../hooks/useThemeMode";
 import { NAV_HEIGHT } from "../layoutConstants";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ThemeSwitcher } from "./ThemeSwitcher";
@@ -32,6 +34,20 @@ const useStyles = makeStyles({
         borderBottomStyle: "solid",
         borderBottomColor: tokens.colorNeutralStroke2,
         backgroundColor: tokens.colorNeutralBackground1,
+    },
+    logoLink: {
+        display: "flex",
+        alignItems: "center",
+        flexShrink: 0,
+    },
+    logoLinkDark: {
+        backgroundColor: "#ffffff",
+        padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalS}`,
+        borderRadius: tokens.borderRadiusMedium,
+    },
+    logo: {
+        height: "32px",
+        width: "auto",
     },
     tabs: {
         overflowX: "auto",
@@ -88,6 +104,7 @@ export function NavBar() {
     const location = useLocation();
     const queryClient = useQueryClient();
     const { t } = useTranslation();
+    const { mode } = useThemeMode();
 
     const refreshMutation = useMutation({
         mutationFn: postRefresh,
@@ -104,6 +121,17 @@ export function NavBar() {
 
     return (
         <nav className={styles.bar} aria-label={t("nav.primary")}>
+            <Link
+                to="/"
+                className={mergeClasses(
+                    styles.logoLink,
+                    mode === "dark" && styles.logoLinkDark,
+                )}
+                aria-label={t("nav.home")}
+            >
+                <img src="/logo.svg" alt={t("nav.home")} className={styles.logo} />
+            </Link>
+
             <TabList
                 className={styles.tabs}
                 selectedValue={valueForPath(location.pathname)}

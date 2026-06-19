@@ -2,12 +2,17 @@ import {
     getAllBugFields,
     getWorkItemRevisions,
     getStoryCount,
+    getWorkItem,
+    getWorkItems,
+    extractWorkItemIds,
+    buildWorkItemUrl,
 } from "./azdo.js";
 import type {
     DefectRecord,
     DefectStats,
     DefectTrendPoint,
     AgingBucket,
+    DefectWithoutTestCase,
 } from "./types.js";
 
 let defectCache: DefectRecord[] | null = null;
@@ -48,12 +53,34 @@ function countReopenings(revisions: any[]): number {
     return count;
 }
 
+async function hasLinkedTestCase(
+    bugId: number
+): Promise<boolean> {
+    const workItem = await getWorkItem(bugId);
+
+    const linkedIds = extractWorkItemIds(
+        workItem.relations
+    );
+
+    const linkedItems = await getWorkItems(
+        linkedIds
+    );
+
+    return linkedItems.some(
+        (item: any) =>
+            item.fields["System.WorkItemType"] ===
+            "Test Case"
+    );
+}
+
 async function buildDefectRecord(
     bug: any
 ): Promise<DefectRecord> {
-    const revisions = await getWorkItemRevisions(
-        bug.id
-    );
+    const [revisions, linkedToTestCase] =
+        await Promise.all([
+            getWorkItemRevisions(bug.id),
+            hasLinkedTestCase(bug.id),
+        ]);
 
     return {
         id: bug.id,
@@ -78,7 +105,8 @@ async function buildDefectRecord(
         changedDate:
             bug.fields["System.ChangedDate"],
         reopenedCount: countReopenings(revisions),
-        url: bug._links?.html?.href,
+        hasLinkedTestCase: linkedToTestCase,
+        url: buildWorkItemUrl(bug.id),
     };
 }
 
@@ -296,6 +324,28 @@ export function computeDefectStats(
         (r) => r.reopenedCount > 0
     ).length;
 
+    const defectsWithoutLinkedTestCase: DefectWithoutTestCase[] =
+        records
+            .filter((r) => !r.hasLinkedTestCase)
+            .map((r) => ({
+                id: r.id,
+                title: r.title,
+                state: r.state,
+                priority: r.priority,
+                url: r.url,
+            }))
+            .sort((a, b) => {
+                if (a.priority == null) {
+                    return b.priority == null ? 0 : 1;
+                }
+
+                if (b.priority == null) {
+                    return -1;
+                }
+
+                return a.priority - b.priority;
+            });
+
     return {
         totalOpen,
         totalClosed,
@@ -331,6 +381,7 @@ export function computeDefectStats(
                 (records.length / storyCount) * 100
             ) / 100
             : null,
+        defectsWithoutLinkedTestCase,
     };
 }
 

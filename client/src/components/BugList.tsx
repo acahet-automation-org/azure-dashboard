@@ -1,4 +1,4 @@
-import { Text, mergeClasses, makeStyles, tokens } from "@fluentui/react-components";
+import { Link, Text, mergeClasses, makeStyles, tokens } from "@fluentui/react-components";
 import { BugFilled, CheckmarkCircleFilled } from "@fluentui/react-icons";
 import type { BugInfo } from "../types";
 
@@ -31,6 +31,15 @@ export function BugList({ bugs }: { bugs: BugInfo[] }) {
         <div className={styles.list}>
             {bugs.map((bug) => {
                 const isActive = bug.state !== "Closed";
+                const icon = isActive ? (
+                    <BugFilled aria-hidden="true" />
+                ) : (
+                    <CheckmarkCircleFilled aria-hidden="true" />
+                );
+                const label =
+                    bug.priority != null
+                        ? `P${bug.priority} · ${bug.id} - ${bug.title} (${bug.state})`
+                        : `${bug.id} - ${bug.title} (${bug.state})`;
 
                 return (
                     <Text
@@ -40,12 +49,14 @@ export function BugList({ bugs }: { bugs: BugInfo[] }) {
                             isActive ? styles.active : styles.closed
                         )}
                     >
-                        {isActive ? (
-                            <BugFilled aria-hidden="true" />
+                        {icon}
+                        {bug.url ? (
+                            <Link href={bug.url} target="_blank" rel="noreferrer">
+                                {label}
+                            </Link>
                         ) : (
-                            <CheckmarkCircleFilled aria-hidden="true" />
+                            label
                         )}
-                        {bug.id} - {bug.title} ({bug.state})
                     </Text>
                 );
             })}
