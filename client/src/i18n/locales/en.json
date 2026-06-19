@@ -152,7 +152,8 @@
             "duplicateRate": "Duplicate Bug Rate",
             "bugsPerStory": "Bugs per Story",
             "days": "{{value}} days",
-            "notAvailable": "N/A"
+            "notAvailable": "N/A",
+            "withoutLinkedTestCase": "Defects Without Linked Test Cases"
         },
         "charts": {
             "trend": "Bug Trend Over Time",
@@ -164,6 +165,11 @@
             "byComponent": "Defects by Component/Module",
             "byTeam": "Defects by Team",
             "aging": "Defect Aging"
+        },
+        "sections": {
+            "withoutLinkedTestCase": "Defects Without Linked Test Cases",
+            "excludeClosed": "Exclude closed defects",
+            "noGaps": "No defects without a linked test case."
         }
     },
     "filterBar": {

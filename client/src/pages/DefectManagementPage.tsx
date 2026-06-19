@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { makeStyles, tokens } from "@fluentui/react-components";
+import { Switch, makeStyles, tokens } from "@fluentui/react-components";
 import {
     ResponsiveContainer,
     BarChart,
@@ -20,6 +21,8 @@ import { ChartCard } from "../components/ChartCard";
 import { ChartsGrid } from "../components/ChartsGrid";
 import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
+import { EmptyState } from "../components/EmptyState";
+import { BugList } from "../components/BugList";
 import { fetchDefects } from "../api/client";
 
 const useStyles = makeStyles({
@@ -41,11 +44,16 @@ function toChartData(
 export function DefectManagementPage() {
     const styles = useStyles();
     const { t } = useTranslation();
+    const [excludeClosed, setExcludeClosed] = useState(true);
 
     const { data, isLoading, isError, error, refetch } = useQuery({
         queryKey: ["defects"],
         queryFn: fetchDefects,
     });
+
+    const filteredGaps = data?.stats.defectsWithoutLinkedTestCase.filter(
+        (b) => !excludeClosed || b.state !== "Closed"
+    );
 
     return (
         <PageLayout title={t("defectManagementPage.title")}>
@@ -92,6 +100,10 @@ export function DefectManagementPage() {
                                         ? data.stats.bugsPerStory
                                         : t("defectManagementPage.stats.notAvailable")
                                 }
+                            />
+                            <StatCard
+                                label={t("defectManagementPage.stats.withoutLinkedTestCase")}
+                                value={filteredGaps?.length ?? 0}
                             />
                         </CardGrid>
                     </div>
@@ -213,6 +225,26 @@ export function DefectManagementPage() {
                             </ResponsiveContainer>
                         </ChartCard>
                     </ChartsGrid>
+
+                    <div className={styles.section}>
+                        <ChartCard
+                            title={t("defectManagementPage.sections.withoutLinkedTestCase")}
+                        >
+                            <Switch
+                                checked={excludeClosed}
+                                onChange={(_, data) => setExcludeClosed(data.checked)}
+                                label={t("defectManagementPage.sections.excludeClosed")}
+                            />
+
+                            {filteredGaps && filteredGaps.length > 0 ? (
+                                <BugList bugs={filteredGaps} />
+                            ) : (
+                                <EmptyState
+                                    message={t("defectManagementPage.sections.noGaps")}
+                                />
+                            )}
+                        </ChartCard>
+                    </div>
                 </>
             )}
         </PageLayout>

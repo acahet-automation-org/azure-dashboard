@@ -8,6 +8,7 @@ export interface BugInfo {
     id: number;
     title: string;
     state: string;
+    url?: string;
 }
 
 export interface TestCaseRow {
@@ -156,6 +157,15 @@ export interface DefectRecord {
     closedDate?: string;
     changedDate: string;
     reopenedCount: number;
+    hasLinkedTestCase: boolean;
+    url?: string;
+}
+
+export interface DefectWithoutTestCase {
+    id: number;
+    title: string;
+    state: string;
+    priority?: number;
     url?: string;
 }
 
@@ -184,6 +194,7 @@ export interface DefectStats {
     reopenedBugCount: number;
     duplicateRate: number;
     bugsPerStory: number | null;
+    defectsWithoutLinkedTestCase: DefectWithoutTestCase[];
 }
 
 export interface DefectDashboardResponse {

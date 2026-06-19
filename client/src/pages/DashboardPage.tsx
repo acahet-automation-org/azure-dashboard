@@ -136,7 +136,7 @@ export function DashboardPage() {
                     ] as [string, TestCaseRow[]]
             )
             .filter(([, rows]) => rows.length > 0)
-            .sort(([a], [b]) => Number(b) - Number(a));
+            .sort(([a], [b]) => Number(a) - Number(b));
     }, [data, filters]);
 
     const filteredStats = useMemo(

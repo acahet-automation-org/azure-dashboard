@@ -8,6 +8,7 @@ import {
     getWorkItem,
     getWorkItems,
     extractWorkItemIds,
+    buildWorkItemUrl,
 } from "./azdo.js";
 import type {
     TestCaseRow,
@@ -110,6 +111,7 @@ async function buildTestCaseRow(
             id: b.id,
             title: b.fields["System.Title"],
             state: b.fields["System.State"],
+            url: buildWorkItemUrl(b.id),
         })),
     };
 }
@@ -265,7 +267,7 @@ export function computeDashboardStats(
                 (tc) => tc.priority
             )
         ),
-    ].sort((a, b) => b - a);
+    ].sort((a, b) => a - b);
 
     const totalTestCases = allTestCases.length;
 

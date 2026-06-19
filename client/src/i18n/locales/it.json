@@ -152,7 +152,8 @@
             "duplicateRate": "Percentuale Bug Duplicati",
             "bugsPerStory": "Bug per Story",
             "days": "{{value}} giorni",
-            "notAvailable": "N/D"
+            "notAvailable": "N/D",
+            "withoutLinkedTestCase": "Difetti Senza Test Case Collegati"
         },
         "charts": {
             "trend": "Andamento Bug nel Tempo",
@@ -164,6 +165,11 @@
             "byComponent": "Difetti per Componente/Modulo",
             "byTeam": "Difetti per Team",
             "aging": "Anzianità dei Difetti"
+        },
+        "sections": {
+            "withoutLinkedTestCase": "Difetti Senza Test Case Collegati",
+            "excludeClosed": "Escludi difetti chiusi",
+            "noGaps": "Nessun difetto senza un test case collegato."
         }
     },
     "filterBar": {
