@@ -12,6 +12,16 @@ export interface BugInfo {
     url?: string;
 }
 
+export interface WorkItemSummary {
+    id: number;
+    title: string;
+    type: "Task" | "Bug";
+    state: string;
+    priority?: number;
+    changedDate?: string;
+    url?: string;
+}
+
 export interface TestCaseRow {
     planName: string;
     areaPath: string;

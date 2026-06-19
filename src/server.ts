@@ -26,6 +26,16 @@ import {
     getCommonErrorsCacheTimestamp,
     clearCommonErrorsCache,
 } from "./errorAggregationData.js";
+import { getMyWorkItems } from "./myWorkItemsData.js";
+
+const __dirname = path.dirname(
+    fileURLToPath(import.meta.url)
+);
+
+const clientDist = path.join(
+    __dirname,
+    "../client/dist"
+);
 
 const app = express();
 
@@ -189,11 +199,25 @@ app.get("/api/common-errors", async (_, res) => {
         });
     }
 });
+app.get("/api/my-work-items", async (req, res) => {
+    try {
+        const type = req.query.type === "Bug" ? "Bug" : "Task";
+
+        res.json(await getMyWorkItems(type));
+    } catch (error: any) {
+        console.error(error);
+
+        res.status(500).json({
+            message: error.message,
+        });
+    }
+});
 
 app.post("/api/refresh", (_, res) => {
     clearDashboardCache();
     clearDefectCache();
     clearCommonErrorsCache();
+    clearMyWorkItemsCache();
 
     res.status(204).end();
 });

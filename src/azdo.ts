@@ -184,6 +184,28 @@ export async function getStoryCount(): Promise<number> {
     return response.data.workItems.length;
 }
 
+export async function getMyWorkItemIds(
+    type: "Task" | "Bug"
+): Promise<number[]> {
+    const response = await azdo.post(
+        "/wit/wiql?api-version=7.1",
+        {
+            query: `
+        SELECT [System.Id]
+        FROM WorkItems
+        WHERE [System.WorkItemType] = '${type}'
+          AND [System.AssignedTo] = @Me
+          AND [System.State] <> 'Removed'
+        ORDER BY [Microsoft.VSTS.Common.Priority] ASC, [System.ChangedDate] DESC
+      `,
+        }
+    );
+
+    return response.data.workItems.map(
+        (w: { id: number }) => w.id
+    );
+}
+
 export function buildWorkItemUrl(id: number): string {
     const org = process.env.AZDO_ORG;
     const project = encodeURIComponent(

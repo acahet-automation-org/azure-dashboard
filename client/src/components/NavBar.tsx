@@ -86,6 +86,7 @@ const routeForValue: Record<string, string> = {
     plans: "/plans",
     execution: "/test-execution",
     defects: "/defects",
+    "my-work-items": "/my-work-items",
 };
 
 const AUTOMATION_SECTION_PATHS = [
@@ -114,6 +115,10 @@ function valueForPath(pathname: string): string {
         return "defects";
     }
 
+    if (pathname === "/my-work-items") {
+        return "my-work-items";
+    }
+
     return "suites";
 }
 
@@ -138,6 +143,7 @@ export function NavBar() {
             queryClient.invalidateQueries({ queryKey: ["execution-trend"] });
             queryClient.invalidateQueries({ queryKey: ["defects"] });
             queryClient.invalidateQueries({ queryKey: ["common-errors"] });
+            queryClient.invalidateQueries({ queryKey: ["my-work-items"] });
         },
     });
 
@@ -197,6 +203,22 @@ export function NavBar() {
                     </MenuPopover>
                 </Menu>
             </div>
+            <TabList
+                className={styles.tabs}
+                selectedValue={valueForPath(location.pathname)}
+                onTabSelect={(_, data) =>
+                    navigate(routeForValue[data.value as string])
+                }
+            >
+                <Tab value="suites">{t("nav.suites")}</Tab>
+                <Tab value="dashboard">{t("nav.dashboard")}</Tab>
+                <Tab value="runs">{t("nav.runs")}</Tab>
+                <Tab value="plans">{t("nav.plans")}</Tab>
+                <Tab value="automation">{t("nav.automation")}</Tab>
+                <Tab value="execution">{t("nav.execution")}</Tab>
+                <Tab value="defects">{t("nav.defects")}</Tab>
+                <Tab value="my-work-items">{t("nav.myWorkItems")}</Tab>
+            </TabList>
 
             <div className={styles.controls}>
                 {activeAccount && (
