@@ -10,8 +10,10 @@
         "runs": "Last 10 Runs",
         "plans": "Test Plans",
         "automation": "Automation",
+        "automationDashboard": "Automation Dashboard",
         "execution": "Test Execution",
         "defects": "Defect Management",
+        "commonErrors": "Common Errors",
         "refresh": "Refresh Now",
         "refreshing": "Refreshing...",
         "refreshFailed": "Refresh failed: {{message}}"
@@ -171,6 +173,21 @@
             "withoutLinkedTestCase": "Defects Without Linked Test Cases",
             "excludeClosed": "Exclude closed defects",
             "noGaps": "No defects without a linked test case."
+        }
+    },
+    "commonErrorsPage": {
+        "title": "Common Errors",
+        "empty": "No failed test results with error messages found.",
+        "kpis": {
+            "totalFailedResults": "Total Failed Results",
+            "uniqueSignatures": "Unique Error Signatures",
+            "topErrorCount": "Top Error Occurrences"
+        },
+        "charts": {
+            "topErrors": "Top Errors by Frequency"
+        },
+        "table": {
+            "affectedTestCases": "Affected Test Cases ({{count}})"
         }
     },
     "filterBar": {

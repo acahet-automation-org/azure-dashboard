@@ -4,11 +4,16 @@ import {
     Tab,
     Button,
     Text,
+    Menu,
+    MenuTrigger,
+    MenuPopover,
+    MenuList,
+    MenuItem,
     makeStyles,
     mergeClasses,
     tokens,
 } from "@fluentui/react-components";
-import { ArrowClockwiseRegular } from "@fluentui/react-icons";
+import { ArrowClockwiseRegular, ChevronDownRegular } from "@fluentui/react-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { postRefresh } from "../api/client";
@@ -52,6 +57,19 @@ const useStyles = makeStyles({
     tabs: {
         overflowX: "auto",
     },
+    tabsRow: {
+        display: "flex",
+        alignItems: "center",
+        flexWrap: "wrap",
+        overflowX: "auto",
+    },
+    automationTrigger: {
+        fontWeight: tokens.fontWeightRegular,
+    },
+    automationTriggerActive: {
+        fontWeight: tokens.fontWeightSemibold,
+        color: tokens.colorBrandForeground1,
+    },
     controls: {
         display: "flex",
         alignItems: "center",
@@ -65,10 +83,14 @@ const routeForValue: Record<string, string> = {
     dashboard: "/dashboard",
     runs: "/last-5-runs",
     plans: "/plans",
-    automation: "/automation-dashboard",
     execution: "/test-execution",
     defects: "/defects",
 };
+
+const AUTOMATION_SECTION_PATHS = [
+    "/automation-dashboard",
+    "/common-errors",
+];
 
 function valueForPath(pathname: string): string {
     if (pathname === "/dashboard") {
@@ -81,10 +103,6 @@ function valueForPath(pathname: string): string {
 
     if (pathname.startsWith("/plans")) {
         return "plans";
-    }
-
-    if (pathname === "/automation-dashboard") {
-        return "automation";
     }
 
     if (pathname === "/test-execution") {
@@ -116,6 +134,7 @@ export function NavBar() {
             queryClient.invalidateQueries({ queryKey: ["automation"] });
             queryClient.invalidateQueries({ queryKey: ["execution-trend"] });
             queryClient.invalidateQueries({ queryKey: ["defects"] });
+            queryClient.invalidateQueries({ queryKey: ["common-errors"] });
         },
     });
 
@@ -132,21 +151,49 @@ export function NavBar() {
                 <img src="/logo.svg" alt={t("nav.home")} className={styles.logo} />
             </Link>
 
-            <TabList
-                className={styles.tabs}
-                selectedValue={valueForPath(location.pathname)}
-                onTabSelect={(_, data) =>
-                    navigate(routeForValue[data.value as string])
-                }
-            >
-                <Tab value="suites">{t("nav.suites")}</Tab>
-                <Tab value="dashboard">{t("nav.dashboard")}</Tab>
-                <Tab value="runs">{t("nav.runs")}</Tab>
-                <Tab value="plans">{t("nav.plans")}</Tab>
-                <Tab value="automation">{t("nav.automation")}</Tab>
-                <Tab value="execution">{t("nav.execution")}</Tab>
-                <Tab value="defects">{t("nav.defects")}</Tab>
-            </TabList>
+            <div className={styles.tabsRow}>
+                <TabList
+                    className={styles.tabs}
+                    selectedValue={valueForPath(location.pathname)}
+                    onTabSelect={(_, data) =>
+                        navigate(routeForValue[data.value as string])
+                    }
+                >
+                    <Tab value="suites">{t("nav.suites")}</Tab>
+                    <Tab value="dashboard">{t("nav.dashboard")}</Tab>
+                    <Tab value="runs">{t("nav.runs")}</Tab>
+                    <Tab value="plans">{t("nav.plans")}</Tab>
+                    <Tab value="execution">{t("nav.execution")}</Tab>
+                    <Tab value="defects">{t("nav.defects")}</Tab>
+                </TabList>
+
+                <Menu>
+                    <MenuTrigger disableButtonEnhancement>
+                        <Button
+                            appearance="transparent"
+                            icon={<ChevronDownRegular />}
+                            iconPosition="after"
+                            className={mergeClasses(
+                                styles.automationTrigger,
+                                AUTOMATION_SECTION_PATHS.includes(location.pathname) &&
+                                    styles.automationTriggerActive,
+                            )}
+                        >
+                            {t("nav.automation")}
+                        </Button>
+                    </MenuTrigger>
+                    <MenuPopover>
+                        <MenuList>
+                            <MenuItem onClick={() => navigate("/automation-dashboard")}>
+                                {t("nav.automationDashboard")}
+                            </MenuItem>
+                            <MenuItem onClick={() => navigate("/common-errors")}>
+                                {t("nav.commonErrors")}
+                            </MenuItem>
+                        </MenuList>
+                    </MenuPopover>
+                </Menu>
+            </div>
 
             <div className={styles.controls}>
                 <LanguageSwitcher />
