@@ -28,15 +28,6 @@ import {
 } from "./errorAggregationData.js";
 import { getMyWorkItems } from "./myWorkItemsData.js";
 
-const __dirname = path.dirname(
-    fileURLToPath(import.meta.url)
-);
-
-const clientDist = path.join(
-    __dirname,
-    "../client/dist"
-);
-
 const app = express();
 
 const allowedOrigins = (process.env.CORS_ORIGIN ?? "http://localhost:3000")
@@ -217,7 +208,6 @@ app.post("/api/refresh", (_, res) => {
     clearDashboardCache();
     clearDefectCache();
     clearCommonErrorsCache();
-    clearMyWorkItemsCache();
 
     res.status(204).end();
 });
