@@ -1,5 +1,5 @@
 import {
-    getMyWorkItemIds,
+    getActiveWorkItemIds,
     getWorkItems,
     buildWorkItemUrl,
 } from "./azdo.js";
@@ -12,12 +12,13 @@ const MY_WORK_ITEM_FIELDS = [
     "System.State",
     "Microsoft.VSTS.Common.Priority",
     "System.ChangedDate",
+    "System.AssignedTo",
 ];
 
 export async function getMyWorkItems(
     type: "Task" | "Bug"
 ): Promise<WorkItemSummary[]> {
-    const ids = await getMyWorkItemIds(type);
+    const ids = await getActiveWorkItemIds(type);
     const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS);
 
     return items.map((wi: any) => ({
@@ -28,5 +29,11 @@ export async function getMyWorkItems(
         priority: wi.fields["Microsoft.VSTS.Common.Priority"],
         changedDate: wi.fields["System.ChangedDate"],
         url: buildWorkItemUrl(wi.id),
+        assignee: wi.fields["System.AssignedTo"]
+            ? {
+                  displayName: wi.fields["System.AssignedTo"].displayName,
+                  uniqueName: wi.fields["System.AssignedTo"].uniqueName,
+              }
+            : undefined,
     }));
 }

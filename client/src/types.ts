@@ -20,6 +20,10 @@ export interface WorkItemSummary {
     priority?: number;
     changedDate?: string;
     url?: string;
+    assignee?: {
+        displayName: string;
+        uniqueName: string;
+    };
 }
 
 export interface TestCaseRow {

@@ -184,7 +184,11 @@ export async function getStoryCount(): Promise<number> {
     return response.data.workItems.length;
 }
 
-export async function getMyWorkItemIds(
+// @Me is deliberately not used here: this client authenticates to Azure DevOps
+// with a shared PAT (see top of file), so @Me would resolve to the PAT's
+// identity for every caller, not the signed-in user. Callers must filter by
+// the real user's identity themselves once System.AssignedTo is returned.
+export async function getActiveWorkItemIds(
     type: "Task" | "Bug"
 ): Promise<number[]> {
     const response = await azdo.post(
@@ -194,7 +198,6 @@ export async function getMyWorkItemIds(
         SELECT [System.Id]
         FROM WorkItems
         WHERE [System.WorkItemType] = '${type}'
-          AND [System.AssignedTo] = @Me
           AND [System.State] <> 'Removed'
         ORDER BY [Microsoft.VSTS.Common.Priority] ASC, [System.ChangedDate] DESC
       `,

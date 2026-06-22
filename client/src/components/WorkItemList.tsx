@@ -39,10 +39,13 @@ export function WorkItemList({ items }: { items: WorkItemSummary[] }) {
                 ) : (
                     <TaskListSquareLtrFilled aria-hidden="true" />
                 );
-                const label =
+                const prefix =
                     item.priority != null
                         ? `P${item.priority} · ${item.id} - ${item.title} (${item.state})`
                         : `${item.id} - ${item.title} (${item.state})`;
+                const label = item.assignee
+                    ? `${prefix} — ${item.assignee.displayName}`
+                    : prefix;
 
                 return (
                     <Text
