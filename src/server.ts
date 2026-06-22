@@ -2,6 +2,7 @@ import "dotenv/config";
 import path from "path";
 import { fileURLToPath } from "url";
 import express from "express";
+import cors from "cors";
 import { requireAuth } from "./auth.js";
 import {
     getDashboardData,
@@ -39,6 +40,12 @@ const clientDist = path.join(
 
 const app = express();
 
+const allowedOrigins = (process.env.CORS_ORIGIN ?? "http://localhost:3000")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.static(clientDist));
 
 app.use("/api", requireAuth);

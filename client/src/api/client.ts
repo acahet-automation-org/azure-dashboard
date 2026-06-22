@@ -13,6 +13,8 @@ import type {
 import { loginRequest } from "../authConfig";
 import { msalInstance } from "../msalInstance";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+
 async function getAccessToken(): Promise<string> {
     const account =
         msalInstance.getActiveAccount() ??
@@ -42,12 +44,12 @@ async function getAccessToken(): Promise<string> {
 }
 
 async function authorizedFetch(
-    url: string,
+    path: string,
     init: RequestInit = {}
 ): Promise<Response> {
     const accessToken = await getAccessToken();
 
-    return fetch(url, {
+    return fetch(`${API_BASE_URL}${path}`, {
         ...init,
         headers: {
             ...init.headers,
