@@ -14,6 +14,7 @@
         "execution": "Esecuzione Test",
         "defects": "Gestione Difetti",
         "commonErrors": "Errori Comuni",
+        "myWorkItems": "I Miei Elementi",
         "refresh": "Aggiorna Ora",
         "refreshing": "Aggiornamento...",
         "refreshFailed": "Aggiornamento non riuscito: {{message}}",
@@ -195,6 +196,14 @@
         },
         "table": {
             "affectedTestCases": "Test Case Interessati ({{count}})"
+        }
+    },
+    "myWorkItemsPage": {
+        "title": "I Miei Elementi di Lavoro",
+        "empty": "Nessun elemento di lavoro assegnato per questo tipo.",
+        "filters": {
+            "tasks": "Attività",
+            "bugs": "Bug"
         }
     },
     "filterBar": {
