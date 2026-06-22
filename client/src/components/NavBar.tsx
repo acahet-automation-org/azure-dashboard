@@ -157,7 +157,7 @@ export function NavBar() {
                 )}
                 aria-label={t("nav.home")}
             >
-                <img src="/logo.svg" alt={t("nav.home")} className={styles.logo} />
+                <img src={`${import.meta.env.BASE_URL}logo.svg`} alt={t("nav.home")} className={styles.logo} />
             </Link>
 
             <div className={styles.tabsRow}>
