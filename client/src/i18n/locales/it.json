@@ -10,6 +10,7 @@
         "runs": "Ultime 10 Esecuzioni",
         "plans": "Piani di Test",
         "automation": "Automazione",
+        "automationDashboard": "Dashboard Automazione",
         "execution": "Esecuzione Test",
         "defects": "Gestione Difetti",
         "commonErrors": "Errori Comuni",

@@ -1,6 +1,7 @@
 import {
     getTestRuns,
     getTestRunResults,
+    getWorkItems,
 } from "./azdo.js";
 import type {
     ErrorSummary,
@@ -13,6 +14,7 @@ let cacheTimestamp = 0;
 
 const CACHE_DURATION_MS = 5 * 60 * 1000;
 const TOP_N = 20;
+const AUTOMATION_STATUS_FIELD = "Microsoft.VSTS.TCM.AutomationStatus";
 
 export function getCommonErrorsCacheTimestamp(): number {
     return cacheTimestamp;
@@ -70,6 +72,42 @@ function extractTestCaseTitle(
     );
 }
 
+async function filterToAutomatedResults(
+    results: any[]
+): Promise<any[]> {
+    const testCaseIds = [
+        ...new Set(
+            results
+                .map((r: any) => r.testCase?.id)
+                .filter(
+                    (id: any): id is number =>
+                        typeof id === "number"
+                )
+        ),
+    ];
+
+    const testCases = await getWorkItems(testCaseIds, [
+        AUTOMATION_STATUS_FIELD,
+    ]);
+
+    const automationStatusById = new Map<
+        number,
+        string
+    >(
+        testCases.map((tc: any) => [
+            tc.id,
+            tc.fields?.[AUTOMATION_STATUS_FIELD],
+        ])
+    );
+
+    return results.filter(
+        (r: any) =>
+            automationStatusById.get(
+                r.testCase?.id
+            ) === "Automated"
+    );
+}
+
 // TODO: the test/Runs/{runId}/results endpoint supports paging via
 // $top/continuationToken; not handled here, consistent with the rest
 // of this codebase not handling Azure DevOps paging either.
@@ -93,6 +131,9 @@ async function buildCommonErrors(): Promise<{
             r.errorMessage.trim().length > 0
     );
 
+    const automatedFailedResults =
+        await filterToAutomatedResults(failedResults);
+
     const grouped = new Map<
         string,
         {
@@ -103,7 +144,7 @@ async function buildCommonErrors(): Promise<{
         }
     >();
 
-    for (const result of failedResults) {
+    for (const result of automatedFailedResults) {
         const signature = normalizeErrorSignature(
             result.errorMessage
         );
@@ -179,7 +220,7 @@ async function buildCommonErrors(): Promise<{
 
     return {
         errors,
-        totalFailedResults: failedResults.length,
+        totalFailedResults: automatedFailedResults.length,
     };
 }
 

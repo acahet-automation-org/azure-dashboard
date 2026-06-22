@@ -10,6 +10,7 @@
         "runs": "Last 10 Runs",
         "plans": "Test Plans",
         "automation": "Automation",
+        "automationDashboard": "Automation Dashboard",
         "execution": "Test Execution",
         "defects": "Defect Management",
         "commonErrors": "Common Errors",
