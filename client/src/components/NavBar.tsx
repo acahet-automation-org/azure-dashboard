@@ -174,6 +174,7 @@ export function NavBar() {
                     <Tab value="plans">{t("nav.plans")}</Tab>
                     <Tab value="execution">{t("nav.execution")}</Tab>
                     <Tab value="defects">{t("nav.defects")}</Tab>
+                    <Tab value="my-work-items">{t("nav.myWorkItems")}</Tab>
                 </TabList>
 
                 <Menu>
@@ -203,22 +204,6 @@ export function NavBar() {
                     </MenuPopover>
                 </Menu>
             </div>
-            <TabList
-                className={styles.tabs}
-                selectedValue={valueForPath(location.pathname)}
-                onTabSelect={(_, data) =>
-                    navigate(routeForValue[data.value as string])
-                }
-            >
-                <Tab value="suites">{t("nav.suites")}</Tab>
-                <Tab value="dashboard">{t("nav.dashboard")}</Tab>
-                <Tab value="runs">{t("nav.runs")}</Tab>
-                <Tab value="plans">{t("nav.plans")}</Tab>
-                <Tab value="automation">{t("nav.automation")}</Tab>
-                <Tab value="execution">{t("nav.execution")}</Tab>
-                <Tab value="defects">{t("nav.defects")}</Tab>
-                <Tab value="my-work-items">{t("nav.myWorkItems")}</Tab>
-            </TabList>
 
             <div className={styles.controls}>
                 {activeAccount && (
