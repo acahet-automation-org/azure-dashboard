@@ -2,7 +2,7 @@ name: Deploy client to GitHub Pages
 
 on:
   push:
-    branches: [feature-msl]
+    branches: [main]
     paths:
       - 'client/**'
       - '.github/workflows/deploy-pages.yml'
