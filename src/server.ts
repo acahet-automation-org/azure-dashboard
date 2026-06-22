@@ -1,6 +1,7 @@
-import path from "path";
-import { fileURLToPath } from "url";
+import "dotenv/config";
 import express from "express";
+import cors from "cors";
+import { requireAuth } from "./auth.js";
 import {
     getDashboardData,
     clearDashboardCache,
@@ -26,18 +27,16 @@ import {
     clearCommonErrorsCache,
 } from "./errorAggregationData.js";
 
-const __dirname = path.dirname(
-    fileURLToPath(import.meta.url)
-);
-
-const clientDist = path.join(
-    __dirname,
-    "../client/dist"
-);
-
 const app = express();
 
-app.use(express.static(clientDist));
+const allowedOrigins = (process.env.CORS_ORIGIN ?? "http://localhost:3000")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+app.use(cors({ origin: allowedOrigins }));
+
+app.use("/api", requireAuth);
 
 app.get("/api/suites", async (_, res) => {
     try {
@@ -199,14 +198,11 @@ app.post("/api/refresh", (_, res) => {
     res.status(204).end();
 });
 
-app.get(/^(?!\/api).*/, (_, res) => {
-    res.sendFile(
-        path.join(clientDist, "index.html")
-    );
-});
 
-app.listen(3000, () => {
+const port = Number(process.env.PORT) || 3000;
+
+app.listen(port, () => {
     console.log(
-        "Running on http://localhost:3000"
+        `Running on http://localhost:${port}`
     );
 });

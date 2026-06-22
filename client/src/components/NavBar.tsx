@@ -16,6 +16,7 @@ import {
 import { ArrowClockwiseRegular, ChevronDownRegular } from "@fluentui/react-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useMsal } from "@azure/msal-react";
 import { postRefresh } from "../api/client";
 import { useThemeMode } from "../hooks/useThemeMode";
 import { NAV_HEIGHT } from "../layoutConstants";
@@ -123,6 +124,8 @@ export function NavBar() {
     const queryClient = useQueryClient();
     const { t } = useTranslation();
     const { mode } = useThemeMode();
+    const { instance, accounts } = useMsal();
+    const activeAccount = instance.getActiveAccount() ?? accounts[0];
 
     const refreshMutation = useMutation({
         mutationFn: postRefresh,
@@ -196,6 +199,12 @@ export function NavBar() {
             </div>
 
             <div className={styles.controls}>
+                {activeAccount && (
+                    <Text>
+                        {t("nav.welcome", { name: activeAccount.name ?? activeAccount.username })}
+                    </Text>
+                )}
+
                 <LanguageSwitcher />
                 <ThemeSwitcher />
 
@@ -208,6 +217,18 @@ export function NavBar() {
                     {refreshMutation.isPending
                         ? t("nav.refreshing")
                         : t("nav.refresh")}
+                </Button>
+
+                <Button
+                    appearance="secondary"
+                    onClick={() =>
+                        instance.logoutRedirect({
+                            account: activeAccount,
+                            postLogoutRedirectUri: "/",
+                        })
+                    }
+                >
+                    {t("nav.signOut")}
                 </Button>
             </div>
 

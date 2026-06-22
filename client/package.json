@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node -e \"require('fs').copyFileSync('dist/index.html','dist/404.html')\"",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@azure/msal-browser": "^5.14.0",
+    "@azure/msal-react": "^5.4.5",
     "@fluentui/react-components": "^9.74.1",
     "@fluentui/react-icons": "^2.0.330",
     "@tanstack/react-query": "^5.101.0",
@@ -23,6 +25,9 @@
     "react-i18next": "^17.0.8",
     "react-router-dom": "^7.18.0",
     "recharts": "^3.8.1"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
