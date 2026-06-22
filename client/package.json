@@ -26,6 +26,9 @@
     "react-router-dom": "^7.18.0",
     "recharts": "^3.8.1"
   },
+  "overrides": {
+    "uuid": "^11.1.1"
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.12.3",
