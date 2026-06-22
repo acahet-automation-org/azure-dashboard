@@ -10,6 +10,7 @@ import { AutomationDashboardPage } from "./pages/AutomationDashboardPage";
 import { TestExecutionPage } from "./pages/TestExecutionPage";
 import { DefectManagementPage } from "./pages/DefectManagementPage";
 import { CommonErrorsPage } from "./pages/CommonErrorsPage";
+import { MyWorkItemsPage } from "./pages/MyWorkItemsPage";
 
 function App() {
     return (
@@ -25,6 +26,7 @@ function App() {
                     <Route path="/test-execution" element={<TestExecutionPage />} />
                     <Route path="/defects" element={<DefectManagementPage />} />
                     <Route path="/common-errors" element={<CommonErrorsPage />} />
+                    <Route path="/my-work-items" element={<MyWorkItemsPage />} />
                 </Routes>
             </AuthenticatedTemplate>
 
