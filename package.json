@@ -8,7 +8,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "tsx watch src/server.ts",
+    "dev": "cross-env PORT=3001 tsx watch src/server.ts",
     "dev:client": "npm run dev --prefix client",
     "dev:all": "concurrently \"npm:dev\" \"npm:dev:client\"",
     "build:client": "npm run build --prefix client",
@@ -18,12 +18,16 @@
   "dependencies": {
     "axios": "^1.18.0",
     "dotenv": "^17.4.2",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.2.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^25.9.3",
     "concurrently": "^9.2.3",
+    "cross-env": "^7.0.3",
     "ts-node": "^10.9.2",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3"

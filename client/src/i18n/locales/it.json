@@ -16,7 +16,14 @@
         "commonErrors": "Errori Comuni",
         "refresh": "Aggiorna Ora",
         "refreshing": "Aggiornamento...",
-        "refreshFailed": "Aggiornamento non riuscito: {{message}}"
+        "refreshFailed": "Aggiornamento non riuscito: {{message}}",
+        "welcome": "Benvenuto, {{name}}",
+        "signOut": "Esci"
+    },
+    "signInPage": {
+        "title": "QA Dashboard",
+        "subtitle": "Accedi con il tuo account Microsoft per continuare.",
+        "signIn": "Accedi con Microsoft"
     },
     "outcome": {
         "Passed": "Superato",

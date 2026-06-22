@@ -1,3 +1,4 @@
+import { InteractionRequiredAuthError } from "@azure/msal-browser";
 import type {
     SuiteStat,
     DashboardResponse,
@@ -9,9 +10,54 @@ import type {
     DefectDashboardResponse,
     CommonErrorsResponse,
 } from "../types";
+import { loginRequest } from "../authConfig";
+import { msalInstance } from "../msalInstance";
+
+async function getAccessToken(): Promise<string> {
+    const account =
+        msalInstance.getActiveAccount() ??
+        msalInstance.getAllAccounts()[0];
+
+    if (!account) {
+        throw new Error("No signed-in account");
+    }
+
+    try {
+        const result = await msalInstance.acquireTokenSilent({
+            ...loginRequest,
+            account,
+        });
+
+        return result.accessToken;
+    } catch (error) {
+        if (error instanceof InteractionRequiredAuthError) {
+            await msalInstance.acquireTokenRedirect({
+                ...loginRequest,
+                account,
+            });
+        }
+
+        throw error;
+    }
+}
+
+async function authorizedFetch(
+    url: string,
+    init: RequestInit = {}
+): Promise<Response> {
+    const accessToken = await getAccessToken();
+
+    return fetch(url, {
+        ...init,
+        headers: {
+            ...init.headers,
+            Authorization: `Bearer ${accessToken}`,
+        },
+    });
+}
 
 async function getJson<T>(url: string): Promise<T> {
-    const res = await fetch(url);
+    const res = await authorizedFetch(url);
 
     if (!res.ok) {
         const body = await res
@@ -68,7 +114,7 @@ export function fetchCommonErrors(): Promise<CommonErrorsResponse> {
 }
 
 export async function postRefresh(): Promise<void> {
-    const res = await fetch("/api/refresh", {
+    const res = await authorizedFetch("/api/refresh", {
         method: "POST",
     });
 

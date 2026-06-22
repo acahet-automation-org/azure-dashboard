@@ -1,6 +1,8 @@
+import "dotenv/config";
 import path from "path";
 import { fileURLToPath } from "url";
 import express from "express";
+import { requireAuth } from "./auth.js";
 import {
     getDashboardData,
     clearDashboardCache,
@@ -38,6 +40,8 @@ const clientDist = path.join(
 const app = express();
 
 app.use(express.static(clientDist));
+
+app.use("/api", requireAuth);
 
 app.get("/api/suites", async (_, res) => {
     try {
@@ -205,8 +209,10 @@ app.get(/^(?!\/api).*/, (_, res) => {
     );
 });
 
-app.listen(3000, () => {
+const port = Number(process.env.PORT) || 3000;
+
+app.listen(port, () => {
     console.log(
-        "Running on http://localhost:3000"
+        `Running on http://localhost:${port}`
     );
 });

@@ -16,7 +16,14 @@
         "commonErrors": "Common Errors",
         "refresh": "Refresh Now",
         "refreshing": "Refreshing...",
-        "refreshFailed": "Refresh failed: {{message}}"
+        "refreshFailed": "Refresh failed: {{message}}",
+        "welcome": "Welcome, {{name}}",
+        "signOut": "Sign Out"
+    },
+    "signInPage": {
+        "title": "QA Dashboard",
+        "subtitle": "Sign in with your Microsoft account to continue.",
+        "signIn": "Sign in with Microsoft"
     },
     "outcome": {
         "Passed": "Passed",
