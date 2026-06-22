@@ -1,6 +1,4 @@
 import "dotenv/config";
-import path from "path";
-import { fileURLToPath } from "url";
 import express from "express";
 import cors from "cors";
 import { requireAuth } from "./auth.js";
@@ -29,15 +27,6 @@ import {
     clearCommonErrorsCache,
 } from "./errorAggregationData.js";
 
-const __dirname = path.dirname(
-    fileURLToPath(import.meta.url)
-);
-
-const clientDist = path.join(
-    __dirname,
-    "../client/dist"
-);
-
 const app = express();
 
 const allowedOrigins = (process.env.CORS_ORIGIN ?? "http://localhost:3000")
@@ -46,7 +35,6 @@ const allowedOrigins = (process.env.CORS_ORIGIN ?? "http://localhost:3000")
     .filter(Boolean);
 
 app.use(cors({ origin: allowedOrigins }));
-app.use(express.static(clientDist));
 
 app.use("/api", requireAuth);
 
@@ -210,11 +198,6 @@ app.post("/api/refresh", (_, res) => {
     res.status(204).end();
 });
 
-app.get(/^(?!\/api).*/, (_, res) => {
-    res.sendFile(
-        path.join(clientDist, "index.html")
-    );
-});
 
 const port = Number(process.env.PORT) || 3000;
 
