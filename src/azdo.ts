@@ -1,20 +1,35 @@
-import axios from "axios";
+import axios, { type AxiosInstance } from "axios";
 import "dotenv/config";
 
-const auth = Buffer.from(
-    `:${process.env.AZDO_PAT}`
-).toString("base64");
+const apiBaseUrl = `https://dev.azure.com/${process.env.AZDO_ORG}/${encodeURIComponent(
+    process.env.AZDO_PROJECT!
+)}/_apis`;
 
-export const azdo = axios.create({
-    baseURL: `https://dev.azure.com/${process.env.AZDO_ORG}/${encodeURIComponent(
-        process.env.AZDO_PROJECT!
-    )}/_apis`,
+export function createAzdoClient(
+    accessToken: string
+): AxiosInstance {
+    return axios.create({
+        baseURL: apiBaseUrl,
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+        },
+    });
+}
+
+// Dev-only fallback used while SKIP_AUTH=true, when there is no signed-in
+// user token to exchange via OAuth On-Behalf-Of. Never used in production.
+const devAuth = Buffer.from(`:${process.env.AZDO_PAT}`).toString("base64");
+
+export const devAzdoClient = axios.create({
+    baseURL: apiBaseUrl,
     headers: {
-        Authorization: `Basic ${auth}`,
+        Authorization: `Basic ${devAuth}`,
         "Content-Type": "application/json",
     },
 });
-export async function getTestPlans() {
+
+export async function getTestPlans(azdo: AxiosInstance) {
     const response = await azdo.get(
         "/testplan/plans?api-version=7.1"
     );
@@ -22,7 +37,10 @@ export async function getTestPlans() {
     return response.data.value;
 }
 
-export async function getSuites(planId: number) {
+export async function getSuites(
+    azdo: AxiosInstance,
+    planId: number
+) {
     const response = await azdo.get(
         `/testplan/plans/${planId}/suites?api-version=7.1`
     );
@@ -31,6 +49,7 @@ export async function getSuites(planId: number) {
 }
 
 export async function getTestCases(
+    azdo: AxiosInstance,
     planId: number,
     suiteId: number
 ) {
@@ -42,6 +61,7 @@ export async function getTestCases(
 }
 
 export async function getTestPoints(
+    azdo: AxiosInstance,
     planId: number,
     suiteId: number
 ) {
@@ -52,7 +72,7 @@ export async function getTestPoints(
     return response.data.value;
 }
 
-export async function getTestRuns() {
+export async function getTestRuns(azdo: AxiosInstance) {
     const response = await azdo.get(
         "/test/runs?api-version=7.1&$top=50&includeRunDetails=true"
     );
@@ -61,6 +81,7 @@ export async function getTestRuns() {
 }
 
 export async function getTestRunStatistics(
+    azdo: AxiosInstance,
     runId: number
 ) {
     const response = await azdo.get(
@@ -71,6 +92,7 @@ export async function getTestRunStatistics(
 }
 
 export async function getTestRunResults(
+    azdo: AxiosInstance,
     runId: number
 ) {
     const response = await azdo.get(
@@ -80,7 +102,9 @@ export async function getTestRunResults(
     return response.data.value;
 }
 
-export async function getActiveBugIds(): Promise<number[]> {
+export async function getActiveBugIds(
+    azdo: AxiosInstance
+): Promise<number[]> {
     const response = await azdo.post(
         "/wit/wiql?api-version=7.1",
         {
@@ -97,7 +121,10 @@ export async function getActiveBugIds(): Promise<number[]> {
     );
 }
 
-export async function getWorkItem(id: number) {
+export async function getWorkItem(
+    azdo: AxiosInstance,
+    id: number
+) {
     const response = await azdo.get(
         `/wit/workitems/${id}?$expand=relations&api-version=7.1`
     );
@@ -106,6 +133,7 @@ export async function getWorkItem(id: number) {
 }
 
 export async function getWorkItems(
+    azdo: AxiosInstance,
     ids: number[],
     fields?: string[]
 ) {
@@ -151,15 +179,16 @@ const BUG_FIELDS = [
     "Microsoft.VSTS.Common.ClosedDate",
 ];
 
-export async function getAllBugFields(): Promise<
-    any[]
-> {
-    const ids = await getActiveBugIds();
+export async function getAllBugFields(
+    azdo: AxiosInstance
+): Promise<any[]> {
+    const ids = await getActiveBugIds(azdo);
 
-    return getWorkItems(ids, BUG_FIELDS);
+    return getWorkItems(azdo, ids, BUG_FIELDS);
 }
 
 export async function getWorkItemRevisions(
+    azdo: AxiosInstance,
     id: number
 ): Promise<any[]> {
     const response = await azdo.get(
@@ -169,7 +198,9 @@ export async function getWorkItemRevisions(
     return response.data.value;
 }
 
-export async function getStoryCount(): Promise<number> {
+export async function getStoryCount(
+    azdo: AxiosInstance
+): Promise<number> {
     const response = await azdo.post(
         "/wit/wiql?api-version=7.1",
         {
@@ -184,21 +215,10 @@ export async function getStoryCount(): Promise<number> {
     return response.data.workItems.length;
 }
 
-// @Me is deliberately not used in the normal (logged-in) path: this client
-// authenticates to Azure DevOps with a shared PAT (see top of file), so @Me
-// would resolve to the PAT's identity for every caller, not the signed-in
-// user. Callers must filter by the real user's identity themselves once
-// System.AssignedTo is returned. The one exception is SKIP_AUTH dev mode,
-// where there is no signed-in user to filter by and the PAT genuinely is the
-// one developer's own personal token, so @Me correctly means "me".
 export async function getActiveWorkItemIds(
+    azdo: AxiosInstance,
     type: "Task" | "Bug"
 ): Promise<number[]> {
-    const assignedToMe =
-        process.env.SKIP_AUTH === "true"
-            ? "AND [System.AssignedTo] = @Me\n          "
-            : "";
-
     const response = await azdo.post(
         "/wit/wiql?api-version=7.1",
         {
@@ -206,7 +226,8 @@ export async function getActiveWorkItemIds(
         SELECT [System.Id]
         FROM WorkItems
         WHERE [System.WorkItemType] = '${type}'
-          ${assignedToMe}AND [System.State] <> 'Removed'
+          AND [System.AssignedTo] = @Me
+          AND [System.State] <> 'Removed'
         ORDER BY [Microsoft.VSTS.Common.Priority] ASC, [System.ChangedDate] DESC
       `,
         }

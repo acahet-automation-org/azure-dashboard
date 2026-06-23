@@ -2,11 +2,17 @@ name: Deploy client to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [feat-obo-setup]
     paths:
       - 'client/**'
       - '.github/workflows/deploy-pages.yml'
- 
+
+  pull_request:
+    branches: [feat-obo-setup]
+    paths:
+      - 'client/**'
+      - '.github/workflows/deploy-pages.yml'
+
   workflow_dispatch:
 
 permissions:
@@ -39,6 +45,11 @@ jobs:
           VITE_ENTRA_REDIRECT_URI: ${{ vars.VITE_ENTRA_REDIRECT_URI }}
           VITE_ENTRA_API_SCOPE: ${{ vars.VITE_ENTRA_API_SCOPE }}
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+
+      # GitHub Pages has no SPA fallback - it 404s on direct loads/refreshes
+      # of client-side routes like /my-work-items. Serving index.html as the
+      # 404 page lets React Router pick up the route once index.html boots.
+      - run: cp client/dist/index.html client/dist/404.html
 
       - uses: actions/upload-pages-artifact@v3
         with:

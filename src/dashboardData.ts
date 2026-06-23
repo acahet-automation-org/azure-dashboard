@@ -1,3 +1,4 @@
+import type { AxiosInstance } from "axios";
 import {
     getTestPlans,
     getSuites,
@@ -59,6 +60,7 @@ export function resolveOutcome(
 }
 
 async function buildTestCaseRow(
+    azdo: AxiosInstance,
     tc: any,
     planName: string,
     suiteName: string,
@@ -66,6 +68,7 @@ async function buildTestCaseRow(
     lastRunByTestCase: Record<number, number>
 ): Promise<TestCaseRow> {
     const workItem = await getWorkItem(
+        azdo,
         tc.workItem.id
     );
 
@@ -74,6 +77,7 @@ async function buildTestCaseRow(
     );
 
     const linkedItems = await getWorkItems(
+        azdo,
         linkedIds
     );
 
@@ -127,23 +131,25 @@ async function buildTestCaseRow(
     };
 }
 
-export async function buildDashboard(): Promise<
-    TestCaseRow[]
-> {
-    const plans = await getTestPlans();
+export async function buildDashboard(
+    azdo: AxiosInstance
+): Promise<TestCaseRow[]> {
+    const plans = await getTestPlans(azdo);
 
     const allTestCases: TestCaseRow[] = [];
 
     for (const plan of plans) {
-        const suites = await getSuites(plan.id);
+        const suites = await getSuites(azdo, plan.id);
 
         for (const suite of suites) {
             const testCases = await getTestCases(
+                azdo,
                 plan.id,
                 suite.id
             );
 
             const testPoints = await getTestPoints(
+                azdo,
                 plan.id,
                 suite.id
             );
@@ -204,6 +210,7 @@ export async function buildDashboard(): Promise<
             const rows = await Promise.all(
                 testCases.map((tc: any) =>
                     buildTestCaseRow(
+                        azdo,
                         tc,
                         plan.name,
                         suite.name,
@@ -220,9 +227,9 @@ export async function buildDashboard(): Promise<
     return allTestCases;
 }
 
-export async function getDashboardData(): Promise<
-    TestCaseRow[]
-> {
+export async function getDashboardData(
+    azdo: AxiosInstance
+): Promise<TestCaseRow[]> {
     const now = Date.now();
 
     if (
@@ -236,7 +243,7 @@ export async function getDashboardData(): Promise<
 
     console.log("CACHE MISS");
 
-    dashboardCache = await buildDashboard();
+    dashboardCache = await buildDashboard(azdo);
     cacheTimestamp = now;
 
     return dashboardCache;
@@ -451,10 +458,10 @@ function summarizeRunStats(
     return { counts, total, passRate };
 }
 
-export async function computeTestPlans(): Promise<
-    TestPlanSummary[]
-> {
-    const plans = await getTestPlans();
+export async function computeTestPlans(
+    azdo: AxiosInstance
+): Promise<TestPlanSummary[]> {
+    const plans = await getTestPlans(azdo);
 
     const org = process.env.AZDO_ORG;
     const project = encodeURIComponent(
@@ -473,9 +480,10 @@ export async function computeTestPlans(): Promise<
 }
 
 export async function computePlanSuites(
+    azdo: AxiosInstance,
     planId: number
 ): Promise<TestSuiteSummary[]> {
-    const suites = await getSuites(planId);
+    const suites = await getSuites(azdo, planId);
 
     const testCasesBySuiteId = new Map<
         number,
@@ -490,6 +498,7 @@ export async function computePlanSuites(
                 > => {
                     const testCases =
                         await getTestCases(
+                            azdo,
                             planId,
                             suite.id
                         );
@@ -549,10 +558,10 @@ export async function computePlanSuites(
     return roots;
 }
 
-export async function computeRunCards(): Promise<
-    RunCard[]
-> {
-    const runs = await getTestRuns();
+export async function computeRunCards(
+    azdo: AxiosInstance
+): Promise<RunCard[]> {
+    const runs = await getTestRuns(azdo);
 
     const last10 = [...runs]
         .sort((a: any, b: any) => {
@@ -575,6 +584,7 @@ export async function computeRunCards(): Promise<
             async (run: any): Promise<RunCard> => {
                 const stats =
                     await getTestRunStatistics(
+                        azdo,
                         run.id
                     );
 
@@ -599,16 +609,16 @@ export async function computeRunCards(): Promise<
     );
 }
 
-export async function computeExecutionTrend(): Promise<
-    TrendPoint[]
-> {
-    const runs = await getTestRuns();
+export async function computeExecutionTrend(
+    azdo: AxiosInstance
+): Promise<TrendPoint[]> {
+    const runs = await getTestRuns(azdo);
 
     const runStats = await Promise.all(
         runs.map(async (run: any) => ({
             run,
             ...summarizeRunStats(
-                await getTestRunStatistics(run.id)
+                await getTestRunStatistics(azdo, run.id)
             ),
         }))
     );

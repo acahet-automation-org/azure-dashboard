@@ -7,6 +7,14 @@ import jwt, {
 } from "jsonwebtoken";
 import jwksClient from "jwks-rsa";
 
+declare global {
+    namespace Express {
+        interface Request {
+            userToken?: string;
+        }
+    }
+}
+
 const tenantId = process.env.ENTRA_TENANT_ID!;
 const clientId = process.env.ENTRA_CLIENT_ID!;
 
@@ -86,6 +94,7 @@ export function requireAuth(
                 return;
             }
 
+            req.userToken = token;
             next();
         }
     );

@@ -1,3 +1,4 @@
+import type { AxiosInstance } from "axios";
 import {
     getAllBugFields,
     getWorkItemRevisions,
@@ -54,15 +55,17 @@ function countReopenings(revisions: any[]): number {
 }
 
 async function hasLinkedTestCase(
+    azdo: AxiosInstance,
     bugId: number
 ): Promise<boolean> {
-    const workItem = await getWorkItem(bugId);
+    const workItem = await getWorkItem(azdo, bugId);
 
     const linkedIds = extractWorkItemIds(
         workItem.relations
     );
 
     const linkedItems = await getWorkItems(
+        azdo,
         linkedIds
     );
 
@@ -74,12 +77,13 @@ async function hasLinkedTestCase(
 }
 
 async function buildDefectRecord(
+    azdo: AxiosInstance,
     bug: any
 ): Promise<DefectRecord> {
     const [revisions, linkedToTestCase] =
         await Promise.all([
-            getWorkItemRevisions(bug.id),
-            hasLinkedTestCase(bug.id),
+            getWorkItemRevisions(azdo, bug.id),
+            hasLinkedTestCase(azdo, bug.id),
         ]);
 
     return {
@@ -110,19 +114,19 @@ async function buildDefectRecord(
     };
 }
 
-export async function buildDefectRecords(): Promise<
-    DefectRecord[]
-> {
-    const bugs = await getAllBugFields();
+export async function buildDefectRecords(
+    azdo: AxiosInstance
+): Promise<DefectRecord[]> {
+    const bugs = await getAllBugFields(azdo);
 
     return Promise.all(
-        bugs.map((bug) => buildDefectRecord(bug))
+        bugs.map((bug) => buildDefectRecord(azdo, bug))
     );
 }
 
-export async function getDefectData(): Promise<
-    DefectRecord[]
-> {
+export async function getDefectData(
+    azdo: AxiosInstance
+): Promise<DefectRecord[]> {
     const now = Date.now();
 
     if (
@@ -132,7 +136,7 @@ export async function getDefectData(): Promise<
         return defectCache;
     }
 
-    defectCache = await buildDefectRecords();
+    defectCache = await buildDefectRecords(azdo);
     cacheTimestamp = now;
 
     return defectCache;
