@@ -35,6 +35,10 @@ import {
     getFollowedWorkItems,
 } from "./myWorkItemsData.js";
 import { sendReportEmail } from "./mailer.js";
+import {
+    computePlanOverview,
+    clearPlanOverviewCache,
+} from "./planOverviewData.js";
 
 const app = express();
 
@@ -135,6 +139,20 @@ app.get("/api/plans/:planId/suites", async (req, res) => {
         const planId = Number(req.params.planId);
 
         res.json(await computePlanSuites(planId));
+    } catch (error: any) {
+        console.error(error);
+
+        res.status(500).json({
+            message: error.message,
+        });
+    }
+});
+
+app.get("/api/plans/:planId/overview", async (req, res) => {
+    try {
+        const planId = Number(req.params.planId);
+
+        res.json(await computePlanOverview(planId));
     } catch (error: any) {
         console.error(error);
 
@@ -284,6 +302,7 @@ app.post("/api/refresh", (_, res) => {
     clearDefectCache();
     clearCommonErrorsCache();
     clearAutomationCache();
+    clearPlanOverviewCache();
 
     res.status(204).end();
 });

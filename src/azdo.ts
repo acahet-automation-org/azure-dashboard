@@ -303,6 +303,16 @@ export async function getFollowedWorkItemIds(): Promise<
         .filter((id: number) => Number.isInteger(id));
 }
 
+export async function getBugWorkItemTypeStates(): Promise<
+    { name: string; color: string; category: string }[]
+> {
+    const response = await azdo.get(
+        "/wit/workitemtypes/Bug/states?api-version=7.1"
+    );
+
+    return response.data.value;
+}
+
 export function buildWorkItemUrl(id: number): string {
     const org = process.env.AZDO_ORG;
     const project = encodeURIComponent(

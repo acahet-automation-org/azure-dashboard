@@ -9,6 +9,9 @@ const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ 
 const RunsPage = lazy(() => import("./pages/RunsPage").then((m) => ({ default: m.RunsPage })));
 const PlansPage = lazy(() => import("./pages/PlansPage").then((m) => ({ default: m.PlansPage })));
 const PlanDetailPage = lazy(() => import("./pages/PlanDetailPage").then((m) => ({ default: m.PlanDetailPage })));
+const PlanOverviewPage = lazy(() =>
+    import("./pages/PlanOverviewPage").then((m) => ({ default: m.PlanOverviewPage }))
+);
 const AutomationDashboardPage = lazy(() =>
     import("./pages/AutomationDashboardPage").then((m) => ({ default: m.AutomationDashboardPage }))
 );
@@ -40,6 +43,7 @@ function AppRoutes() {
                 <Route path="/last-5-runs" element={<RunsPage />} />
                 <Route path="/plans" element={<PlansPage />} />
                 <Route path="/plans/:planId" element={<PlanDetailPage />} />
+                <Route path="/plan-overview" element={<PlanOverviewPage />} />
                 <Route path="/automation-dashboard" element={<AutomationDashboardPage />} />
                 <Route path="/test-execution" element={<TestExecutionPage />} />
                 <Route path="/defects" element={<DefectManagementPage />} />

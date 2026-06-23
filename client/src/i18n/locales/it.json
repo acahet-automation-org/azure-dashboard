@@ -9,6 +9,7 @@
         "dashboard": "Dashboard Completa",
         "runs": "Ultime 10 Esecuzioni",
         "plans": "Piani di Test",
+        "planOverview": "Panoramica Piano",
         "automation": "Automazione",
         "automationDashboard": "Dashboard Automazione",
         "execution": "Esecuzione Test",
@@ -72,6 +73,28 @@
         "suitesTitle": "Suite di Test",
         "empty": "Nessuna suite di test trovata.",
         "suiteEmpty": "Nessun test case in questa suite."
+    },
+    "planOverviewPage": {
+        "title": "Panoramica Piano",
+        "selectPlanPrompt": "Seleziona un piano di test per visualizzare la panoramica.",
+        "planFilter": {
+            "label": "Piano di Test",
+            "placeholder": "Seleziona un piano..."
+        },
+        "stats": {
+            "totalTests": "Test Case Totali",
+            "totalBugs": "Bug Totali",
+            "passRate": "Percentuale di Successo"
+        },
+        "charts": {
+            "outcomeBreakdown": "Suddivisione Risultati Test",
+            "testsBySuite": "Test per Suite",
+            "bugsByState": "Bug per Stato"
+        },
+        "bugsSection": {
+            "title": "Bug",
+            "empty": "Nessun bug collegato ai test case di questo piano."
+        }
     },
     "automationDashboardPage": {
         "title": "Dashboard di Automazione",

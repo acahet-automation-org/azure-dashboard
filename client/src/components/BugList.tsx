@@ -36,10 +36,13 @@ export function BugList({ bugs }: { bugs: BugInfo[] }) {
                 ) : (
                     <CheckmarkCircleFilled aria-hidden="true" />
                 );
-                const label =
+                const base =
                     bug.priority != null
                         ? `P${bug.priority} · ${bug.id} - ${bug.title} (${bug.state})`
                         : `${bug.id} - ${bug.title} (${bug.state})`;
+                const label = bug.creator
+                    ? `${base} · ${bug.creator}`
+                    : base;
 
                 return (
                     <Text

@@ -9,6 +9,7 @@
         "dashboard": "Full Dashboard",
         "runs": "Last 10 Runs",
         "plans": "Test Plans",
+        "planOverview": "Plan Overview",
         "automation": "Automation",
         "automationDashboard": "Automation Dashboard",
         "execution": "Test Execution",
@@ -72,6 +73,28 @@
         "suitesTitle": "Test Suites",
         "empty": "No test suites found.",
         "suiteEmpty": "No test cases in this suite."
+    },
+    "planOverviewPage": {
+        "title": "Plan Overview",
+        "selectPlanPrompt": "Select a test plan to view its overview.",
+        "planFilter": {
+            "label": "Test Plan",
+            "placeholder": "Select a plan..."
+        },
+        "stats": {
+            "totalTests": "Total Test Cases",
+            "totalBugs": "Total Bugs",
+            "passRate": "Pass Rate"
+        },
+        "charts": {
+            "outcomeBreakdown": "Test Outcome Breakdown",
+            "testsBySuite": "Tests by Suite",
+            "bugsByState": "Bugs by State"
+        },
+        "bugsSection": {
+            "title": "Bugs",
+            "empty": "No bugs linked to this plan's test cases."
+        }
     },
     "automationDashboardPage": {
         "title": "Automation Dashboard",

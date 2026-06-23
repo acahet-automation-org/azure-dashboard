@@ -10,6 +10,7 @@ export interface BugInfo {
     state: string;
     priority?: number;
     url?: string;
+    creator?: string;
 }
 
 export type MyWorkItemsMode = "assigned" | "mentioned" | "following";
@@ -223,4 +224,34 @@ export interface DefectStats {
 export interface DefectDashboardResponse {
     stats: DefectStats;
     cacheTimestamp: number;
+}
+
+export interface PlanOverviewBugState {
+    name: string;
+    color: string;
+    category: string;
+}
+
+export interface PlanOverviewBugStateCount {
+    state: string;
+    count: number;
+    color?: string;
+    category?: string;
+}
+
+export interface PlanOverviewSuiteCount {
+    suiteName: string;
+    count: number;
+}
+
+export interface PlanOverviewResponse {
+    planId: number;
+    planName: string;
+    totalTestCases: number;
+    totalBugs: number;
+    testsBySuite: PlanOverviewSuiteCount[];
+    outcomeCounts: Record<Outcome, number>;
+    bugStates: PlanOverviewBugState[];
+    bugsByState: PlanOverviewBugStateCount[];
+    bugs: BugInfo[];
 }
