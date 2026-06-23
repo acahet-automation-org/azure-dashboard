@@ -6,7 +6,13 @@ on:
     paths:
       - 'client/**'
       - '.github/workflows/deploy-pages.yml'
- 
+
+  pull_request:
+    branches: [feat-obo-setup]
+    paths:
+      - 'client/**'
+      - '.github/workflows/deploy-pages.yml'
+
   workflow_dispatch:
 
 permissions:
