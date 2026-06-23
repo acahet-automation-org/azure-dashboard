@@ -5,10 +5,11 @@ import {
     Dropdown,
     Option,
     Field,
+    Button,
     makeStyles,
     tokens,
 } from "@fluentui/react-components";
-import { ChevronDownRegular } from "@fluentui/react-icons";
+import { ChevronDownRegular, ArrowDownloadRegular } from "@fluentui/react-icons";
 import {
     ResponsiveContainer,
     PieChart,
@@ -32,9 +33,17 @@ import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { BugList } from "../components/BugList";
 import { fetchPlans, fetchPlanOverview } from "../api/client";
+import { exportPlanOverviewToPdf } from "../utils/export";
 import type { Outcome } from "../types";
 
 const useStyles = makeStyles({
+    toolbar: {
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "space-between",
+        gap: tokens.spacingHorizontalM,
+        flexWrap: "wrap",
+    },
     section: {
         display: "flex",
         flexDirection: "column",
@@ -95,36 +104,48 @@ export function PlanOverviewPage() {
 
     return (
         <PageLayout title={t("planOverviewPage.title")}>
-            <Field
-                label={t("planOverviewPage.planFilter.label")}
-                className={styles.filterField}
-            >
-                <Dropdown
-                    expandIcon={<ChevronDownRegular />}
-                    placeholder={t(
-                        "planOverviewPage.planFilter.placeholder"
-                    )}
-                    value={selectedPlanName ?? ""}
-                    selectedOptions={[
-                        selectedPlanId != null
-                            ? String(selectedPlanId)
-                            : "",
-                    ]}
-                    onOptionSelect={(_, option) => {
-                        const value = option.optionValue;
-
-                        setSelectedPlanId(
-                            value ? Number(value) : undefined
-                        );
-                    }}
+            <div className={styles.toolbar}>
+                <Field
+                    label={t("planOverviewPage.planFilter.label")}
+                    className={styles.filterField}
                 >
-                    {plans?.map((plan) => (
-                        <Option key={plan.id} value={String(plan.id)}>
-                            {plan.name}
-                        </Option>
-                    ))}
-                </Dropdown>
-            </Field>
+                    <Dropdown
+                        expandIcon={<ChevronDownRegular />}
+                        placeholder={t(
+                            "planOverviewPage.planFilter.placeholder"
+                        )}
+                        value={selectedPlanName ?? ""}
+                        selectedOptions={[
+                            selectedPlanId != null
+                                ? String(selectedPlanId)
+                                : "",
+                        ]}
+                        onOptionSelect={(_, option) => {
+                            const value = option.optionValue;
+
+                            setSelectedPlanId(
+                                value ? Number(value) : undefined
+                            );
+                        }}
+                    >
+                        {plans?.map((plan) => (
+                            <Option key={plan.id} value={String(plan.id)}>
+                                {plan.name}
+                            </Option>
+                        ))}
+                    </Dropdown>
+                </Field>
+
+                {data && (
+                    <Button
+                        appearance="secondary"
+                        icon={<ArrowDownloadRegular />}
+                        onClick={() => exportPlanOverviewToPdf(data)}
+                    >
+                        {t("planOverviewPage.exportPdf")}
+                    </Button>
+                )}
+            </div>
 
             {selectedPlanId == null && (
                 <EmptyState

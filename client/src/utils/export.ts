@@ -1,7 +1,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
-import type { TestCaseRow } from "../types";
+import type { PlanOverviewResponse, TestCaseRow } from "../types";
 
 export interface ExportableRow {
     testPlan?: string;
@@ -329,4 +329,116 @@ export function buildPdfBase64(
     const doc = buildPdfDocument(title, rows, suiteBugTotals, suiteHeader);
 
     return doc.output("datauristring").split(",")[1];
+}
+
+export function exportPlanOverviewToPdf(
+    data: PlanOverviewResponse
+): void {
+    const passRate = data.totalTestCases
+        ? Math.round(
+            (data.outcomeCounts.Passed / data.totalTestCases) * 1000
+        ) / 10
+        : 0;
+
+    const doc = new jsPDF();
+
+    doc.setFontSize(14);
+    doc.text(`Plan Overview: ${data.planName}`, 14, 15);
+
+    autoTable(doc, {
+        startY: 22,
+        head: [["Total Test Cases", "Total Bugs", "Pass Rate"]],
+        body: [
+            [
+                String(data.totalTestCases),
+                String(data.totalBugs),
+                `${passRate}%`,
+            ],
+        ],
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [0, 90, 158] },
+    });
+
+    let nextY =
+        (doc as unknown as { lastAutoTable: { finalY: number } })
+            .lastAutoTable.finalY + 10;
+
+    doc.setFontSize(12);
+    doc.text("Test Outcome Breakdown", 14, nextY);
+    nextY += 4;
+
+    autoTable(doc, {
+        startY: nextY,
+        head: [["Outcome", "Count"]],
+        body: (
+            Object.entries(data.outcomeCounts) as [string, number][]
+        ).map(([outcome, count]) => [outcome, String(count)]),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [0, 90, 158] },
+    });
+
+    nextY =
+        (doc as unknown as { lastAutoTable: { finalY: number } })
+            .lastAutoTable.finalY + 10;
+
+    doc.setFontSize(12);
+    doc.text("Tests by Suite", 14, nextY);
+    nextY += 4;
+
+    autoTable(doc, {
+        startY: nextY,
+        head: [["Suite Name", "Count"]],
+        body: data.testsBySuite.map((s) => [
+            s.suiteName,
+            String(s.count),
+        ]),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [0, 90, 158] },
+    });
+
+    nextY =
+        (doc as unknown as { lastAutoTable: { finalY: number } })
+            .lastAutoTable.finalY + 10;
+
+    if (data.bugsByState.length > 0) {
+        doc.setFontSize(12);
+        doc.text("Bugs by State", 14, nextY);
+        nextY += 4;
+
+        autoTable(doc, {
+            startY: nextY,
+            head: [["State", "Count"]],
+            body: data.bugsByState.map((s) => [
+                s.state,
+                String(s.count),
+            ]),
+            styles: { fontSize: 8 },
+            headStyles: { fillColor: [0, 90, 158] },
+        });
+
+        nextY =
+            (doc as unknown as { lastAutoTable: { finalY: number } })
+                .lastAutoTable.finalY + 10;
+    }
+
+    if (data.bugs.length > 0) {
+        doc.setFontSize(12);
+        doc.text("Bugs", 14, nextY);
+        nextY += 4;
+
+        autoTable(doc, {
+            startY: nextY,
+            head: [["ID", "Title", "State", "Creator"]],
+            body: data.bugs.map((bug) => [
+                String(bug.id),
+                bug.title,
+                bug.state,
+                bug.creator ?? "",
+            ]),
+            styles: { fontSize: 8 },
+            headStyles: { fillColor: [0, 90, 158] },
+        });
+    }
+
+    doc.save(`plan-overview-${data.planId}-${Date.now()}.pdf`);
 }

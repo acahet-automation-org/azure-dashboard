@@ -76,6 +76,7 @@
     },
     "planOverviewPage": {
         "title": "Plan Overview",
+        "exportPdf": "Export as PDF",
         "selectPlanPrompt": "Select a test plan to view its overview.",
         "planFilter": {
             "label": "Test Plan",
