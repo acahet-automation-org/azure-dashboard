@@ -1,3 +1,4 @@
+import type { AxiosInstance } from "axios";
 import {
     getTestPlans,
     getSuites,
@@ -32,18 +33,19 @@ export function getAutomationCacheTimestamp(): number {
     return cacheTimestamp;
 }
 
-async function buildAutomationRows(): Promise<
-    AutomationTestCaseRow[]
-> {
-    const plans = await getTestPlans();
+async function buildAutomationRows(
+    azdo: AxiosInstance
+): Promise<AutomationTestCaseRow[]> {
+    const plans = await getTestPlans(azdo);
 
     const rows: AutomationTestCaseRow[] = [];
 
     for (const plan of plans) {
-        const suites = await getSuites(plan.id);
+        const suites = await getSuites(azdo, plan.id);
 
         for (const suite of suites) {
             const testCases = await getTestCases(
+                azdo,
                 plan.id,
                 suite.id
             );
@@ -52,7 +54,7 @@ async function buildAutomationRows(): Promise<
                 (tc: any) => tc.workItem.id
             );
 
-            const workItems = await getWorkItems(ids, [
+            const workItems = await getWorkItems(azdo, ids, [
                 AUTOMATION_STATUS_FIELD,
                 AREA_PATH_FIELD,
             ]);
@@ -87,14 +89,14 @@ async function buildAutomationRows(): Promise<
     return rows;
 }
 
-async function buildOccurrences(): Promise<
-    AutomationResultOccurrence[]
-> {
-    const runs = await getTestRuns();
+async function buildOccurrences(
+    azdo: AxiosInstance
+): Promise<AutomationResultOccurrence[]> {
+    const runs = await getTestRuns(azdo);
 
     const resultsByRun = await Promise.all(
         runs.map((run: any) =>
-            getTestRunResults(run.id)
+            getTestRunResults(azdo, run.id)
         )
     );
 
@@ -119,19 +121,23 @@ async function buildOccurrences(): Promise<
     return occurrences;
 }
 
-async function buildAutomationData(): Promise<{
+async function buildAutomationData(
+    azdo: AxiosInstance
+): Promise<{
     rows: AutomationTestCaseRow[];
     occurrences: AutomationResultOccurrence[];
 }> {
     const [rows, occurrences] = await Promise.all([
-        buildAutomationRows(),
-        buildOccurrences(),
+        buildAutomationRows(azdo),
+        buildOccurrences(azdo),
     ]);
 
     return { rows, occurrences };
 }
 
-async function getAutomationData(): Promise<{
+async function getAutomationData(
+    azdo: AxiosInstance
+): Promise<{
     rows: AutomationTestCaseRow[];
     occurrences: AutomationResultOccurrence[];
 }> {
@@ -153,7 +159,7 @@ async function getAutomationData(): Promise<{
     console.log("CACHE MISS");
 
     const { rows, occurrences } =
-        await buildAutomationData();
+        await buildAutomationData(azdo);
 
     rowsCache = rows;
     occurrencesCache = occurrences;
@@ -389,10 +395,11 @@ export function computeAutomationDashboard(
 }
 
 export async function getAutomationDashboard(
+    azdo: AxiosInstance,
     planId?: number
 ): Promise<AutomationDashboardResponse> {
     const { rows, occurrences } =
-        await getAutomationData();
+        await getAutomationData(azdo);
 
     return {
         ...computeAutomationDashboard(

@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { requireAuth } from "./auth.js";
+import { getAzdoClientForRequest } from "./azdoClient.js";
 import {
     getDashboardData,
     clearDashboardCache,
@@ -42,10 +43,11 @@ app.use(cors({ origin: allowedOrigins }));
 
 app.use("/api", requireAuth);
 
-app.get("/api/suites", async (_, res) => {
+app.get("/api/suites", async (req, res) => {
     try {
+        const azdo = await getAzdoClientForRequest(req);
         const allTestCases =
-            await getDashboardData();
+            await getDashboardData(azdo);
 
         res.json(
             computeSuiteStats(allTestCases)
@@ -59,10 +61,11 @@ app.get("/api/suites", async (_, res) => {
     }
 });
 
-app.get("/api/dashboard", async (_, res) => {
+app.get("/api/dashboard", async (req, res) => {
     try {
+        const azdo = await getAzdoClientForRequest(req);
         const allTestCases =
-            await getDashboardData();
+            await getDashboardData(azdo);
 
         res.json({
             stats: computeDashboardStats(
@@ -79,9 +82,11 @@ app.get("/api/dashboard", async (_, res) => {
     }
 });
 
-app.get("/api/runs", async (_, res) => {
+app.get("/api/runs", async (req, res) => {
     try {
-        res.json(await computeRunCards());
+        const azdo = await getAzdoClientForRequest(req);
+
+        res.json(await computeRunCards(azdo));
     } catch (error: any) {
         console.error(error);
 
@@ -91,12 +96,14 @@ app.get("/api/runs", async (_, res) => {
     }
 });
 
-app.get("/api/execution-trend", async (_, res) => {
+app.get("/api/execution-trend", async (req, res) => {
     try {
+        const azdo = await getAzdoClientForRequest(req);
+
         const [trend, allTestCases] =
             await Promise.all([
-                computeExecutionTrend(),
-                getDashboardData(),
+                computeExecutionTrend(azdo),
+                getDashboardData(azdo),
             ]);
 
         res.json({
@@ -112,9 +119,11 @@ app.get("/api/execution-trend", async (_, res) => {
     }
 });
 
-app.get("/api/plans", async (_, res) => {
+app.get("/api/plans", async (req, res) => {
     try {
-        res.json(await computeTestPlans());
+        const azdo = await getAzdoClientForRequest(req);
+
+        res.json(await computeTestPlans(azdo));
     } catch (error: any) {
         console.error(error);
 
@@ -126,9 +135,10 @@ app.get("/api/plans", async (_, res) => {
 
 app.get("/api/plans/:planId/suites", async (req, res) => {
     try {
+        const azdo = await getAzdoClientForRequest(req);
         const planId = Number(req.params.planId);
 
-        res.json(await computePlanSuites(planId));
+        res.json(await computePlanSuites(azdo, planId));
     } catch (error: any) {
         console.error(error);
 
@@ -140,10 +150,12 @@ app.get("/api/plans/:planId/suites", async (req, res) => {
 
 app.get("/api/automation", async (req, res) => {
     try {
+        const azdo = await getAzdoClientForRequest(req);
         const planId = Number(req.query.planId);
 
         res.json(
             await getAutomationDashboard(
+                azdo,
                 Number.isFinite(planId)
                     ? planId
                     : undefined
@@ -158,12 +170,13 @@ app.get("/api/automation", async (req, res) => {
     }
 });
 
-app.get("/api/defects", async (_, res) => {
+app.get("/api/defects", async (req, res) => {
     try {
+        const azdo = await getAzdoClientForRequest(req);
         const [records, storyCount] =
             await Promise.all([
-                getDefectData(),
-                getStoryCount(),
+                getDefectData(azdo),
+                getStoryCount(azdo),
             ]);
 
         res.json({
@@ -182,10 +195,11 @@ app.get("/api/defects", async (_, res) => {
     }
 });
 
-app.get("/api/common-errors", async (_, res) => {
+app.get("/api/common-errors", async (req, res) => {
     try {
+        const azdo = await getAzdoClientForRequest(req);
         const { errors, totalFailedResults } =
-            await getCommonErrorsData();
+            await getCommonErrorsData(azdo);
 
         res.json({
             errors,
@@ -203,9 +217,10 @@ app.get("/api/common-errors", async (_, res) => {
 });
 app.get("/api/my-work-items", async (req, res) => {
     try {
+        const azdo = await getAzdoClientForRequest(req);
         const type = req.query.type === "Bug" ? "Bug" : "Task";
 
-        res.json(await getMyWorkItems(type));
+        res.json(await getMyWorkItems(azdo, type));
     } catch (error: any) {
         console.error(error);
 

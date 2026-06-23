@@ -1,3 +1,4 @@
+import type { AxiosInstance } from "axios";
 import {
     getActiveWorkItemIds,
     getWorkItems,
@@ -16,10 +17,11 @@ const MY_WORK_ITEM_FIELDS = [
 ];
 
 export async function getMyWorkItems(
+    azdo: AxiosInstance,
     type: "Task" | "Bug"
 ): Promise<WorkItemSummary[]> {
-    const ids = await getActiveWorkItemIds(type);
-    const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS);
+    const ids = await getActiveWorkItemIds(azdo, type);
+    const items = await getWorkItems(azdo, ids, MY_WORK_ITEM_FIELDS);
 
     return items.map((wi: any) => ({
         id: wi.id,

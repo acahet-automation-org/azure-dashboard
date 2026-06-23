@@ -1,3 +1,4 @@
+import type { AxiosInstance } from "axios";
 import {
     getTestRuns,
     getTestRunResults,
@@ -73,6 +74,7 @@ function extractTestCaseTitle(
 }
 
 async function filterToAutomatedResults(
+    azdo: AxiosInstance,
     results: any[]
 ): Promise<any[]> {
     const testCaseIds = [
@@ -86,7 +88,7 @@ async function filterToAutomatedResults(
         ),
     ];
 
-    const testCases = await getWorkItems(testCaseIds, [
+    const testCases = await getWorkItems(azdo, testCaseIds, [
         AUTOMATION_STATUS_FIELD,
     ]);
 
@@ -111,15 +113,17 @@ async function filterToAutomatedResults(
 // TODO: the test/Runs/{runId}/results endpoint supports paging via
 // $top/continuationToken; not handled here, consistent with the rest
 // of this codebase not handling Azure DevOps paging either.
-async function buildCommonErrors(): Promise<{
+async function buildCommonErrors(
+    azdo: AxiosInstance
+): Promise<{
     errors: ErrorSummary[];
     totalFailedResults: number;
 }> {
-    const runs = await getTestRuns();
+    const runs = await getTestRuns(azdo);
 
     const resultsByRun = await Promise.all(
         runs.map((run: any) =>
-            getTestRunResults(run.id)
+            getTestRunResults(azdo, run.id)
         )
     );
 
@@ -132,7 +136,7 @@ async function buildCommonErrors(): Promise<{
     );
 
     const automatedFailedResults =
-        await filterToAutomatedResults(failedResults);
+        await filterToAutomatedResults(azdo, failedResults);
 
     const grouped = new Map<
         string,
@@ -224,7 +228,9 @@ async function buildCommonErrors(): Promise<{
     };
 }
 
-export async function getCommonErrorsData(): Promise<{
+export async function getCommonErrorsData(
+    azdo: AxiosInstance
+): Promise<{
     errors: ErrorSummary[];
     totalFailedResults: number;
 }> {
@@ -247,7 +253,7 @@ export async function getCommonErrorsData(): Promise<{
     console.log("CACHE MISS");
 
     const { errors, totalFailedResults } =
-        await buildCommonErrors();
+        await buildCommonErrors(azdo);
 
     commonErrorsCache = errors;
     totalFailedResultsCache = totalFailedResults;
