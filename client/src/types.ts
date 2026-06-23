@@ -12,10 +12,12 @@ export interface BugInfo {
     url?: string;
 }
 
+export type MyWorkItemsMode = "assigned" | "mentioned" | "following";
+
 export interface WorkItemSummary {
     id: number;
     title: string;
-    type: "Task" | "Bug";
+    type: string;
     state: string;
     priority?: number;
     changedDate?: string;
@@ -24,6 +26,7 @@ export interface WorkItemSummary {
         displayName: string;
         uniqueName: string;
     };
+    mentions?: string[];
 }
 
 export interface TestCaseRow {

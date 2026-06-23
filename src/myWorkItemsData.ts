@@ -1,5 +1,8 @@
 import {
     getActiveWorkItemIds,
+    getRecentlyChangedWorkItemIds,
+    getFollowedWorkItemIds,
+    getCommentMentions,
     getWorkItems,
     buildWorkItemUrl,
 } from "./azdo.js";
@@ -15,13 +18,10 @@ const MY_WORK_ITEM_FIELDS = [
     "System.AssignedTo",
 ];
 
-export async function getMyWorkItems(
-    type: "Task" | "Bug"
-): Promise<WorkItemSummary[]> {
-    const ids = await getActiveWorkItemIds(type);
-    const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS);
+const MENTION_SCAN_WINDOW_DAYS = 30;
 
-    return items.map((wi: any) => ({
+function toWorkItemSummary(wi: any): WorkItemSummary {
+    return {
         id: wi.id,
         title: wi.fields["System.Title"],
         type: wi.fields["System.WorkItemType"],
@@ -35,5 +35,50 @@ export async function getMyWorkItems(
                   uniqueName: wi.fields["System.AssignedTo"].uniqueName,
               }
             : undefined,
+    };
+}
+
+export async function getAssignedWorkItems(): Promise<WorkItemSummary[]> {
+    const ids = await getActiveWorkItemIds();
+    const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS);
+
+    return items.map(toWorkItemSummary);
+}
+
+export async function getMentionedWorkItems(): Promise<WorkItemSummary[]> {
+    const ids = await getRecentlyChangedWorkItemIds(
+        MENTION_SCAN_WINDOW_DAYS
+    );
+    const mentionsById = new Map<number, string[]>();
+
+    await Promise.all(
+        ids.map(async (id) => {
+            const mentions = await getCommentMentions(id);
+
+            if (mentions.length) {
+                mentionsById.set(id, mentions);
+            }
+        })
+    );
+
+    if (!mentionsById.size) {
+        return [];
+    }
+
+    const items = await getWorkItems(
+        [...mentionsById.keys()],
+        MY_WORK_ITEM_FIELDS
+    );
+
+    return items.map((wi) => ({
+        ...toWorkItemSummary(wi),
+        mentions: mentionsById.get(wi.id) ?? [],
     }));
+}
+
+export async function getFollowedWorkItems(): Promise<WorkItemSummary[]> {
+    const ids = await getFollowedWorkItemIds();
+    const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS);
+
+    return items.map(toWorkItemSummary);
 }

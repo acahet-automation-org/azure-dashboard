@@ -205,10 +205,12 @@
     },
     "myWorkItemsPage": {
         "title": "I Miei Elementi di Lavoro",
-        "empty": "Nessun elemento di lavoro assegnato per questo tipo.",
+        "empty": "Nessun elemento di lavoro trovato per questa vista.",
         "filters": {
-            "tasks": "Attività",
-            "bugs": "Bug"
+            "assignedToMe": "Assegnati a me",
+            "mentioned": "Menzionati",
+            "following": "Seguiti",
+            "bugsOnly": "Solo bug"
         }
     },
     "filterBar": {

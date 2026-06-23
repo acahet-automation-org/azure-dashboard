@@ -29,7 +29,11 @@ import {
     getCommonErrorsCacheTimestamp,
     clearCommonErrorsCache,
 } from "./errorAggregationData.js";
-import { getMyWorkItems } from "./myWorkItemsData.js";
+import {
+    getAssignedWorkItems,
+    getMentionedWorkItems,
+    getFollowedWorkItems,
+} from "./myWorkItemsData.js";
 
 const app = express();
 
@@ -203,9 +207,16 @@ app.get("/api/common-errors", async (_, res) => {
 });
 app.get("/api/my-work-items", async (req, res) => {
     try {
-        const type = req.query.type === "Bug" ? "Bug" : "Task";
+        const mode = req.query.mode;
 
-        res.json(await getMyWorkItems(type));
+        const items =
+            mode === "mentioned"
+                ? await getMentionedWorkItems()
+                : mode === "following"
+                  ? await getFollowedWorkItems()
+                  : await getAssignedWorkItems();
+
+        res.json(items);
     } catch (error: any) {
         console.error(error);
 

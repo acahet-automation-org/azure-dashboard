@@ -205,10 +205,12 @@
     },
     "myWorkItemsPage": {
         "title": "My Work Items",
-        "empty": "No work items assigned to you for this type.",
+        "empty": "No work items found for this view.",
         "filters": {
-            "tasks": "Tasks",
-            "bugs": "Bugs"
+            "assignedToMe": "Assigned to me",
+            "mentioned": "Mentioned",
+            "following": "Following",
+            "bugsOnly": "Bugs only"
         }
     },
     "filterBar": {

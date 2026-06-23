@@ -14,6 +14,16 @@ export const azdo = axios.create({
         "Content-Type": "application/json",
     },
 });
+
+// Some APIs (Favorites, Notification Subscriptions) are organization-scoped
+// rather than project-scoped, so they can't go through the `azdo` client above.
+export const azdoOrg = axios.create({
+    baseURL: `https://dev.azure.com/${process.env.AZDO_ORG}/_apis`,
+    headers: {
+        Authorization: `Basic ${auth}`,
+        "Content-Type": "application/json",
+    },
+});
 export async function getTestPlans() {
     const response = await azdo.get(
         "/testplan/plans?api-version=7.1"
@@ -191,9 +201,9 @@ export async function getStoryCount(): Promise<number> {
 // System.AssignedTo is returned. The one exception is SKIP_AUTH dev mode,
 // where there is no signed-in user to filter by and the PAT genuinely is the
 // one developer's own personal token, so @Me correctly means "me".
-export async function getActiveWorkItemIds(
-    type: "Task" | "Bug"
-): Promise<number[]> {
+export async function getActiveWorkItemIds(): Promise<
+    number[]
+> {
     const assignedToMe =
         process.env.SKIP_AUTH === "true"
             ? "AND [System.AssignedTo] = @Me\n          "
@@ -205,8 +215,8 @@ export async function getActiveWorkItemIds(
             query: `
         SELECT [System.Id]
         FROM WorkItems
-        WHERE [System.WorkItemType] = '${type}'
-          ${assignedToMe}AND [System.State] <> 'Removed'
+        WHERE [System.State] <> 'Removed'
+          ${assignedToMe}
         ORDER BY [Microsoft.VSTS.Common.Priority] ASC, [System.ChangedDate] DESC
       `,
         }
@@ -215,6 +225,81 @@ export async function getActiveWorkItemIds(
     return response.data.workItems.map(
         (w: { id: number }) => w.id
     );
+}
+
+// Bounds the candidate set for comment-mention scanning, since each candidate
+// requires its own /comments request and scanning every work item in the
+// project would be far too slow.
+export async function getRecentlyChangedWorkItemIds(
+    days: number
+): Promise<number[]> {
+    const response = await azdo.post(
+        "/wit/wiql?api-version=7.1",
+        {
+            query: `
+        SELECT [System.Id]
+        FROM WorkItems
+        WHERE [System.State] <> 'Removed'
+          AND [System.ChangedDate] >= @Today - ${days}
+        ORDER BY [System.ChangedDate] DESC
+      `,
+        }
+    );
+
+    return response.data.workItems.map(
+        (w: { id: number }) => w.id
+    );
+}
+
+// Mentions render in comment HTML as `<a ... data-vss-mention="...">@Display
+// Name</a>`. There's no WIQL field to query comment text directly, so each
+// candidate work item's comments must be fetched and scanned individually.
+export async function getCommentMentions(
+    workItemId: number
+): Promise<string[]> {
+    const response = await azdo.get(
+        `/wit/workitems/${workItemId}/comments?api-version=7.1-preview.4`
+    );
+
+    const mentionPattern = /data-vss-mention="[^"]*">@([^<]+)</g;
+    const names = new Set<string>();
+
+    for (const comment of response.data.value ?? []) {
+        const text: string = comment.text ?? "";
+
+        for (const match of text.matchAll(mentionPattern)) {
+            names.add(match[1].trim());
+        }
+    }
+
+    return [...names];
+}
+
+// "Following" a work item creates an organization-scoped notification
+// subscription with an Artifact filter (see Subscriptions - Create REST API).
+// Like @Me above, omitting targetId scopes this to the calling PAT identity,
+// so in normal (non-SKIP_AUTH) mode this reflects the shared PAT's follows,
+// not the signed-in user's. There's no per-work-item "followed by" field to
+// filter on client-side the way assignee is filtered, so unlike the
+// Task/Bug @Me case, this limitation can't be worked around once OAuth
+// pass-through isn't available.
+export async function getFollowedWorkItemIds(): Promise<
+    number[]
+> {
+    const response = await azdoOrg.get(
+        "/notification/subscriptions?api-version=7.1"
+    );
+
+    return (response.data.value ?? [])
+        .filter(
+            (sub: any) =>
+                sub.filter?.type === "Artifact" &&
+                sub.filter?.artifactType === "WorkItem"
+        )
+        .map((sub: any) =>
+            Number.parseInt(sub.filter.artifactId, 10)
+        )
+        .filter((id: number) => Number.isInteger(id));
 }
 
 export function buildWorkItemUrl(id: number): string {

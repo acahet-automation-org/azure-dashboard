@@ -10,6 +10,7 @@ import type {
     DefectDashboardResponse,
     CommonErrorsResponse,
     WorkItemSummary,
+    MyWorkItemsMode,
 } from "../types";
 import { loginRequest } from "../authConfig";
 import { msalInstance } from "../msalInstance";
@@ -126,9 +127,9 @@ export function fetchCommonErrors(): Promise<CommonErrorsResponse> {
 }
 
 export function fetchMyWorkItems(
-    type: "Task" | "Bug"
+    mode: MyWorkItemsMode
 ): Promise<WorkItemSummary[]> {
-    return getJson(`/api/my-work-items?type=${type}`);
+    return getJson(`/api/my-work-items?mode=${mode}`);
 }
 
 export async function postRefresh(): Promise<void> {
