@@ -105,8 +105,12 @@ export function fetchPlanSuites(
     return getJson(`/api/plans/${planId}/suites`);
 }
 
-export function fetchAutomationDashboard(): Promise<AutomationDashboardResponse> {
-    return getJson("/api/automation");
+export function fetchAutomationDashboard(
+    planId?: number
+): Promise<AutomationDashboardResponse> {
+    const qs = planId != null ? `?planId=${planId}` : "";
+
+    return getJson(`/api/automation${qs}`);
 }
 
 export function fetchExecutionTrend(): Promise<ExecutionTrendResponse> {

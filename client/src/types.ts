@@ -129,6 +129,8 @@ export interface AutomationDashboardResponse {
     ciCd: CiCdMetrics;
     charts: AutomationCharts;
     cacheTimestamp: number;
+    planId: number | null;
+    automatedPlanIds: number[];
 }
 
 export interface DashboardStats {

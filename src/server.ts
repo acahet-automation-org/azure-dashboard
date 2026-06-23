@@ -13,7 +13,10 @@ import {
     computeTestPlans,
     computePlanSuites,
 } from "./dashboardData.js";
-import { getAutomationDashboard } from "./automationData.js";
+import {
+    getAutomationDashboard,
+    clearAutomationCache,
+} from "./automationData.js";
 import {
     getDefectData,
     getDefectCacheTimestamp,
@@ -135,9 +138,17 @@ app.get("/api/plans/:planId/suites", async (req, res) => {
     }
 });
 
-app.get("/api/automation", async (_, res) => {
+app.get("/api/automation", async (req, res) => {
     try {
-        res.json(await getAutomationDashboard());
+        const planId = Number(req.query.planId);
+
+        res.json(
+            await getAutomationDashboard(
+                Number.isFinite(planId)
+                    ? planId
+                    : undefined
+            )
+        );
     } catch (error: any) {
         console.error(error);
 
@@ -208,6 +219,7 @@ app.post("/api/refresh", (_, res) => {
     clearDashboardCache();
     clearDefectCache();
     clearCommonErrorsCache();
+    clearAutomationCache();
 
     res.status(204).end();
 });

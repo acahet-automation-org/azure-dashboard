@@ -73,6 +73,11 @@
     "automationDashboardPage": {
         "title": "Automation Dashboard",
         "minutes": "{{value}} min",
+        "planFilter": {
+            "label": "Test Plan",
+            "allPlans": "All Plans"
+        },
+        "emptyForPlan": "No automated tests found for this plan.",
         "kpis": {
             "automatedTests": "Automated Tests",
             "manualTests": "Manual Tests",

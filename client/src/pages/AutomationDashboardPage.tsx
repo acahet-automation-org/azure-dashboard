@@ -1,6 +1,14 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { makeStyles, tokens } from "@fluentui/react-components";
+import {
+    Dropdown,
+    Option,
+    Field,
+    makeStyles,
+    tokens,
+} from "@fluentui/react-components";
+import { ChevronDownRegular } from "@fluentui/react-icons";
 import {
     ResponsiveContainer,
     BarChart,
@@ -19,7 +27,8 @@ import { CardGrid } from "../components/CardGrid";
 import { ChartCard } from "../components/ChartCard";
 import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
-import { fetchAutomationDashboard } from "../api/client";
+import { EmptyState } from "../components/EmptyState";
+import { fetchAutomationDashboard, fetchPlans } from "../api/client";
 
 const useStyles = makeStyles({
     section: {
@@ -32,19 +41,78 @@ const useStyles = makeStyles({
         gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
         gap: tokens.spacingHorizontalM,
     },
+    filterField: {
+        maxWidth: "280px",
+    },
 });
 
 export function AutomationDashboardPage() {
     const styles = useStyles();
     const { t } = useTranslation();
 
-    const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["automation"],
-        queryFn: fetchAutomationDashboard,
+    const [selectedPlanId, setSelectedPlanId] = useState<
+        number | undefined
+    >(undefined);
+
+    const { data: plans } = useQuery({
+        queryKey: ["plans"],
+        queryFn: fetchPlans,
     });
+
+    const { data, isLoading, isError, error, refetch } = useQuery({
+        queryKey: ["automation", selectedPlanId ?? "all"],
+        queryFn: () => fetchAutomationDashboard(selectedPlanId),
+    });
+
+    const automatedPlanIds = new Set(
+        data?.automatedPlanIds ?? []
+    );
+    const automatedPlans = plans?.filter((p) =>
+        automatedPlanIds.has(p.id)
+    );
+
+    const allPlansLabel = t("automationDashboardPage.planFilter.allPlans");
+    const selectedPlanName =
+        automatedPlans?.find((p) => p.id === selectedPlanId)
+            ?.name ?? allPlansLabel;
+
+    const hasNoAutomatedTests =
+        Boolean(data) && data!.kpis.automatedTests === 0;
 
     return (
         <PageLayout title={t("automationDashboardPage.title")}>
+            <Field
+                label={t("automationDashboardPage.planFilter.label")}
+                className={styles.filterField}
+            >
+                <Dropdown
+                    expandIcon={<ChevronDownRegular />}
+                    value={selectedPlanName}
+                    selectedOptions={[
+                        selectedPlanId != null
+                            ? String(selectedPlanId)
+                            : "",
+                    ]}
+                    onOptionSelect={(_, option) => {
+                        const value = option.optionValue;
+
+                        setSelectedPlanId(
+                            value ? Number(value) : undefined
+                        );
+                    }}
+                >
+                    <Option value="">{allPlansLabel}</Option>
+                    {automatedPlans?.map((plan) => (
+                        <Option
+                            key={plan.id}
+                            value={String(plan.id)}
+                        >
+                            {plan.name}
+                        </Option>
+                    ))}
+                </Dropdown>
+            </Field>
+
             {isLoading && <LoadingCardGrid />}
 
             {isError && (
@@ -104,40 +172,50 @@ export function AutomationDashboardPage() {
                     </div>
 
                     <div className={styles.chartsGrid}>
-                        <ChartCard title={t("automationDashboardPage.charts.coverageByModule")}>
-                            <ResponsiveContainer width="100%" height={300}>
-                                <BarChart data={data.charts.coverageByModule}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="module" />
-                                    <YAxis />
-                                    <Tooltip />
-                                    <Legend />
-                                    <Bar dataKey="automated" stackId="tests" fill="#0078d4" />
-                                    <Bar dataKey="manual" stackId="tests" fill="#c4c4c4" />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </ChartCard>
+                        {hasNoAutomatedTests ? (
+                            <ChartCard title={t("automationDashboardPage.charts.coverageByModule")}>
+                                <EmptyState
+                                    message={t("automationDashboardPage.emptyForPlan")}
+                                />
+                            </ChartCard>
+                        ) : (
+                            <>
+                                <ChartCard title={t("automationDashboardPage.charts.coverageByModule")}>
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <BarChart data={data.charts.coverageByModule}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="module" />
+                                            <YAxis />
+                                            <Tooltip />
+                                            <Legend />
+                                            <Bar dataKey="automated" stackId="tests" fill="#0078d4" />
+                                            <Bar dataKey="manual" stackId="tests" fill="#c4c4c4" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </ChartCard>
 
-                        <ChartCard title={t("automationDashboardPage.charts.flakyTestRanking")}>
-                            <ResponsiveContainer width="100%" height={300}>
-                                <BarChart
-                                    data={data.charts.flakyTestRanking}
-                                    layout="vertical"
-                                    margin={{ left: 24 }}
-                                >
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis type="number" allowDecimals={false} />
-                                    <YAxis
-                                        type="category"
-                                        dataKey="testName"
-                                        width={160}
-                                        tick={{ fontSize: 12 }}
-                                    />
-                                    <Tooltip />
-                                    <Bar dataKey="flakeCount" fill="#d83b01" />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </ChartCard>
+                                <ChartCard title={t("automationDashboardPage.charts.flakyTestRanking")}>
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <BarChart
+                                            data={data.charts.flakyTestRanking}
+                                            layout="vertical"
+                                            margin={{ left: 24 }}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis type="number" allowDecimals={false} />
+                                            <YAxis
+                                                type="category"
+                                                dataKey="testName"
+                                                width={160}
+                                                tick={{ fontSize: 12 }}
+                                            />
+                                            <Tooltip />
+                                            <Bar dataKey="flakeCount" fill="#d83b01" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </ChartCard>
+                            </>
+                        )}
 
                         <ChartCard title={t("automationDashboardPage.charts.pipelineSuccessTrend")}>
                             <ResponsiveContainer width="100%" height={300}>

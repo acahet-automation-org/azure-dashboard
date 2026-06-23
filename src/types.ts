@@ -83,6 +83,22 @@ export interface RunCard {
     passRate: number;
 }
 
+export interface AutomationTestCaseRow {
+    testCaseId: number;
+    testCaseTitle: string;
+    planId: number;
+    planName: string;
+    areaPath: string;
+    suiteName: string;
+    isAutomated: boolean;
+}
+
+export interface AutomationResultOccurrence {
+    testCaseId: number;
+    outcome: Outcome;
+    completedDate?: string;
+}
+
 export interface AutomationKpis {
     automatedTests: number;
     manualTests: number;
@@ -128,6 +144,8 @@ export interface AutomationDashboardResponse {
     ciCd: CiCdMetrics;
     charts: AutomationCharts;
     cacheTimestamp: number;
+    planId: number | null;
+    automatedPlanIds: number[];
 }
 
 export interface DashboardStats {

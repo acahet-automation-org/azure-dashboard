@@ -73,6 +73,11 @@
     "automationDashboardPage": {
         "title": "Dashboard di Automazione",
         "minutes": "{{value}} min",
+        "planFilter": {
+            "label": "Piano di Test",
+            "allPlans": "Tutti i Piani"
+        },
+        "emptyForPlan": "Nessun test automatizzato trovato per questo piano.",
         "kpis": {
             "automatedTests": "Test Automatizzati",
             "manualTests": "Test Manuali",
