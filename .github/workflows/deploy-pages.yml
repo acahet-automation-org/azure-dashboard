@@ -2,7 +2,7 @@ name: Deploy client to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [feat-obo-setup]
     paths:
       - 'client/**'
       - '.github/workflows/deploy-pages.yml'
