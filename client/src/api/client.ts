@@ -15,6 +15,7 @@ import { loginRequest } from "../authConfig";
 import { msalInstance } from "../msalInstance";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+const skipAuth = import.meta.env.VITE_SKIP_AUTH === "true";
 
 async function getAccessToken(): Promise<string> {
     const account =
@@ -48,6 +49,10 @@ async function authorizedFetch(
     path: string,
     init: RequestInit = {}
 ): Promise<Response> {
+    if (skipAuth) {
+        return fetch(`${API_BASE_URL}${path}`, init);
+    }
+
     const accessToken = await getAccessToken();
 
     return fetch(`${API_BASE_URL}${path}`, {

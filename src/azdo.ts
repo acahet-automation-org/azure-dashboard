@@ -184,13 +184,21 @@ export async function getStoryCount(): Promise<number> {
     return response.data.workItems.length;
 }
 
-// @Me is deliberately not used here: this client authenticates to Azure DevOps
-// with a shared PAT (see top of file), so @Me would resolve to the PAT's
-// identity for every caller, not the signed-in user. Callers must filter by
-// the real user's identity themselves once System.AssignedTo is returned.
+// @Me is deliberately not used in the normal (logged-in) path: this client
+// authenticates to Azure DevOps with a shared PAT (see top of file), so @Me
+// would resolve to the PAT's identity for every caller, not the signed-in
+// user. Callers must filter by the real user's identity themselves once
+// System.AssignedTo is returned. The one exception is SKIP_AUTH dev mode,
+// where there is no signed-in user to filter by and the PAT genuinely is the
+// one developer's own personal token, so @Me correctly means "me".
 export async function getActiveWorkItemIds(
     type: "Task" | "Bug"
 ): Promise<number[]> {
+    const assignedToMe =
+        process.env.SKIP_AUTH === "true"
+            ? "AND [System.AssignedTo] = @Me\n          "
+            : "";
+
     const response = await azdo.post(
         "/wit/wiql?api-version=7.1",
         {
@@ -198,7 +206,7 @@ export async function getActiveWorkItemIds(
         SELECT [System.Id]
         FROM WorkItems
         WHERE [System.WorkItemType] = '${type}'
-          AND [System.State] <> 'Removed'
+          ${assignedToMe}AND [System.State] <> 'Removed'
         ORDER BY [Microsoft.VSTS.Common.Priority] ASC, [System.ChangedDate] DESC
       `,
         }

@@ -21,18 +21,25 @@ export function MyWorkItemsPage() {
         queryFn: () => fetchMyWorkItems(type),
     });
 
+    const skipAuth = import.meta.env.VITE_SKIP_AUTH === "true";
+
     // The backend returns all active items (it can't resolve "me" since it
     // talks to Azure DevOps with a shared PAT). The real logged-in identity
     // only exists here in the browser, so the "assigned to me" filter must
-    // happen client-side against each item's assignee.
+    // happen client-side against each item's assignee. In SKIP_AUTH dev mode
+    // there's no logged-in identity to filter by, but the backend already
+    // filtered to the PAT owner's own items via @Me, so use the data as-is.
     const myItems = useMemo(() => {
+        if (!data) return [];
+        if (skipAuth) return data;
+
         const username = activeAccount?.username?.toLowerCase();
-        if (!data || !username) return [];
+        if (!username) return [];
 
         return data.filter(
             (item) => item.assignee?.uniqueName?.toLowerCase() === username
         );
-    }, [data, activeAccount]);
+    }, [data, activeAccount, skipAuth]);
 
     return (
         <PageLayout title={t("myWorkItemsPage.title")}>

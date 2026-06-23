@@ -29,24 +29,36 @@ function PageFallback() {
     );
 }
 
+const skipAuth = import.meta.env.VITE_SKIP_AUTH === "true";
+
+function AppRoutes() {
+    return (
+        <Suspense fallback={<PageFallback />}>
+            <Routes>
+                <Route path="/" element={<SuitesPage />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/last-5-runs" element={<RunsPage />} />
+                <Route path="/plans" element={<PlansPage />} />
+                <Route path="/plans/:planId" element={<PlanDetailPage />} />
+                <Route path="/automation-dashboard" element={<AutomationDashboardPage />} />
+                <Route path="/test-execution" element={<TestExecutionPage />} />
+                <Route path="/defects" element={<DefectManagementPage />} />
+                <Route path="/common-errors" element={<CommonErrorsPage />} />
+                <Route path="/my-work-items" element={<MyWorkItemsPage />} />
+            </Routes>
+        </Suspense>
+    );
+}
+
 function App() {
+    if (skipAuth) {
+        return <AppRoutes />;
+    }
+
     return (
         <>
             <AuthenticatedTemplate>
-                <Suspense fallback={<PageFallback />}>
-                    <Routes>
-                        <Route path="/" element={<SuitesPage />} />
-                        <Route path="/dashboard" element={<DashboardPage />} />
-                        <Route path="/last-5-runs" element={<RunsPage />} />
-                        <Route path="/plans" element={<PlansPage />} />
-                        <Route path="/plans/:planId" element={<PlanDetailPage />} />
-                        <Route path="/automation-dashboard" element={<AutomationDashboardPage />} />
-                        <Route path="/test-execution" element={<TestExecutionPage />} />
-                        <Route path="/defects" element={<DefectManagementPage />} />
-                        <Route path="/common-errors" element={<CommonErrorsPage />} />
-                        <Route path="/my-work-items" element={<MyWorkItemsPage />} />
-                    </Routes>
-                </Suspense>
+                <AppRoutes />
             </AuthenticatedTemplate>
 
             <UnauthenticatedTemplate>
