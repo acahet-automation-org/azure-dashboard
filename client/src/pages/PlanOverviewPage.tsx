@@ -555,10 +555,14 @@ export function PlanOverviewPage() {
                                         ))}
                                     </Pie>
                                     <Tooltip
-                                        formatter={(value, _name, item) => [
+                                        formatter={(
+                                            value,
+                                            _name,
+                                            item: { payload: { outcome: string } }
+                                        ) => [
                                             value,
                                             t(
-                                                `outcome.${(item as any).payload.outcome}`
+                                                `outcome.${item.payload.outcome}`
                                             ),
                                         ]}
                                     />
@@ -736,10 +740,14 @@ export function PlanOverviewPage() {
                                             )}
                                         </Pie>
                                         <Tooltip
-                                            formatter={(value, _name, item) => [
+                                            formatter={(
+                                                value,
+                                                _name,
+                                                item: { payload: { outcome: string } }
+                                            ) => [
                                                 value,
                                                 t(
-                                                    `outcome.${(item as any).payload.outcome}`
+                                                    `outcome.${item.payload.outcome}`
                                                 ),
                                             ]}
                                         />
