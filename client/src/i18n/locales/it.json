@@ -9,6 +9,7 @@
         "dashboard": "Dashboard Completa",
         "runs": "Ultime 10 Esecuzioni",
         "plans": "Piani di Test",
+        "planOverview": "Panoramica Piano",
         "automation": "Automazione",
         "automationDashboard": "Dashboard Automazione",
         "execution": "Esecuzione Test",
@@ -72,6 +73,48 @@
         "suitesTitle": "Suite di Test",
         "empty": "Nessuna suite di test trovata.",
         "suiteEmpty": "Nessun test case in questa suite."
+    },
+    "planOverviewPage": {
+        "title": "Panoramica Piano",
+        "exportPdf": "Esporta come PDF",
+        "exporting": "Esportazione...",
+        "sendEmail": "Invia report via email",
+        "emailSending": "Invio del report via email in corso...",
+        "emailSent": "Report inviato via email.",
+        "emailFailed": "Invio del report via email non riuscito: {{message}}",
+        "email": {
+            "metricColumn": "Metrica",
+            "valueColumn": "Valore"
+        },
+        "selectPlanPrompt": "Seleziona un piano di test per visualizzare la panoramica.",
+        "planFilter": {
+            "label": "Piano di Test",
+            "placeholder": "Seleziona un piano..."
+        },
+        "suiteFilter": {
+            "label": "Suite"
+        },
+        "selectedSuiteSection": {
+            "title": "Panoramica Suite: {{suite}}",
+            "outcomeTitle": "Suddivisione Risultati Test",
+            "bugsTitle": "Bug per Stato",
+            "noBugs": "Nessun bug collegato ai test case di questa suite."
+        },
+        "stats": {
+            "totalTests": "Test Case Totali",
+            "totalBugs": "Bug Totali",
+            "passRate": "Percentuale di Successo",
+            "executionRate": "Percentuale di Esecuzione"
+        },
+        "charts": {
+            "outcomeBreakdown": "Suddivisione Risultati Test",
+            "testsBySuite": "Test per Suite",
+            "bugsByState": "Bug per Stato"
+        },
+        "bugsSection": {
+            "title": "Bug",
+            "empty": "Nessun bug collegato ai test case di questo piano."
+        }
     },
     "automationDashboardPage": {
         "title": "Dashboard di Automazione",
@@ -250,6 +293,14 @@
         "area": "Area: {{areaPath}}",
         "bugsLinked": "Bug collegati: {{count}} ({{active}} attivi, {{closed}} chiusi)",
         "latestRun": "Ultima esecuzione"
+    },
+    "bugsTable": {
+        "columns": {
+            "id": "ID",
+            "title": "Titolo",
+            "state": "Stato",
+            "creator": "Creatore"
+        }
     },
     "errorState": {
         "title": "Si è verificato un errore",

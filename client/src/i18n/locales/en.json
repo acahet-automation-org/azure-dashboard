@@ -9,6 +9,7 @@
         "dashboard": "Full Dashboard",
         "runs": "Last 10 Runs",
         "plans": "Test Plans",
+        "planOverview": "Plan Overview",
         "automation": "Automation",
         "automationDashboard": "Automation Dashboard",
         "execution": "Test Execution",
@@ -72,6 +73,48 @@
         "suitesTitle": "Test Suites",
         "empty": "No test suites found.",
         "suiteEmpty": "No test cases in this suite."
+    },
+    "planOverviewPage": {
+        "title": "Plan Overview",
+        "exportPdf": "Export as PDF",
+        "exporting": "Exporting...",
+        "sendEmail": "Send report by email",
+        "emailSending": "Sending email report...",
+        "emailSent": "Email report sent.",
+        "emailFailed": "Failed to send email report: {{message}}",
+        "email": {
+            "metricColumn": "Metric",
+            "valueColumn": "Value"
+        },
+        "selectPlanPrompt": "Select a test plan to view its overview.",
+        "planFilter": {
+            "label": "Test Plan",
+            "placeholder": "Select a plan..."
+        },
+        "suiteFilter": {
+            "label": "Suite"
+        },
+        "selectedSuiteSection": {
+            "title": "Suite Overview: {{suite}}",
+            "outcomeTitle": "Test Outcome Breakdown",
+            "bugsTitle": "Bugs by State",
+            "noBugs": "No bugs linked to this suite's test cases."
+        },
+        "stats": {
+            "totalTests": "Total Test Cases",
+            "totalBugs": "Total Bugs",
+            "passRate": "Pass Rate",
+            "executionRate": "Execution Rate"
+        },
+        "charts": {
+            "outcomeBreakdown": "Test Outcome Breakdown",
+            "testsBySuite": "Tests by Suite",
+            "bugsByState": "Bugs by State"
+        },
+        "bugsSection": {
+            "title": "Bugs",
+            "empty": "No bugs linked to this plan's test cases."
+        }
     },
     "automationDashboardPage": {
         "title": "Automation Dashboard",
@@ -250,6 +293,14 @@
         "area": "Area: {{areaPath}}",
         "bugsLinked": "Bugs linked: {{count}} ({{active}} active, {{closed}} closed)",
         "latestRun": "Latest run"
+    },
+    "bugsTable": {
+        "columns": {
+            "id": "ID",
+            "title": "Title",
+            "state": "State",
+            "creator": "Creator"
+        }
     },
     "errorState": {
         "title": "Something went wrong",

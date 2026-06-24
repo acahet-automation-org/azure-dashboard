@@ -11,6 +11,7 @@ import type {
     CommonErrorsResponse,
     WorkItemSummary,
     MyWorkItemsMode,
+    PlanOverviewResponse,
 } from "../types";
 import { loginRequest } from "../authConfig";
 import { msalInstance } from "../msalInstance";
@@ -104,6 +105,12 @@ export function fetchPlanSuites(
     planId: number
 ): Promise<TestSuiteSummary[]> {
     return getJson(`/api/plans/${planId}/suites`);
+}
+
+export function fetchPlanOverview(
+    planId: number
+): Promise<PlanOverviewResponse> {
+    return getJson(`/api/plans/${planId}/overview`);
 }
 
 export function fetchAutomationDashboard(

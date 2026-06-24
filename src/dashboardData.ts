@@ -58,7 +58,7 @@ export function resolveOutcome(
     return "NotRun";
 }
 
-async function buildTestCaseRow(
+export async function buildTestCaseRow(
     tc: any,
     planName: string,
     suiteName: string,
@@ -119,6 +119,7 @@ async function buildTestCaseRow(
             title: b.fields["System.Title"],
             state: b.fields["System.State"],
             url: buildWorkItemUrl(b.id),
+            creator: b.fields["System.CreatedBy"]?.displayName,
         })),
         lastRunId,
         lastRunUrl: lastRunId
