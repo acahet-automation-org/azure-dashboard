@@ -39,6 +39,10 @@ import {
     computePlanOverview,
     clearPlanOverviewCache,
 } from "./planOverviewData.js";
+import {
+    startBugSummaryScheduler,
+    startNewBugPoller,
+} from "./scheduler.js";
 
 const app = express();
 
@@ -233,8 +237,8 @@ app.get("/api/my-work-items", async (req, res) => {
             mode === "mentioned"
                 ? await getMentionedWorkItems()
                 : mode === "following"
-                  ? await getFollowedWorkItems()
-                  : await getAssignedWorkItems();
+                    ? await getFollowedWorkItems()
+                    : await getAssignedWorkItems();
 
         res.json(items);
     } catch (error: any) {
@@ -307,6 +311,9 @@ app.post("/api/refresh", (_, res) => {
     res.status(204).end();
 });
 
+
+startNewBugPoller();
+startBugSummaryScheduler();
 
 const port = Number(process.env.PORT) || 3000;
 
