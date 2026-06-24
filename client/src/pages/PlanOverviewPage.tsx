@@ -6,6 +6,7 @@ import {
     Option,
     Field,
     Button,
+    Title3,
     makeStyles,
     tokens,
 } from "@fluentui/react-components";
@@ -31,7 +32,7 @@ import { ChartsGrid } from "../components/ChartsGrid";
 import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
-import { BugList } from "../components/BugList";
+import { BugsTable } from "../components/BugsTable";
 import { fetchPlans, fetchPlanOverview } from "../api/client";
 import { captureChartImage, exportPlanOverviewToPdf } from "../utils/export";
 import type { ChartImage } from "../utils/export";
@@ -71,6 +72,9 @@ export function PlanOverviewPage() {
     const [selectedPlanId, setSelectedPlanId] = useState<
         number | undefined
     >(undefined);
+    const [selectedSuiteName, setSelectedSuiteName] = useState<
+        string | undefined
+    >(undefined);
     const [isExporting, setIsExporting] = useState(false);
 
     const outcomeChartRef = useRef<HTMLDivElement>(null);
@@ -107,6 +111,19 @@ export function PlanOverviewPage() {
                   (data.outcomeCounts.Passed / data.totalTestCases) * 1000
               ) / 10
             : 0;
+
+    const selectedSuite = data?.suites.find(
+        (s) => s.suiteName === selectedSuiteName
+    );
+
+    const selectedSuiteOutcomeChartData = selectedSuite
+        ? (Object.keys(selectedSuite.outcomeCounts) as Outcome[]).map(
+              (outcome) => ({
+                  outcome,
+                  count: selectedSuite.outcomeCounts[outcome],
+              })
+          )
+        : [];
 
     const handleExportPdf = async () => {
         if (!data) {
@@ -167,6 +184,7 @@ export function PlanOverviewPage() {
                             setSelectedPlanId(
                                 value ? Number(value) : undefined
                             );
+                            setSelectedSuiteName(undefined);
                         }}
                     >
                         {plans?.map((plan) => (
@@ -176,6 +194,39 @@ export function PlanOverviewPage() {
                         ))}
                     </Dropdown>
                 </Field>
+
+                {data && (
+                    <Field
+                        label={t("planOverviewPage.suiteFilter.label")}
+                        className={styles.filterField}
+                    >
+                        <Dropdown
+                            expandIcon={<ChevronDownRegular />}
+                            value={
+                                selectedSuiteName ??
+                                t("filterBar.allSuites")
+                            }
+                            selectedOptions={[selectedSuiteName ?? ""]}
+                            onOptionSelect={(_, option) => {
+                                const value = option.optionValue;
+
+                                setSelectedSuiteName(value || undefined);
+                            }}
+                        >
+                            <Option value="">
+                                {t("filterBar.allSuites")}
+                            </Option>
+                            {data.suites.map((suite) => (
+                                <Option
+                                    key={suite.suiteName}
+                                    value={suite.suiteName}
+                                >
+                                    {suite.suiteName}
+                                </Option>
+                            ))}
+                        </Dropdown>
+                    </Field>
+                )}
 
                 {data && (
                     <Button
@@ -349,7 +400,12 @@ export function PlanOverviewPage() {
                     <div className={styles.section}>
                         <ChartCard title={t("planOverviewPage.bugsSection.title")}>
                             {data.bugs.length > 0 ? (
-                                <BugList bugs={data.bugs} />
+                                <BugsTable
+                                    bugs={data.bugs}
+                                    ariaLabel={t(
+                                        "planOverviewPage.bugsSection.title"
+                                    )}
+                                />
                             ) : (
                                 <EmptyState
                                     message={t(
@@ -359,6 +415,82 @@ export function PlanOverviewPage() {
                             )}
                         </ChartCard>
                     </div>
+
+                    {selectedSuite && (
+                        <div className={styles.section}>
+                            <Title3 as="h2">
+                                {t("planOverviewPage.selectedSuiteSection.title", {
+                                    suite: selectedSuite.suiteName,
+                                })}
+                            </Title3>
+
+                            <ChartCard
+                                title={t(
+                                    "planOverviewPage.selectedSuiteSection.outcomeTitle"
+                                )}
+                            >
+                                <ResponsiveContainer width="100%" height={280}>
+                                    <PieChart>
+                                        <Pie
+                                            data={selectedSuiteOutcomeChartData}
+                                            dataKey="count"
+                                            nameKey="outcome"
+                                            innerRadius={60}
+                                            outerRadius={100}
+                                            paddingAngle={2}
+                                        >
+                                            {selectedSuiteOutcomeChartData.map(
+                                                (entry) => (
+                                                    <Cell
+                                                        key={entry.outcome}
+                                                        fill={
+                                                            OUTCOME_COLORS[
+                                                                entry.outcome
+                                                            ]
+                                                        }
+                                                    />
+                                                )
+                                            )}
+                                        </Pie>
+                                        <Tooltip
+                                            formatter={(value, _name, item) => [
+                                                value,
+                                                t(
+                                                    `outcome.${(item as any).payload.outcome}`
+                                                ),
+                                            ]}
+                                        />
+                                        <Legend
+                                            formatter={(value) =>
+                                                t(`outcome.${value}`)
+                                            }
+                                        />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </ChartCard>
+
+                            <ChartCard
+                                title={t(
+                                    "planOverviewPage.selectedSuiteSection.bugsTitle"
+                                )}
+                            >
+                                {selectedSuite.bugs.length > 0 ? (
+                                    <BugsTable
+                                        bugs={selectedSuite.bugs}
+                                        ariaLabel={t(
+                                            "planOverviewPage.selectedSuiteSection.bugsTitle"
+                                        )}
+                                    />
+                                ) : (
+                                    <EmptyState
+                                        message={t(
+                                            "planOverviewPage.selectedSuiteSection.noBugs"
+                                        )}
+                                    />
+                                )}
+                            </ChartCard>
+                        </div>
+                    )}
                 </>
             )}
         </PageLayout>

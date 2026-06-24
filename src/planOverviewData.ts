@@ -10,8 +10,30 @@ import type {
     BugInfo,
     Outcome,
     PlanOverviewResponse,
+    PlanOverviewSuiteDetail,
     TestCaseRow,
 } from "./types.js";
+
+function zeroOutcomeCounts(): Record<Outcome, number> {
+    return { Passed: 0, Failed: 0, Blocked: 0, NotRun: 0 };
+}
+
+// Azure DevOps doesn't guarantee `_apis/wit/workitemtypes/Bug/states` returns
+// states in workflow order (e.g. a custom "Reopened"-style state can appear
+// before "Resolved" in the raw array). Categories are consistent across
+// processes though, so rank by category first and only fall back to the
+// raw array position to order states within the same category.
+const BUG_STATE_CATEGORY_ORDER: Record<string, number> = {
+    Proposed: 0,
+    InProgress: 1,
+    Resolved: 2,
+    Completed: 3,
+    Removed: 4,
+};
+
+const UNKNOWN_CATEGORY_RANK = Object.keys(
+    BUG_STATE_CATEGORY_ORDER
+).length;
 
 const cache = new Map<
     number,
@@ -137,6 +159,15 @@ export async function computePlanOverview(
     };
     const bugsById = new Map<number, BugInfo>();
 
+    const suiteOutcomeCounts = new Map<
+        string,
+        Record<Outcome, number>
+    >();
+    const suiteBugsById = new Map<
+        string,
+        Map<number, BugInfo>
+    >();
+
     for (const row of rows) {
         testsBySuiteMap.set(
             row.suiteName,
@@ -148,18 +179,41 @@ export async function computePlanOverview(
         for (const bug of row.bugs) {
             bugsById.set(bug.id, bug);
         }
+
+        if (!suiteOutcomeCounts.has(row.suiteName)) {
+            suiteOutcomeCounts.set(row.suiteName, zeroOutcomeCounts());
+            suiteBugsById.set(row.suiteName, new Map());
+        }
+
+        suiteOutcomeCounts.get(row.suiteName)![row.outcome]++;
+
+        const suiteBugs = suiteBugsById.get(row.suiteName)!;
+
+        for (const bug of row.bugs) {
+            suiteBugs.set(bug.id, bug);
+        }
     }
 
     const bugStates = await getBugWorkItemTypeStates();
-    const stateOrder = new Map<string, number>(
+    const stateIndex = new Map<string, number>(
         bugStates.map((s, index) => [s.name, index])
     );
     const stateMeta = new Map(
         bugStates.map((s) => [s.name, s])
     );
 
-    const orderOf = (state: string) =>
-        stateOrder.get(state) ?? bugStates.length;
+    const orderOf = (state: string) => {
+        const meta = stateMeta.get(state);
+        const categoryRank =
+            meta?.category != null &&
+            meta.category in BUG_STATE_CATEGORY_ORDER
+                ? BUG_STATE_CATEGORY_ORDER[meta.category]
+                : UNKNOWN_CATEGORY_RANK;
+        const index =
+            stateIndex.get(state) ?? bugStates.length;
+
+        return categoryRank * 1000 + index;
+    };
 
     const bugs = [...bugsById.values()].sort(
         (a, b) => orderOf(a.state) - orderOf(b.state)
@@ -183,6 +237,18 @@ export async function computePlanOverview(
         }))
         .sort((a, b) => orderOf(a.state) - orderOf(b.state));
 
+    const suites: PlanOverviewSuiteDetail[] = [
+        ...testsBySuiteMap.entries(),
+    ].map(([suiteName, totalTestCases]) => ({
+        suiteName,
+        totalTestCases,
+        outcomeCounts:
+            suiteOutcomeCounts.get(suiteName) ?? zeroOutcomeCounts(),
+        bugs: [...(suiteBugsById.get(suiteName)?.values() ?? [])].sort(
+            (a, b) => orderOf(a.state) - orderOf(b.state)
+        ),
+    }));
+
     const data: PlanOverviewResponse = {
         planId,
         planName,
@@ -195,6 +261,7 @@ export async function computePlanOverview(
         bugStates,
         bugsByState,
         bugs,
+        suites,
     };
 
     cache.set(planId, { data, timestamp: now });

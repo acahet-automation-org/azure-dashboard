@@ -83,6 +83,15 @@
             "label": "Test Plan",
             "placeholder": "Select a plan..."
         },
+        "suiteFilter": {
+            "label": "Suite"
+        },
+        "selectedSuiteSection": {
+            "title": "Suite Overview: {{suite}}",
+            "outcomeTitle": "Test Outcome Breakdown",
+            "bugsTitle": "Bugs by State",
+            "noBugs": "No bugs linked to this suite's test cases."
+        },
         "stats": {
             "totalTests": "Total Test Cases",
             "totalBugs": "Total Bugs",
@@ -275,6 +284,14 @@
         "area": "Area: {{areaPath}}",
         "bugsLinked": "Bugs linked: {{count}} ({{active}} active, {{closed}} closed)",
         "latestRun": "Latest run"
+    },
+    "bugsTable": {
+        "columns": {
+            "id": "ID",
+            "title": "Title",
+            "state": "State",
+            "creator": "Creator"
+        }
     },
     "errorState": {
         "title": "Something went wrong",

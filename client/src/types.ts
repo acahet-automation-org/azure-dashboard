@@ -244,6 +244,13 @@ export interface PlanOverviewSuiteCount {
     count: number;
 }
 
+export interface PlanOverviewSuiteDetail {
+    suiteName: string;
+    totalTestCases: number;
+    outcomeCounts: Record<Outcome, number>;
+    bugs: BugInfo[];
+}
+
 export interface PlanOverviewResponse {
     planId: number;
     planName: string;
@@ -254,4 +261,5 @@ export interface PlanOverviewResponse {
     bugStates: PlanOverviewBugState[];
     bugsByState: PlanOverviewBugStateCount[];
     bugs: BugInfo[];
+    suites: PlanOverviewSuiteDetail[];
 }

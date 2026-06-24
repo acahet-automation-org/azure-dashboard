@@ -83,6 +83,15 @@
             "label": "Piano di Test",
             "placeholder": "Seleziona un piano..."
         },
+        "suiteFilter": {
+            "label": "Suite"
+        },
+        "selectedSuiteSection": {
+            "title": "Panoramica Suite: {{suite}}",
+            "outcomeTitle": "Suddivisione Risultati Test",
+            "bugsTitle": "Bug per Stato",
+            "noBugs": "Nessun bug collegato ai test case di questa suite."
+        },
         "stats": {
             "totalTests": "Test Case Totali",
             "totalBugs": "Bug Totali",
@@ -275,6 +284,14 @@
         "area": "Area: {{areaPath}}",
         "bugsLinked": "Bug collegati: {{count}} ({{active}} attivi, {{closed}} chiusi)",
         "latestRun": "Ultima esecuzione"
+    },
+    "bugsTable": {
+        "columns": {
+            "id": "ID",
+            "title": "Titolo",
+            "state": "Stato",
+            "creator": "Creatore"
+        }
     },
     "errorState": {
         "title": "Si è verificato un errore",
