@@ -89,9 +89,9 @@ const useStyles = makeStyles({
 
 const OUTCOME_COLORS: Record<Outcome, string> = {
     Passed: "#107c10",
-    Failed: "#d83b01",
-    Blocked: "#c4314b",
-    NotRun: "#c4c4c4",
+    Failed: "#d13438",
+    Blocked: "#8764b8",
+    NotRun: "#605e5c",
 };
 
 const FALLBACK_STATE_COLOR = "8a8886";
@@ -218,7 +218,19 @@ export function PlanOverviewPage() {
                 (chart): chart is ChartImage => chart !== null
             );
 
-            exportPlanOverviewToPdf(data, charts);
+            if (selectedSuite) {
+                const suiteChart = await captureChartImage(
+                    selectedSuiteOutcomeChartRef.current,
+                    t("planOverviewPage.charts.outcomeBreakdown")
+                );
+
+                exportPlanOverviewToPdf(data, charts, {
+                    suite: selectedSuite,
+                    chart: suiteChart,
+                });
+            } else {
+                exportPlanOverviewToPdf(data, charts);
+            }
         } finally {
             setIsExporting(false);
         }
@@ -486,6 +498,14 @@ export function PlanOverviewPage() {
                                 value={data.totalTestCases}
                             />
                             <StatCard
+                                label={t("outcome.Blocked")}
+                                value={data.outcomeCounts.Blocked}
+                            />
+                            <StatCard
+                                label={t("outcome.NotRun")}
+                                value={data.outcomeCounts.NotRun}
+                            />
+                            <StatCard
                                 label={t(
                                     "planOverviewPage.stats.totalBugs"
                                 )}
@@ -657,6 +677,14 @@ export function PlanOverviewPage() {
                                         "planOverviewPage.stats.totalTests"
                                     )}
                                     value={selectedSuite.totalTestCases}
+                                />
+                                <StatCard
+                                    label={t("outcome.Blocked")}
+                                    value={selectedSuite.outcomeCounts.Blocked}
+                                />
+                                <StatCard
+                                    label={t("outcome.NotRun")}
+                                    value={selectedSuite.outcomeCounts.NotRun}
                                 />
                                 <StatCard
                                     label={t(

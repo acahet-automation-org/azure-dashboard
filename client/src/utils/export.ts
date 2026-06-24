@@ -491,9 +491,15 @@ function addChartImagesRow(
     return y + rowHeight + 10;
 }
 
+interface PlanOverviewSuiteSection {
+    suite: PlanOverviewSuiteDetail;
+    chart?: ChartImage | null;
+}
+
 function buildPlanOverviewPdfDocument(
     data: PlanOverviewResponse,
-    charts: ChartImage[] = []
+    charts: ChartImage[] = [],
+    suiteSection?: PlanOverviewSuiteSection
 ): jsPDF {
     const passRate = data.totalTestCases
         ? Math.round(
@@ -516,10 +522,21 @@ function buildPlanOverviewPdfDocument(
 
     autoTable(doc, {
         startY: 22,
-        head: [["Total Test Cases", "Total Bugs", "Pass Rate", "Execution Rate"]],
+        head: [
+            [
+                "Total Test Cases",
+                "Blocked",
+                "Not Run",
+                "Total Bugs",
+                "Pass Rate",
+                "Execution Rate",
+            ],
+        ],
         body: [
             [
                 String(data.totalTestCases),
+                String(data.outcomeCounts.Blocked),
+                String(data.outcomeCounts.NotRun),
                 String(data.totalBugs),
                 `${passRate}%`,
                 `${executionRate}%`,
@@ -554,6 +571,91 @@ function buildPlanOverviewPdfDocument(
             styles: { fontSize: 8 },
             headStyles: { fillColor: [0, 90, 158] },
         });
+
+        nextY =
+            (doc as unknown as { lastAutoTable: { finalY: number } })
+                .lastAutoTable.finalY + 10;
+    }
+
+    if (suiteSection) {
+        const { suite, chart } = suiteSection;
+
+        nextY = ensurePdfSpace(doc, nextY, 20);
+
+        doc.setFontSize(13);
+        doc.text(`Suite: ${suite.suiteName}`, PDF_MARGIN, nextY);
+        nextY += 6;
+
+        const suitePassRate = suite.totalTestCases
+            ? Math.round(
+                (suite.outcomeCounts.Passed / suite.totalTestCases) * 1000
+            ) / 10
+            : 0;
+
+        const suiteExecutionRate = suite.totalTestCases
+            ? Math.round(
+                ((suite.totalTestCases - suite.outcomeCounts.NotRun) /
+                    suite.totalTestCases) *
+                    1000
+            ) / 10
+            : 0;
+
+        autoTable(doc, {
+            startY: nextY,
+            head: [
+                [
+                    "Total Test Cases",
+                    "Passed",
+                    "Failed",
+                    "Blocked",
+                    "Not Run",
+                    "Pass Rate",
+                    "Execution Rate",
+                ],
+            ],
+            body: [
+                [
+                    String(suite.totalTestCases),
+                    String(suite.outcomeCounts.Passed),
+                    String(suite.outcomeCounts.Failed),
+                    String(suite.outcomeCounts.Blocked),
+                    String(suite.outcomeCounts.NotRun),
+                    `${suitePassRate}%`,
+                    `${suiteExecutionRate}%`,
+                ],
+            ],
+            styles: { fontSize: 8 },
+            headStyles: { fillColor: [0, 90, 158] },
+        });
+
+        nextY =
+            (doc as unknown as { lastAutoTable: { finalY: number } })
+                .lastAutoTable.finalY + 10;
+
+        if (chart) {
+            nextY = addChartImagesRow(doc, [chart], nextY);
+        }
+
+        if (suite.bugs.length > 0) {
+            nextY = ensurePdfSpace(doc, nextY, 20);
+
+            doc.setFontSize(12);
+            doc.text("Bugs", PDF_MARGIN, nextY);
+            nextY += 4;
+
+            autoTable(doc, {
+                startY: nextY,
+                head: [["ID", "Title", "State", "Creator"]],
+                body: suite.bugs.map((bug) => [
+                    String(bug.id),
+                    bug.title,
+                    bug.state,
+                    bug.creator ?? "",
+                ]),
+                styles: { fontSize: 8 },
+                headStyles: { fillColor: [0, 90, 158] },
+            });
+        }
     }
 
     return doc;
@@ -561,10 +663,14 @@ function buildPlanOverviewPdfDocument(
 
 export function exportPlanOverviewToPdf(
     data: PlanOverviewResponse,
-    charts: ChartImage[] = []
+    charts: ChartImage[] = [],
+    suiteSection?: PlanOverviewSuiteSection
 ): void {
-    const doc = buildPlanOverviewPdfDocument(data, charts);
-    doc.save(`plan-overview-${data.planId}-${Date.now()}.pdf`);
+    const doc = buildPlanOverviewPdfDocument(data, charts, suiteSection);
+    const filename = suiteSection
+        ? buildPlanOverviewFilename(data.planName, suiteSection.suite.suiteName)
+        : buildPlanOverviewFilename(data.planName);
+    doc.save(filename);
 }
 
 export function buildPlanOverviewPdfBase64(
