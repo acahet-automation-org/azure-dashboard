@@ -41,6 +41,9 @@
         "lastRefresh": "Ultimo Aggiornamento: {{date}} (durata cache: 5 minuti)",
         "priority": "Priorità {{value}}",
         "emptyFiltered": "Nessun test case corrisponde ai filtri attuali.",
+        "emailSending": "Invio del report via email in corso...",
+        "emailSent": "Report inviato via email.",
+        "emailFailed": "Invio del report via email non riuscito: {{message}}",
         "stats": {
             "total": "Test Case Totali",
             "withOpenBugs": "Con Bug Aperti",
@@ -269,6 +272,7 @@
         "label": "Esporta",
         "pdf": "Esporta come PDF",
         "csv": "Esporta come CSV",
-        "excel": "Esporta come Excel"
+        "excel": "Esporta come Excel",
+        "email": "Invia report via email"
     }
 }

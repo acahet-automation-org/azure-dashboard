@@ -132,6 +132,30 @@ export function fetchMyWorkItems(
     return getJson(`/api/my-work-items?mode=${mode}`);
 }
 
+export async function sendEmailReport(payload: {
+    subject: string;
+    bodyHtml: string;
+    pdfBase64: string;
+    filename: string;
+    fromName: string;
+}): Promise<void> {
+    const res = await authorizedFetch("/api/email-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+        const body = await res
+            .json()
+            .catch(() => null);
+
+        throw new Error(
+            body?.message ?? `Email report failed (${res.status})`
+        );
+    }
+}
+
 export async function postRefresh(): Promise<void> {
     const res = await authorizedFetch("/api/refresh", {
         method: "POST",

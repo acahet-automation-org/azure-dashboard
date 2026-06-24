@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Accordion, Text, Title2, makeStyles, tokens } from "@fluentui/react-components";
 import {
@@ -17,9 +17,10 @@ import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { ExportMenu, type ExportFormat } from "../components/ExportMenu";
-import { fetchDashboard } from "../api/client";
+import { fetchDashboard, sendEmailReport } from "../api/client";
 import { computeGroupStats } from "../utils/stats";
 import {
+    buildPdfBase64,
     buildSuiteBugTotals,
     buildSuiteHeaderStats,
     exportToCsv,
@@ -168,6 +169,10 @@ export function DashboardPage() {
         [filteredByPriority]
     );
 
+    const emailReportMutation = useMutation({
+        mutationFn: sendEmailReport,
+    });
+
     const handleExport = (format: ExportFormat) => {
         const isSingleSuiteFiltered = Boolean(filters.suite);
 
@@ -189,6 +194,34 @@ export function DashboardPage() {
             exportToCsv(filename, buildRows(true), suiteBugTotals);
         } else if (format === "excel") {
             void exportToExcel(filename, buildRows(true), suiteBugTotals);
+        } else if (format === "email") {
+            const suiteHeader = isSingleSuiteFiltered
+                ? buildSuiteHeaderStats(filteredTestCases)
+                : undefined;
+            const pdfBase64 = buildPdfBase64(
+                title,
+                buildRows(!isSingleSuiteFiltered),
+                isSingleSuiteFiltered ? undefined : suiteBugTotals,
+                suiteHeader
+            );
+            const fromName = isSingleSuiteFiltered
+                ? `${title} - ${filters.suite}`
+                : title;
+            const subject = fromName;
+            const bodyHtml = `<p>${t("dashboardPage.stats.total")}: ${filteredStats.total}</p>` +
+                `<p>${t("dashboardPage.stats.passed")}: ${filteredStats.passed} | ` +
+                `${t("dashboardPage.stats.failed")}: ${filteredStats.failed} | ` +
+                `${t("dashboardPage.stats.blocked")}: ${filteredStats.blocked} | ` +
+                `${t("dashboardPage.stats.notRun")}: ${filteredStats.notRun}</p>` +
+                `<p>${t("dashboardPage.stats.activeBugs")}: ${filteredStats.activeBugs}</p>`;
+
+            emailReportMutation.mutate({
+                subject,
+                bodyHtml,
+                pdfBase64,
+                filename: `${filename}.pdf`,
+                fromName,
+            });
         } else if (isSingleSuiteFiltered) {
             const suiteHeader = buildSuiteHeaderStats(filteredTestCases);
             exportToPdf(
@@ -225,8 +258,32 @@ export function DashboardPage() {
                         <ExportMenu
                             onExport={handleExport}
                             disabled={filteredTestCases.length === 0}
+                            emailDisabled={emailReportMutation.isPending}
                         />
                     </div>
+
+                    {emailReportMutation.isPending && (
+                        <Text className={styles.meta}>
+                            {t("dashboardPage.emailSending")}
+                        </Text>
+                    )}
+
+                    {emailReportMutation.isSuccess && (
+                        <Text className={styles.meta}>
+                            {t("dashboardPage.emailSent")}
+                        </Text>
+                    )}
+
+                    {emailReportMutation.isError && (
+                        <Text
+                            role="alert"
+                            style={{ color: tokens.colorPaletteRedForeground1 }}
+                        >
+                            {t("dashboardPage.emailFailed", {
+                                message: emailReportMutation.error.message,
+                            })}
+                        </Text>
+                    )}
 
                     <FilterBar
                         areaPaths={data.stats.areaPaths}

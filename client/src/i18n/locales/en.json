@@ -41,6 +41,9 @@
         "lastRefresh": "Last Refresh: {{date}} (cache duration: 5 minutes)",
         "priority": "Priority {{value}}",
         "emptyFiltered": "No test cases match the current filters.",
+        "emailSending": "Sending email report...",
+        "emailSent": "Email report sent.",
+        "emailFailed": "Failed to send email report: {{message}}",
         "stats": {
             "total": "Total Test Cases",
             "withOpenBugs": "With Open Bugs",
@@ -269,6 +272,7 @@
         "label": "Export",
         "pdf": "Export as PDF",
         "csv": "Export as CSV",
-        "excel": "Export as Excel"
+        "excel": "Export as Excel",
+        "email": "Send report by email"
     }
 }
