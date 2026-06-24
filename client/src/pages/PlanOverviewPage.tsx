@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
@@ -33,7 +33,8 @@ import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { BugList } from "../components/BugList";
 import { fetchPlans, fetchPlanOverview } from "../api/client";
-import { exportPlanOverviewToPdf } from "../utils/export";
+import { captureChartImage, exportPlanOverviewToPdf } from "../utils/export";
+import type { ChartImage } from "../utils/export";
 import type { Outcome } from "../types";
 
 const useStyles = makeStyles({
@@ -70,6 +71,11 @@ export function PlanOverviewPage() {
     const [selectedPlanId, setSelectedPlanId] = useState<
         number | undefined
     >(undefined);
+    const [isExporting, setIsExporting] = useState(false);
+
+    const outcomeChartRef = useRef<HTMLDivElement>(null);
+    const suiteChartRef = useRef<HTMLDivElement>(null);
+    const bugStateChartRef = useRef<HTMLDivElement>(null);
 
     const { data: plans } = useQuery({
         queryKey: ["plans"],
@@ -101,6 +107,41 @@ export function PlanOverviewPage() {
                   (data.outcomeCounts.Passed / data.totalTestCases) * 1000
               ) / 10
             : 0;
+
+    const handleExportPdf = async () => {
+        if (!data) {
+            return;
+        }
+
+        setIsExporting(true);
+
+        try {
+            const captured = await Promise.all([
+                captureChartImage(
+                    outcomeChartRef.current,
+                    t("planOverviewPage.charts.outcomeBreakdown")
+                ),
+                captureChartImage(
+                    suiteChartRef.current,
+                    t("planOverviewPage.charts.testsBySuite")
+                ),
+                data.bugsByState.length > 0
+                    ? captureChartImage(
+                          bugStateChartRef.current,
+                          t("planOverviewPage.charts.bugsByState")
+                      )
+                    : Promise.resolve(null),
+            ]);
+
+            const charts = captured.filter(
+                (chart): chart is ChartImage => chart !== null
+            );
+
+            exportPlanOverviewToPdf(data, charts);
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     return (
         <PageLayout title={t("planOverviewPage.title")}>
@@ -140,9 +181,12 @@ export function PlanOverviewPage() {
                     <Button
                         appearance="secondary"
                         icon={<ArrowDownloadRegular />}
-                        onClick={() => exportPlanOverviewToPdf(data)}
+                        disabled={isExporting}
+                        onClick={handleExportPdf}
                     >
-                        {t("planOverviewPage.exportPdf")}
+                        {isExporting
+                            ? t("planOverviewPage.exporting")
+                            : t("planOverviewPage.exportPdf")}
                     </Button>
                 )}
             </div>
@@ -190,6 +234,7 @@ export function PlanOverviewPage() {
                                 "planOverviewPage.charts.outcomeBreakdown"
                             )}
                         >
+                            <div ref={outcomeChartRef}>
                             <ResponsiveContainer width="100%" height={280}>
                                 <PieChart>
                                     <Pie
@@ -226,11 +271,13 @@ export function PlanOverviewPage() {
                                     />
                                 </PieChart>
                             </ResponsiveContainer>
+                            </div>
                         </ChartCard>
 
                         <ChartCard
                             title={t("planOverviewPage.charts.testsBySuite")}
                         >
+                            <div ref={suiteChartRef}>
                             <ResponsiveContainer width="100%" height={280}>
                                 <BarChart
                                     data={data.testsBySuite}
@@ -249,12 +296,14 @@ export function PlanOverviewPage() {
                                     <Bar dataKey="count" fill="#0078d4" />
                                 </BarChart>
                             </ResponsiveContainer>
+                            </div>
                         </ChartCard>
 
                         <ChartCard
                             title={t("planOverviewPage.charts.bugsByState")}
                         >
                             {data.bugsByState.length > 0 ? (
+                                <div ref={bugStateChartRef}>
                                 <ResponsiveContainer width="100%" height={280}>
                                     <BarChart
                                         data={data.bugsByState}
@@ -286,6 +335,7 @@ export function PlanOverviewPage() {
                                         </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
+                                </div>
                             ) : (
                                 <EmptyState
                                     message={t(

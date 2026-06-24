@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
+import html2canvas from "html2canvas";
 import type { PlanOverviewResponse, TestCaseRow } from "../types";
 
 export interface ExportableRow {
@@ -115,6 +116,34 @@ function activeColumns(rows: ExportableRow[]): ColumnDef[] {
     return ALL_COLUMNS.filter((col) =>
         rows.some((row) => row[col.key] !== undefined)
     );
+}
+
+export interface ChartImage {
+    title: string;
+    dataUrl: string;
+    width: number;
+    height: number;
+}
+
+export async function captureChartImage(
+    element: HTMLElement | null,
+    title: string
+): Promise<ChartImage | null> {
+    if (!element) {
+        return null;
+    }
+
+    const canvas = await html2canvas(element, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+    });
+
+    return {
+        title,
+        dataUrl: canvas.toDataURL("image/png"),
+        width: canvas.width,
+        height: canvas.height,
+    };
 }
 
 function downloadBlob(blob: Blob, filename: string): void {
@@ -320,19 +349,60 @@ export function exportToPdf(
     doc.save(`${filename}.pdf`);
 }
 
-export function buildPdfBase64(
-    title: string,
-    rows: ExportableRow[],
-    suiteBugTotals?: SuiteBugTotal[],
-    suiteHeader?: SuiteHeaderStats
-): string {
-    const doc = buildPdfDocument(title, rows, suiteBugTotals, suiteHeader);
+const PDF_MARGIN = 14;
+const PDF_MAX_Y = 297 - PDF_MARGIN;
+const PDF_MAX_CHART_HEIGHT = 100;
 
-    return doc.output("datauristring").split(",")[1];
+function ensurePdfSpace(
+    doc: jsPDF,
+    currentY: number,
+    neededHeight: number
+): number {
+    if (currentY + neededHeight > PDF_MAX_Y) {
+        doc.addPage();
+        return 15;
+    }
+
+    return currentY;
+}
+
+function addChartImage(
+    doc: jsPDF,
+    chart: ChartImage,
+    startY: number
+): number {
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const maxWidth = pageWidth - PDF_MARGIN * 2;
+    const aspectRatio = chart.height / chart.width;
+
+    let imgWidth = maxWidth;
+    let imgHeight = imgWidth * aspectRatio;
+
+    if (imgHeight > PDF_MAX_CHART_HEIGHT) {
+        imgHeight = PDF_MAX_CHART_HEIGHT;
+        imgWidth = imgHeight / aspectRatio;
+    }
+
+    const y = ensurePdfSpace(doc, startY, imgHeight + 14);
+
+    doc.setFontSize(12);
+    doc.text(chart.title, PDF_MARGIN, y);
+
+    doc.addImage(
+        chart.dataUrl,
+        "PNG",
+        PDF_MARGIN,
+        y + 4,
+        imgWidth,
+        imgHeight
+    );
+
+    return y + imgHeight + 14;
 }
 
 export function exportPlanOverviewToPdf(
-    data: PlanOverviewResponse
+    data: PlanOverviewResponse,
+    charts: ChartImage[] = []
 ): void {
     const passRate = data.totalTestCases
         ? Math.round(
@@ -343,7 +413,7 @@ export function exportPlanOverviewToPdf(
     const doc = new jsPDF();
 
     doc.setFontSize(14);
-    doc.text(`Plan Overview: ${data.planName}`, 14, 15);
+    doc.text(`Plan Overview: ${data.planName}`, PDF_MARGIN, 15);
 
     autoTable(doc, {
         startY: 22,
@@ -363,65 +433,13 @@ export function exportPlanOverviewToPdf(
         (doc as unknown as { lastAutoTable: { finalY: number } })
             .lastAutoTable.finalY + 10;
 
-    doc.setFontSize(12);
-    doc.text("Test Outcome Breakdown", 14, nextY);
-    nextY += 4;
-
-    autoTable(doc, {
-        startY: nextY,
-        head: [["Outcome", "Count"]],
-        body: (
-            Object.entries(data.outcomeCounts) as [string, number][]
-        ).map(([outcome, count]) => [outcome, String(count)]),
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [0, 90, 158] },
-    });
-
-    nextY =
-        (doc as unknown as { lastAutoTable: { finalY: number } })
-            .lastAutoTable.finalY + 10;
-
-    doc.setFontSize(12);
-    doc.text("Tests by Suite", 14, nextY);
-    nextY += 4;
-
-    autoTable(doc, {
-        startY: nextY,
-        head: [["Suite Name", "Count"]],
-        body: data.testsBySuite.map((s) => [
-            s.suiteName,
-            String(s.count),
-        ]),
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [0, 90, 158] },
-    });
-
-    nextY =
-        (doc as unknown as { lastAutoTable: { finalY: number } })
-            .lastAutoTable.finalY + 10;
-
-    if (data.bugsByState.length > 0) {
-        doc.setFontSize(12);
-        doc.text("Bugs by State", 14, nextY);
-        nextY += 4;
-
-        autoTable(doc, {
-            startY: nextY,
-            head: [["State", "Count"]],
-            body: data.bugsByState.map((s) => [
-                s.state,
-                String(s.count),
-            ]),
-            styles: { fontSize: 8 },
-            headStyles: { fillColor: [0, 90, 158] },
-        });
-
-        nextY =
-            (doc as unknown as { lastAutoTable: { finalY: number } })
-                .lastAutoTable.finalY + 10;
+    for (const chart of charts) {
+        nextY = addChartImage(doc, chart, nextY);
     }
 
     if (data.bugs.length > 0) {
+        nextY = ensurePdfSpace(doc, nextY, 20);
+
         doc.setFontSize(12);
         doc.text("Bugs", 14, nextY);
         nextY += 4;

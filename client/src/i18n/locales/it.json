@@ -77,6 +77,7 @@
     "planOverviewPage": {
         "title": "Panoramica Piano",
         "exportPdf": "Esporta come PDF",
+        "exporting": "Esportazione...",
         "selectPlanPrompt": "Seleziona un piano di test per visualizzare la panoramica.",
         "planFilter": {
             "label": "Piano di Test",
