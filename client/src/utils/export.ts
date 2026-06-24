@@ -221,13 +221,12 @@ export async function exportToExcel(
     downloadBlob(blob, `${filename}.xlsx`);
 }
 
-export function exportToPdf(
-    filename: string,
+function buildPdfDocument(
     title: string,
     rows: ExportableRow[],
     suiteBugTotals?: SuiteBugTotal[],
     suiteHeader?: SuiteHeaderStats
-): void {
+): jsPDF {
     const columns = activeColumns(rows);
     const doc = new jsPDF({
         orientation: columns.length > 2 ? "landscape" : "portrait",
@@ -307,5 +306,27 @@ export function exportToPdf(
         });
     }
 
+    return doc;
+}
+
+export function exportToPdf(
+    filename: string,
+    title: string,
+    rows: ExportableRow[],
+    suiteBugTotals?: SuiteBugTotal[],
+    suiteHeader?: SuiteHeaderStats
+): void {
+    const doc = buildPdfDocument(title, rows, suiteBugTotals, suiteHeader);
     doc.save(`${filename}.pdf`);
+}
+
+export function buildPdfBase64(
+    title: string,
+    rows: ExportableRow[],
+    suiteBugTotals?: SuiteBugTotal[],
+    suiteHeader?: SuiteHeaderStats
+): string {
+    const doc = buildPdfDocument(title, rows, suiteBugTotals, suiteHeader);
+
+    return doc.output("datauristring").split(",")[1];
 }

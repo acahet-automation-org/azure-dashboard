@@ -34,6 +34,7 @@ import {
     getMentionedWorkItems,
     getFollowedWorkItems,
 } from "./myWorkItemsData.js";
+import { sendReportEmail } from "./mailer.js";
 
 const app = express();
 
@@ -43,6 +44,7 @@ const allowedOrigins = (process.env.CORS_ORIGIN ?? "http://localhost:3000")
     .filter(Boolean);
 
 app.use(cors({ origin: allowedOrigins }));
+app.use(express.json({ limit: "15mb" }));
 
 app.use("/api", requireAuth);
 
@@ -217,6 +219,57 @@ app.get("/api/my-work-items", async (req, res) => {
                   : await getAssignedWorkItems();
 
         res.json(items);
+    } catch (error: any) {
+        console.error(error);
+
+        res.status(500).json({
+            message: error.message,
+        });
+    }
+});
+
+app.post("/api/email-report", async (req, res) => {
+    const toEmails = (process.env.SEND_MAIL_TO ?? "")
+        .split(",")
+        .map((email) => email.trim())
+        .filter(Boolean);
+
+    if (process.env.ENABLE_EMAIL_REPORT !== "true" || toEmails.length === 0) {
+        res.status(403).json({
+            message: "Email report is disabled.",
+        });
+
+        return;
+    }
+
+    const { subject, bodyHtml, pdfBase64, filename, fromName } =
+        req.body as {
+            subject?: string;
+            bodyHtml?: string;
+            pdfBase64?: string;
+            filename?: string;
+            fromName?: string;
+        };
+
+    if (!subject || !pdfBase64 || !filename) {
+        res.status(400).json({
+            message: "subject, pdfBase64 and filename are required.",
+        });
+
+        return;
+    }
+
+    try {
+        await sendReportEmail({
+            to: toEmails,
+            subject,
+            bodyHtml: bodyHtml ?? "",
+            pdfBase64,
+            filename,
+            fromName: fromName ?? "QA Dashboard",
+        });
+
+        res.status(204).end();
     } catch (error: any) {
         console.error(error);
 
