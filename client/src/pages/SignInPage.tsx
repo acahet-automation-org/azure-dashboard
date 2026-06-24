@@ -26,7 +26,12 @@ export function SignInPage() {
             <Text>{t("signInPage.subtitle")}</Text>
             <Button
                 appearance="primary"
-                onClick={() => instance.loginRedirect(loginRequest)}
+                onClick={() =>
+                    instance.loginRedirect({
+                        ...loginRequest,
+                        prompt: "consent",
+                    })
+                }
             >
                 {t("signInPage.signIn")}
             </Button>
