@@ -78,6 +78,14 @@
         "title": "Panoramica Piano",
         "exportPdf": "Esporta come PDF",
         "exporting": "Esportazione...",
+        "sendEmail": "Invia report via email",
+        "emailSending": "Invio del report via email in corso...",
+        "emailSent": "Report inviato via email.",
+        "emailFailed": "Invio del report via email non riuscito: {{message}}",
+        "email": {
+            "metricColumn": "Metrica",
+            "valueColumn": "Valore"
+        },
         "selectPlanPrompt": "Seleziona un piano di test per visualizzare la panoramica.",
         "planFilter": {
             "label": "Piano di Test",
@@ -95,7 +103,8 @@
         "stats": {
             "totalTests": "Test Case Totali",
             "totalBugs": "Bug Totali",
-            "passRate": "Percentuale di Successo"
+            "passRate": "Percentuale di Successo",
+            "executionRate": "Percentuale di Esecuzione"
         },
         "charts": {
             "outcomeBreakdown": "Suddivisione Risultati Test",

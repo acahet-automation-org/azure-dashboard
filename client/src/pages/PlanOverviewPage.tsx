@@ -1,16 +1,22 @@
 import { useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
     Dropdown,
     Option,
     Field,
     Button,
+    Spinner,
+    Text,
     Title3,
     makeStyles,
     tokens,
 } from "@fluentui/react-components";
-import { ChevronDownRegular, ArrowDownloadRegular } from "@fluentui/react-icons";
+import {
+    ChevronDownRegular,
+    ArrowDownloadRegular,
+    MailRegular,
+} from "@fluentui/react-icons";
 import {
     ResponsiveContainer,
     PieChart,
@@ -33,10 +39,20 @@ import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { BugsTable } from "../components/BugsTable";
-import { fetchPlans, fetchPlanOverview } from "../api/client";
-import { captureChartImage, exportPlanOverviewToPdf } from "../utils/export";
+import { fetchPlans, fetchPlanOverview, sendEmailReport } from "../api/client";
+import {
+    buildEmailReportHtml,
+    buildPlanOverviewFilename,
+    buildPlanOverviewPdfBase64,
+    buildPlanOverviewSuitePdfBase64,
+    captureChartImage,
+    exportPlanOverviewToPdf,
+} from "../utils/export";
 import type { ChartImage } from "../utils/export";
 import type { Outcome } from "../types";
+
+const emailReportEnabled =
+    import.meta.env.VITE_ENABLE_EMAIL_REPORT === "true";
 
 const useStyles = makeStyles({
     toolbar: {
@@ -53,6 +69,21 @@ const useStyles = makeStyles({
     },
     filterField: {
         maxWidth: "280px",
+    },
+    meta: {
+        color: tokens.colorNeutralForeground3,
+    },
+    overlay: {
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "rgba(0, 0, 0, 0.45)",
+        zIndex: 1000,
     },
 });
 
@@ -80,6 +111,11 @@ export function PlanOverviewPage() {
     const outcomeChartRef = useRef<HTMLDivElement>(null);
     const suiteChartRef = useRef<HTMLDivElement>(null);
     const bugStateChartRef = useRef<HTMLDivElement>(null);
+    const selectedSuiteOutcomeChartRef = useRef<HTMLDivElement>(null);
+
+    const emailReportMutation = useMutation({
+        mutationFn: sendEmailReport,
+    });
 
     const { data: plans } = useQuery({
         queryKey: ["plans"],
@@ -112,9 +148,37 @@ export function PlanOverviewPage() {
               ) / 10
             : 0;
 
+    const executionRate =
+        data && data.totalTestCases
+            ? Math.round(
+                  ((data.totalTestCases - data.outcomeCounts.NotRun) /
+                      data.totalTestCases) *
+                      1000
+              ) / 10
+            : 0;
+
     const selectedSuite = data?.suites.find(
         (s) => s.suiteName === selectedSuiteName
     );
+
+    const suitePassRate =
+        selectedSuite && selectedSuite.totalTestCases
+            ? Math.round(
+                  (selectedSuite.outcomeCounts.Passed /
+                      selectedSuite.totalTestCases) *
+                      1000
+              ) / 10
+            : 0;
+
+    const suiteExecutionRate =
+        selectedSuite && selectedSuite.totalTestCases
+            ? Math.round(
+                  ((selectedSuite.totalTestCases -
+                      selectedSuite.outcomeCounts.NotRun) /
+                      selectedSuite.totalTestCases) *
+                      1000
+              ) / 10
+            : 0;
 
     const selectedSuiteOutcomeChartData = selectedSuite
         ? (Object.keys(selectedSuite.outcomeCounts) as Outcome[]).map(
@@ -160,8 +224,133 @@ export function PlanOverviewPage() {
         }
     };
 
+    const handleSendEmail = async () => {
+        if (!data) {
+            return;
+        }
+
+        if (selectedSuite) {
+            const chart = await captureChartImage(
+                selectedSuiteOutcomeChartRef.current,
+                t("planOverviewPage.charts.outcomeBreakdown")
+            );
+            const fromName = `${data.planName} - ${selectedSuite.suiteName}`;
+            const pdfBase64 = buildPlanOverviewSuitePdfBase64(
+                data.planName,
+                selectedSuite,
+                chart ?? undefined
+            );
+            emailReportMutation.mutate({
+                subject: fromName,
+                bodyHtml: buildEmailReportHtml(
+                    fromName,
+                    [
+                        [
+                            t("planOverviewPage.stats.totalTests"),
+                            selectedSuite.totalTestCases,
+                        ],
+                        [
+                            t("outcome.Passed"),
+                            selectedSuite.outcomeCounts.Passed,
+                        ],
+                        [
+                            t("outcome.Failed"),
+                            selectedSuite.outcomeCounts.Failed,
+                        ],
+                        [
+                            t("outcome.Blocked"),
+                            selectedSuite.outcomeCounts.Blocked,
+                        ],
+                        [
+                            t("outcome.NotRun"),
+                            selectedSuite.outcomeCounts.NotRun,
+                        ],
+                        [
+                            t("planOverviewPage.stats.passRate"),
+                            `${suitePassRate}%`,
+                        ],
+                        [
+                            t("planOverviewPage.stats.executionRate"),
+                            `${suiteExecutionRate}%`,
+                        ],
+                        [
+                            t("planOverviewPage.stats.totalBugs"),
+                            selectedSuite.bugs.length,
+                        ],
+                    ],
+                    t("planOverviewPage.email.metricColumn"),
+                    t("planOverviewPage.email.valueColumn")
+                ),
+                pdfBase64,
+                filename: buildPlanOverviewFilename(
+                    data.planName,
+                    selectedSuite.suiteName
+                ),
+                fromName,
+            });
+            return;
+        }
+
+        const captured = await Promise.all([
+            captureChartImage(
+                outcomeChartRef.current,
+                t("planOverviewPage.charts.outcomeBreakdown")
+            ),
+            captureChartImage(
+                suiteChartRef.current,
+                t("planOverviewPage.charts.testsBySuite")
+            ),
+            data.bugsByState.length > 0
+                ? captureChartImage(
+                      bugStateChartRef.current,
+                      t("planOverviewPage.charts.bugsByState")
+                  )
+                : Promise.resolve(null),
+        ]);
+
+        const charts = captured.filter(
+            (chart): chart is ChartImage => chart !== null
+        );
+
+        const pdfBase64 = buildPlanOverviewPdfBase64(data, charts);
+
+        emailReportMutation.mutate({
+            subject: data.planName,
+            bodyHtml: buildEmailReportHtml(
+                data.planName,
+                [
+                    [
+                        t("planOverviewPage.stats.totalTests"),
+                        data.totalTestCases,
+                    ],
+                    [t("outcome.Passed"), data.outcomeCounts.Passed],
+                    [t("outcome.Failed"), data.outcomeCounts.Failed],
+                    [t("outcome.Blocked"), data.outcomeCounts.Blocked],
+                    [t("outcome.NotRun"), data.outcomeCounts.NotRun],
+                    [t("planOverviewPage.stats.passRate"), `${passRate}%`],
+                    [
+                        t("planOverviewPage.stats.executionRate"),
+                        `${executionRate}%`,
+                    ],
+                    [t("planOverviewPage.stats.totalBugs"), data.totalBugs],
+                ],
+                t("planOverviewPage.email.metricColumn"),
+                t("planOverviewPage.email.valueColumn")
+            ),
+            pdfBase64,
+            filename: buildPlanOverviewFilename(data.planName),
+            fromName: data.planName,
+        });
+    };
+
     return (
         <PageLayout title={t("planOverviewPage.title")}>
+            {emailReportMutation.isPending && (
+                <div className={styles.overlay}>
+                    <Spinner label={t("planOverviewPage.emailSending")} />
+                </div>
+            )}
+
             <div className={styles.toolbar}>
                 <Field
                     label={t("planOverviewPage.planFilter.label")}
@@ -185,6 +374,7 @@ export function PlanOverviewPage() {
                                 value ? Number(value) : undefined
                             );
                             setSelectedSuiteName(undefined);
+                            emailReportMutation.reset();
                         }}
                     >
                         {plans?.map((plan) => (
@@ -211,6 +401,7 @@ export function PlanOverviewPage() {
                                 const value = option.optionValue;
 
                                 setSelectedSuiteName(value || undefined);
+                                emailReportMutation.reset();
                             }}
                         >
                             <Option value="">
@@ -240,7 +431,37 @@ export function PlanOverviewPage() {
                             : t("planOverviewPage.exportPdf")}
                     </Button>
                 )}
+
+                {data && emailReportEnabled && (
+                    <Button
+                        appearance="secondary"
+                        icon={<MailRegular />}
+                        disabled={emailReportMutation.isPending}
+                        onClick={handleSendEmail}
+                    >
+                        {emailReportMutation.isPending
+                            ? t("planOverviewPage.emailSending")
+                            : t("planOverviewPage.sendEmail")}
+                    </Button>
+                )}
             </div>
+
+            {data && emailReportEnabled && emailReportMutation.isSuccess && (
+                <Text className={styles.meta}>
+                    {t("planOverviewPage.emailSent")}
+                </Text>
+            )}
+
+            {data && emailReportEnabled && emailReportMutation.isError && (
+                <Text
+                    role="alert"
+                    style={{ color: tokens.colorPaletteRedForeground1 }}
+                >
+                    {t("planOverviewPage.emailFailed", {
+                        message: emailReportMutation.error.message,
+                    })}
+                </Text>
+            )}
 
             {selectedPlanId == null && (
                 <EmptyState
@@ -275,6 +496,12 @@ export function PlanOverviewPage() {
                                     "planOverviewPage.stats.passRate"
                                 )}
                                 value={`${passRate}%`}
+                            />
+                            <StatCard
+                                label={t(
+                                    "planOverviewPage.stats.executionRate"
+                                )}
+                                value={`${executionRate}%`}
                             />
                         </CardGrid>
                     </div>
@@ -424,11 +651,39 @@ export function PlanOverviewPage() {
                                 })}
                             </Title3>
 
+                            <CardGrid>
+                                <StatCard
+                                    label={t(
+                                        "planOverviewPage.stats.totalTests"
+                                    )}
+                                    value={selectedSuite.totalTestCases}
+                                />
+                                <StatCard
+                                    label={t(
+                                        "planOverviewPage.stats.totalBugs"
+                                    )}
+                                    value={selectedSuite.bugs.length}
+                                />
+                                <StatCard
+                                    label={t(
+                                        "planOverviewPage.stats.passRate"
+                                    )}
+                                    value={`${suitePassRate}%`}
+                                />
+                                <StatCard
+                                    label={t(
+                                        "planOverviewPage.stats.executionRate"
+                                    )}
+                                    value={`${suiteExecutionRate}%`}
+                                />
+                            </CardGrid>
+
                             <ChartCard
                                 title={t(
                                     "planOverviewPage.selectedSuiteSection.outcomeTitle"
                                 )}
                             >
+                                <div ref={selectedSuiteOutcomeChartRef}>
                                 <ResponsiveContainer width="100%" height={280}>
                                     <PieChart>
                                         <Pie
@@ -467,6 +722,7 @@ export function PlanOverviewPage() {
                                         />
                                     </PieChart>
                                 </ResponsiveContainer>
+                                </div>
                             </ChartCard>
 
                             <ChartCard

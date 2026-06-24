@@ -78,6 +78,14 @@
         "title": "Plan Overview",
         "exportPdf": "Export as PDF",
         "exporting": "Exporting...",
+        "sendEmail": "Send report by email",
+        "emailSending": "Sending email report...",
+        "emailSent": "Email report sent.",
+        "emailFailed": "Failed to send email report: {{message}}",
+        "email": {
+            "metricColumn": "Metric",
+            "valueColumn": "Value"
+        },
         "selectPlanPrompt": "Select a test plan to view its overview.",
         "planFilter": {
             "label": "Test Plan",
@@ -95,7 +103,8 @@
         "stats": {
             "totalTests": "Total Test Cases",
             "totalBugs": "Total Bugs",
-            "passRate": "Pass Rate"
+            "passRate": "Pass Rate",
+            "executionRate": "Execution Rate"
         },
         "charts": {
             "outcomeBreakdown": "Test Outcome Breakdown",

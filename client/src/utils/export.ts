@@ -2,7 +2,11 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import html2canvas from "html2canvas";
-import type { PlanOverviewResponse, TestCaseRow } from "../types";
+import type {
+    PlanOverviewResponse,
+    PlanOverviewSuiteDetail,
+    TestCaseRow,
+} from "../types";
 
 export interface ExportableRow {
     testPlan?: string;
@@ -144,6 +148,54 @@ export async function captureChartImage(
         width: canvas.width,
         height: canvas.height,
     };
+}
+
+function sanitizeFilenamePart(value: string): string {
+    return value.replace(/[\\/:*?"<>|]+/g, "_").trim();
+}
+
+export function buildPlanOverviewFilename(
+    planName: string,
+    suiteName?: string
+): string {
+    const base = sanitizeFilenamePart(planName);
+    const suite = suiteName ? `_${sanitizeFilenamePart(suiteName)}` : "";
+    return `${base}${suite}.pdf`;
+}
+
+function escapeHtml(value: string): string {
+    return value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+}
+
+export function buildEmailReportHtml(
+    title: string,
+    rows: [string, string | number][],
+    metricLabel: string,
+    valueLabel: string
+): string {
+    const rowsHtml = rows
+        .map(
+            ([label, value]) =>
+                `<tr>` +
+                `<td style="padding:8px 12px;border:1px solid #d0d0d0;">${escapeHtml(label)}</td>` +
+                `<td style="padding:8px 12px;border:1px solid #d0d0d0;">${escapeHtml(String(value))}</td>` +
+                `</tr>`
+        )
+        .join("");
+
+    return (
+        `<h2 style="font-family:Arial,sans-serif;color:#005a9e;margin:0 0 12px;">${escapeHtml(title)}</h2>` +
+        `<table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:14px;width:100%;max-width:480px;">` +
+        `<thead><tr style="background-color:#005a9e;color:#ffffff;">` +
+        `<th style="padding:8px 12px;text-align:left;border:1px solid #d0d0d0;">${escapeHtml(metricLabel)}</th>` +
+        `<th style="padding:8px 12px;text-align:left;border:1px solid #d0d0d0;">${escapeHtml(valueLabel)}</th>` +
+        `</tr></thead>` +
+        `<tbody>${rowsHtml}</tbody>` +
+        `</table>`
+    );
 }
 
 function downloadBlob(blob: Blob, filename: string): void {
@@ -349,9 +401,23 @@ export function exportToPdf(
     doc.save(`${filename}.pdf`);
 }
 
+function pdfDocToBase64(doc: jsPDF): string {
+    const dataUri = doc.output("datauristring");
+    return dataUri.substring(dataUri.indexOf(",") + 1);
+}
+
+export function buildPdfBase64(
+    title: string,
+    rows: ExportableRow[],
+    suiteBugTotals?: SuiteBugTotal[],
+    suiteHeader?: SuiteHeaderStats
+): string {
+    const doc = buildPdfDocument(title, rows, suiteBugTotals, suiteHeader);
+    return pdfDocToBase64(doc);
+}
+
 const PDF_MARGIN = 14;
 const PDF_MAX_Y = 297 - PDF_MARGIN;
-const PDF_MAX_CHART_HEIGHT = 100;
 
 function ensurePdfSpace(
     doc: jsPDF,
@@ -366,47 +432,80 @@ function ensurePdfSpace(
     return currentY;
 }
 
-function addChartImage(
+const PDF_CHART_GAP = 6;
+const PDF_CHART_ROW_MAX_HEIGHT = 55;
+const PDF_CHART_TITLE_HEIGHT = 8;
+const PDF_CHART_PADDING = 4;
+
+function addChartImagesRow(
     doc: jsPDF,
-    chart: ChartImage,
+    charts: ChartImage[],
     startY: number
 ): number {
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const maxWidth = pageWidth - PDF_MARGIN * 2;
-    const aspectRatio = chart.height / chart.width;
-
-    let imgWidth = maxWidth;
-    let imgHeight = imgWidth * aspectRatio;
-
-    if (imgHeight > PDF_MAX_CHART_HEIGHT) {
-        imgHeight = PDF_MAX_CHART_HEIGHT;
-        imgWidth = imgHeight / aspectRatio;
+    if (charts.length === 0) {
+        return startY;
     }
 
-    const y = ensurePdfSpace(doc, startY, imgHeight + 14);
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const innerWidth = pageWidth - PDF_MARGIN * 2;
+    const columnWidth =
+        (innerWidth - PDF_CHART_GAP * (charts.length - 1)) / charts.length;
 
-    doc.setFontSize(12);
-    doc.text(chart.title, PDF_MARGIN, y);
+    let maxImgHeight = 0;
 
-    doc.addImage(
-        chart.dataUrl,
-        "PNG",
-        PDF_MARGIN,
-        y + 4,
-        imgWidth,
-        imgHeight
-    );
+    const layout = charts.map((chart) => {
+        const aspectRatio = chart.height / chart.width;
+        let imgWidth = columnWidth - PDF_CHART_PADDING * 2;
+        let imgHeight = imgWidth * aspectRatio;
 
-    return y + imgHeight + 14;
+        if (imgHeight > PDF_CHART_ROW_MAX_HEIGHT) {
+            imgHeight = PDF_CHART_ROW_MAX_HEIGHT;
+            imgWidth = imgHeight / aspectRatio;
+        }
+
+        maxImgHeight = Math.max(maxImgHeight, imgHeight);
+
+        return { chart, imgWidth, imgHeight };
+    });
+
+    const rowHeight =
+        PDF_CHART_TITLE_HEIGHT + maxImgHeight + PDF_CHART_PADDING * 2;
+    const y = ensurePdfSpace(doc, startY, rowHeight);
+
+    doc.setDrawColor(200, 200, 200);
+
+    layout.forEach(({ chart, imgWidth, imgHeight }, index) => {
+        const cellX = PDF_MARGIN + index * (columnWidth + PDF_CHART_GAP);
+
+        doc.rect(cellX, y, columnWidth, rowHeight);
+
+        doc.setFontSize(10);
+        doc.text(chart.title, cellX + PDF_CHART_PADDING, y + PDF_CHART_TITLE_HEIGHT);
+
+        const imgX = cellX + (columnWidth - imgWidth) / 2;
+        const imgY = y + PDF_CHART_TITLE_HEIGHT + PDF_CHART_PADDING;
+
+        doc.addImage(chart.dataUrl, "PNG", imgX, imgY, imgWidth, imgHeight);
+    });
+
+    return y + rowHeight + 10;
 }
 
-export function exportPlanOverviewToPdf(
+function buildPlanOverviewPdfDocument(
     data: PlanOverviewResponse,
     charts: ChartImage[] = []
-): void {
+): jsPDF {
     const passRate = data.totalTestCases
         ? Math.round(
             (data.outcomeCounts.Passed / data.totalTestCases) * 1000
+        ) / 10
+        : 0;
+
+    const executionRate = data.totalTestCases
+        ? Math.round(
+            ((data.totalTestCases - data.outcomeCounts.NotRun) /
+                data.totalTestCases) *
+                1000
         ) / 10
         : 0;
 
@@ -417,12 +516,13 @@ export function exportPlanOverviewToPdf(
 
     autoTable(doc, {
         startY: 22,
-        head: [["Total Test Cases", "Total Bugs", "Pass Rate"]],
+        head: [["Total Test Cases", "Total Bugs", "Pass Rate", "Execution Rate"]],
         body: [
             [
                 String(data.totalTestCases),
                 String(data.totalBugs),
                 `${passRate}%`,
+                `${executionRate}%`,
             ],
         ],
         styles: { fontSize: 8 },
@@ -433,9 +533,7 @@ export function exportPlanOverviewToPdf(
         (doc as unknown as { lastAutoTable: { finalY: number } })
             .lastAutoTable.finalY + 10;
 
-    for (const chart of charts) {
-        nextY = addChartImage(doc, chart, nextY);
-    }
+    nextY = addChartImagesRow(doc, charts, nextY);
 
     if (data.bugs.length > 0) {
         nextY = ensurePdfSpace(doc, nextY, 20);
@@ -458,5 +556,79 @@ export function exportPlanOverviewToPdf(
         });
     }
 
+    return doc;
+}
+
+export function exportPlanOverviewToPdf(
+    data: PlanOverviewResponse,
+    charts: ChartImage[] = []
+): void {
+    const doc = buildPlanOverviewPdfDocument(data, charts);
     doc.save(`plan-overview-${data.planId}-${Date.now()}.pdf`);
+}
+
+export function buildPlanOverviewPdfBase64(
+    data: PlanOverviewResponse,
+    charts: ChartImage[] = []
+): string {
+    const doc = buildPlanOverviewPdfDocument(data, charts);
+    return pdfDocToBase64(doc);
+}
+
+export function buildPlanOverviewSuitePdfBase64(
+    planName: string,
+    suite: PlanOverviewSuiteDetail,
+    chart?: ChartImage
+): string {
+    const doc = new jsPDF();
+
+    doc.setFontSize(14);
+    doc.text(`Plan Overview: ${planName} - ${suite.suiteName}`, PDF_MARGIN, 15);
+
+    autoTable(doc, {
+        startY: 22,
+        head: [["Total Test Cases", "Passed", "Failed", "Blocked", "Not Run"]],
+        body: [
+            [
+                String(suite.totalTestCases),
+                String(suite.outcomeCounts.Passed),
+                String(suite.outcomeCounts.Failed),
+                String(suite.outcomeCounts.Blocked),
+                String(suite.outcomeCounts.NotRun),
+            ],
+        ],
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [0, 90, 158] },
+    });
+
+    let nextY =
+        (doc as unknown as { lastAutoTable: { finalY: number } })
+            .lastAutoTable.finalY + 10;
+
+    if (chart) {
+        nextY = addChartImagesRow(doc, [chart], nextY);
+    }
+
+    if (suite.bugs.length > 0) {
+        nextY = ensurePdfSpace(doc, nextY, 20);
+
+        doc.setFontSize(12);
+        doc.text("Bugs", PDF_MARGIN, nextY);
+        nextY += 4;
+
+        autoTable(doc, {
+            startY: nextY,
+            head: [["ID", "Title", "State", "Creator"]],
+            body: suite.bugs.map((bug) => [
+                String(bug.id),
+                bug.title,
+                bug.state,
+                bug.creator ?? "",
+            ]),
+            styles: { fontSize: 8 },
+            headStyles: { fillColor: [0, 90, 158] },
+        });
+    }
+
+    return pdfDocToBase64(doc);
 }
