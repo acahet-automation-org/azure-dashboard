@@ -6,7 +6,14 @@ import type {
     PlanOverviewResponse,
     PlanOverviewSuiteDetail,
     TestCaseRow,
+    TestPlanProgressCounts,
+    TestPlanProgressNode,
 } from "../types";
+import {
+    runPercent,
+    passedPercent,
+    failedPercent,
+} from "./progressReport";
 
 export interface ExportableRow {
     testPlan?: string;
@@ -736,5 +743,115 @@ export function buildPlanOverviewSuitePdfBase64(
         });
     }
 
+    return pdfDocToBase64(doc);
+}
+
+export function buildPlanProgressFilename(planTitle: string): string {
+    return `${sanitizeFilenamePart(planTitle)}_progress_report.pdf`;
+}
+
+function flattenProgressRows(
+    nodes: TestPlanProgressNode[],
+    depth = 0
+): string[][] {
+    return nodes.flatMap((node) => [
+        [
+            `${"  ".repeat(depth)}${node.title}`,
+            String(node.counts.total),
+            String(runPercent(node.counts)),
+            String(passedPercent(node.counts)),
+            String(failedPercent(node.counts)),
+            String(node.counts.notExecuted),
+        ],
+        ...flattenProgressRows(node.children, depth + 1),
+    ]);
+}
+
+function buildPlanProgressPdfDocument(
+    planTitle: string,
+    counts: TestPlanProgressCounts,
+    nodes: TestPlanProgressNode[],
+    charts: ChartImage[] = []
+): jsPDF {
+    const executed = counts.total - counts.notExecuted;
+
+    const doc = new jsPDF();
+
+    doc.setFontSize(14);
+    doc.text(`Progress Report: ${planTitle}`, PDF_MARGIN, 15);
+
+    autoTable(doc, {
+        startY: 22,
+        head: [
+            [
+                "Test Cases",
+                "Test Cases Run",
+                "Passed",
+                "Failed",
+                "Blocked",
+                "Pass Rate",
+            ],
+        ],
+        body: [
+            [
+                String(counts.total),
+                `${executed} / ${counts.total}`,
+                String(counts.passed),
+                String(counts.failed),
+                String(counts.blocked),
+                `${passedPercent(counts)}%`,
+            ],
+        ],
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [0, 90, 158] },
+    });
+
+    let nextY =
+        (doc as unknown as { lastAutoTable: { finalY: number } })
+            .lastAutoTable.finalY + 10;
+
+    nextY = addChartImagesRow(doc, charts, nextY);
+
+    if (nodes.length > 0) {
+        nextY = ensurePdfSpace(doc, nextY, 20);
+
+        autoTable(doc, {
+            startY: nextY,
+            head: [
+                [
+                    "Test Plan Name",
+                    "Test Cases",
+                    "Run %",
+                    "Passed %",
+                    "Failed %",
+                    "Not Run Count",
+                ],
+            ],
+            body: flattenProgressRows(nodes),
+            styles: { fontSize: 8 },
+            headStyles: { fillColor: [0, 90, 158] },
+        });
+    }
+
+    return doc;
+}
+
+export function exportPlanProgressToPdf(
+    planTitle: string,
+    counts: TestPlanProgressCounts,
+    nodes: TestPlanProgressNode[],
+    charts: ChartImage[] = []
+): void {
+    const doc = buildPlanProgressPdfDocument(planTitle, counts, nodes, charts);
+    doc.save(buildPlanProgressFilename(planTitle));
+}
+
+export function buildPlanProgressPdfBase64(
+    planTitle: string,
+    counts: TestPlanProgressCounts,
+    nodes: TestPlanProgressNode[],
+    charts: ChartImage[] = []
+): string {
+    const doc = buildPlanProgressPdfDocument(planTitle, counts, nodes, charts);
     return pdfDocToBase64(doc);
 }

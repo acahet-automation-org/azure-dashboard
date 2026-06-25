@@ -12,6 +12,9 @@ const PlanDetailPage = lazy(() => import("./pages/PlanDetailPage").then((m) => (
 const PlanOverviewPage = lazy(() =>
     import("./pages/PlanOverviewPage").then((m) => ({ default: m.PlanOverviewPage }))
 );
+const PlanProgressPage = lazy(() =>
+    import("./pages/PlanProgressPage").then((m) => ({ default: m.PlanProgressPage }))
+);
 const AutomationDashboardPage = lazy(() =>
     import("./pages/AutomationDashboardPage").then((m) => ({ default: m.AutomationDashboardPage }))
 );
@@ -44,6 +47,7 @@ function AppRoutes() {
                 <Route path="/plans" element={<PlansPage />} />
                 <Route path="/plans/:planId" element={<PlanDetailPage />} />
                 <Route path="/plan-overview" element={<PlanOverviewPage />} />
+                <Route path="/plan-progress" element={<PlanProgressPage />} />
                 <Route path="/automation-dashboard" element={<AutomationDashboardPage />} />
                 <Route path="/test-execution" element={<TestExecutionPage />} />
                 <Route path="/defects" element={<DefectManagementPage />} />

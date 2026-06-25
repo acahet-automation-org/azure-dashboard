@@ -263,3 +263,25 @@ export interface PlanOverviewResponse {
     bugs: BugInfo[];
     suites: PlanOverviewSuiteDetail[];
 }
+
+export interface TestPlanProgressCounts {
+    total: number;
+    passed: number;
+    failed: number;
+    blocked: number;
+    notApplicable: number;
+    notExecuted: number;
+}
+
+export interface TestPlanProgressNode {
+    id: number;
+    title: string;
+    counts: TestPlanProgressCounts;
+    children: TestPlanProgressNode[];
+}
+
+export interface TestPlanProgressResponse {
+    planId: number;
+    planTitle: string;
+    nodes: TestPlanProgressNode[];
+}

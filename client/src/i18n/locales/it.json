@@ -10,6 +10,7 @@
         "runs": "Ultime 10 Esecuzioni",
         "plans": "Piani di Test",
         "planOverview": "Panoramica Piano",
+        "planProgress": "Report Avanzamento",
         "automation": "Automazione",
         "automationDashboard": "Dashboard Automazione",
         "execution": "Esecuzione Test",
@@ -114,6 +115,42 @@
         "bugsSection": {
             "title": "Bug",
             "empty": "Nessun bug collegato ai test case di questo piano."
+        }
+    },
+    "planProgressPage": {
+        "title": "Report Avanzamento",
+        "selectPlanPrompt": "Seleziona un piano di test per visualizzare il report di avanzamento.",
+        "empty": "Nessuna suite basata su requisiti trovata per questo piano.",
+        "planFilter": {
+            "label": "Piano di Test",
+            "placeholder": "Seleziona un piano..."
+        },
+        "suiteFilter": {
+            "label": "Suite di Test",
+            "placeholder": "Tutte le suite",
+            "allSuites": "Tutte le suite",
+            "selectedCount": "{{count}} selezionate"
+        },
+        "summary": {
+            "testPoints": "Casi di Test",
+            "testPointsRun": "Casi di Test Eseguiti",
+            "passRate": "Percentuale di Successo",
+            "runChart": "% Eseguiti",
+            "passRateChart": "Percentuale di Successo",
+            "executedLabel": "Eseguiti"
+        },
+        "table": {
+            "ariaLabel": "Report di avanzamento del piano di test",
+            "expand": "Espandi",
+            "collapse": "Comprimi",
+            "columns": {
+                "title": "Nome Piano di Test",
+                "testPoints": "Casi di Test",
+                "runPercent": "% Eseguiti",
+                "passedPercent": "% Superati",
+                "failedPercent": "% Falliti",
+                "notRunCount": "Conteggio Non Eseguiti"
+            }
         }
     },
     "automationDashboardPage": {

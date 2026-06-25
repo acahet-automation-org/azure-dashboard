@@ -12,6 +12,7 @@ import type {
     WorkItemSummary,
     MyWorkItemsMode,
     PlanOverviewResponse,
+    TestPlanProgressResponse,
 } from "../types";
 import { loginRequest } from "../authConfig";
 import { msalInstance } from "../msalInstance";
@@ -111,6 +112,12 @@ export function fetchPlanOverview(
     planId: number
 ): Promise<PlanOverviewResponse> {
     return getJson(`/api/plans/${planId}/overview`);
+}
+
+export function fetchPlanProgress(
+    planId: number
+): Promise<TestPlanProgressResponse> {
+    return getJson(`/api/plans/${planId}/progress`);
 }
 
 export function fetchAutomationDashboard(

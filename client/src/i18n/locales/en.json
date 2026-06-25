@@ -10,6 +10,7 @@
         "runs": "Last 10 Runs",
         "plans": "Test Plans",
         "planOverview": "Plan Overview",
+        "planProgress": "Progress Report",
         "automation": "Automation",
         "automationDashboard": "Automation Dashboard",
         "execution": "Test Execution",
@@ -114,6 +115,42 @@
         "bugsSection": {
             "title": "Bugs",
             "empty": "No bugs linked to this plan's test cases."
+        }
+    },
+    "planProgressPage": {
+        "title": "Progress Report",
+        "selectPlanPrompt": "Select a test plan to view its progress report.",
+        "empty": "No requirement-based suites found for this plan.",
+        "planFilter": {
+            "label": "Test Plan",
+            "placeholder": "Select a plan..."
+        },
+        "suiteFilter": {
+            "label": "Test Suites",
+            "placeholder": "All suites",
+            "allSuites": "All suites",
+            "selectedCount": "{{count}} selected"
+        },
+        "summary": {
+            "testPoints": "Test Cases",
+            "testPointsRun": "Test Cases Run",
+            "passRate": "Pass Rate",
+            "runChart": "Run %",
+            "passRateChart": "Pass Rate",
+            "executedLabel": "Run"
+        },
+        "table": {
+            "ariaLabel": "Test plan progress report",
+            "expand": "Expand",
+            "collapse": "Collapse",
+            "columns": {
+                "title": "Test Plan Name",
+                "testPoints": "Test Cases",
+                "runPercent": "Run %",
+                "passedPercent": "Passed %",
+                "failedPercent": "Failed %",
+                "notRunCount": "Not Run Count"
+            }
         }
     },
     "automationDashboardPage": {

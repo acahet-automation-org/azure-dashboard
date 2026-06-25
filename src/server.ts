@@ -40,6 +40,10 @@ import {
     clearPlanOverviewCache,
 } from "./planOverviewData.js";
 import {
+    computeTestPlanProgress,
+    clearTestPlanProgressCache,
+} from "./testPlanProgressData.js";
+import {
     startBugSummaryScheduler,
     startNewBugPoller,
 } from "./scheduler.js";
@@ -157,6 +161,20 @@ app.get("/api/plans/:planId/overview", async (req, res) => {
         const planId = Number(req.params.planId);
 
         res.json(await computePlanOverview(planId));
+    } catch (error: any) {
+        console.error(error);
+
+        res.status(500).json({
+            message: error.message,
+        });
+    }
+});
+
+app.get("/api/plans/:planId/progress", async (req, res) => {
+    try {
+        const planId = Number(req.params.planId);
+
+        res.json(await computeTestPlanProgress(planId));
     } catch (error: any) {
         console.error(error);
 
@@ -307,6 +325,7 @@ app.post("/api/refresh", (_, res) => {
     clearCommonErrorsCache();
     clearAutomationCache();
     clearPlanOverviewCache();
+    clearTestPlanProgressCache();
 
     res.status(204).end();
 });

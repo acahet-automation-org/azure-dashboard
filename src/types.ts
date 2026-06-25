@@ -299,3 +299,28 @@ export interface PlanOverviewResponse {
     bugs: BugInfo[];
     suites: PlanOverviewSuiteDetail[];
 }
+
+// Sourced from the Analytics OData feed (TestPointHistorySnapshot), which
+// has a `NotApplicable` bucket the REST-based `Outcome` union above doesn't,
+// so this is intentionally its own shape rather than reusing `Outcome`.
+export interface TestPlanProgressCounts {
+    total: number;
+    passed: number;
+    failed: number;
+    blocked: number;
+    notApplicable: number;
+    notExecuted: number;
+}
+
+export interface TestPlanProgressNode {
+    id: number;
+    title: string;
+    counts: TestPlanProgressCounts;
+    children: TestPlanProgressNode[];
+}
+
+export interface TestPlanProgressResponse {
+    planId: number;
+    planTitle: string;
+    nodes: TestPlanProgressNode[];
+}
