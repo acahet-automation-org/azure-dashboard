@@ -1,6 +1,7 @@
 import { Link, Text, mergeClasses, makeStyles, tokens } from "@fluentui/react-components";
 import { BugFilled, CheckmarkCircleFilled } from "@fluentui/react-icons";
 import type { BugInfo } from "../types";
+import { compareByState } from "../utils/bugState";
 
 const useStyles = makeStyles({
     list: {
@@ -26,10 +27,11 @@ const useStyles = makeStyles({
 
 export function BugList({ bugs }: { bugs: BugInfo[] }) {
     const styles = useStyles();
+    const sortedBugs = [...bugs].sort(compareByState);
 
     return (
         <div className={styles.list}>
-            {bugs.map((bug) => {
+            {sortedBugs.map((bug) => {
                 const isActive = bug.state !== "Closed";
                 const icon = isActive ? (
                     <BugFilled aria-hidden="true" />

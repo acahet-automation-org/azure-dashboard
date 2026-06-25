@@ -10,6 +10,7 @@ import {
 } from "@fluentui/react-components";
 import { useTranslation } from "react-i18next";
 import type { BugInfo } from "../types";
+import { compareByState } from "../utils/bugState";
 
 export function BugsTable({
     bugs,
@@ -19,7 +20,8 @@ export function BugsTable({
     ariaLabel: string;
 }) {
     const { t } = useTranslation();
-    const showPriority = bugs.some((bug) => bug.priority != null);
+    const sortedBugs = [...bugs].sort(compareByState);
+    const showPriority = sortedBugs.some((bug) => bug.priority != null);
 
     return (
         <Table aria-label={ariaLabel}>
@@ -45,7 +47,7 @@ export function BugsTable({
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {bugs.map((bug) => {
+                {sortedBugs.map((bug) => {
                     const isActive = bug.state !== "Closed";
 
                     return (

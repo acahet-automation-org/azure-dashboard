@@ -25,6 +25,7 @@ import { EmptyState } from "../components/EmptyState";
 import { BugsTable } from "../components/BugsTable";
 import { Pagination } from "../components/Pagination";
 import { fetchDefects } from "../api/client";
+import { compareByState } from "../utils/bugState";
 
 const useStyles = makeStyles({
     section: {
@@ -55,9 +56,9 @@ export function DefectManagementPage() {
         queryFn: fetchDefects,
     });
 
-    const filteredGaps = data?.stats.defectsWithoutLinkedTestCase.filter(
-        (b) => !excludeClosed || b.state !== "Closed"
-    );
+    const filteredGaps = data?.stats.defectsWithoutLinkedTestCase
+        .filter((b) => !excludeClosed || b.state !== "Closed")
+        .sort(compareByState);
 
     const gapsPageCount = filteredGaps
         ? Math.max(1, Math.ceil(filteredGaps.length / GAPS_PAGE_SIZE))
