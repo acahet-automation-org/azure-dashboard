@@ -85,6 +85,7 @@ const routeForValue: Record<string, string> = {
     runs: "/last-5-runs",
     plans: "/plans",
     "plan-overview": "/plan-overview",
+    "plan-progress": "/plan-progress",
     execution: "/test-execution",
     defects: "/defects",
     "my-work-items": "/my-work-items",
@@ -110,6 +111,10 @@ function valueForPath(pathname: string): string {
 
     if (pathname === "/plan-overview") {
         return "plan-overview";
+    }
+
+    if (pathname === "/plan-progress") {
+        return "plan-progress";
     }
 
     if (pathname === "/test-execution") {
@@ -145,6 +150,7 @@ export function NavBar() {
             queryClient.invalidateQueries({ queryKey: ["runs"] });
             queryClient.invalidateQueries({ queryKey: ["plans"] });
             queryClient.invalidateQueries({ queryKey: ["plan-overview"] });
+            queryClient.invalidateQueries({ queryKey: ["plan-progress"] });
             queryClient.invalidateQueries({ queryKey: ["automation"] });
             queryClient.invalidateQueries({ queryKey: ["execution-trend"] });
             queryClient.invalidateQueries({ queryKey: ["defects"] });
@@ -179,6 +185,7 @@ export function NavBar() {
                     <Tab value="runs">{t("nav.runs")}</Tab>
                     <Tab value="plans">{t("nav.plans")}</Tab>
                     <Tab value="plan-overview">{t("nav.planOverview")}</Tab>
+                    <Tab value="plan-progress">{t("nav.planProgress")}</Tab>
                     <Tab value="execution">{t("nav.execution")}</Tab>
                     <Tab value="defects">{t("nav.defects")}</Tab>
                     <Tab value="my-work-items">{t("nav.myWorkItems")}</Tab>

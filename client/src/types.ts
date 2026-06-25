@@ -11,6 +11,10 @@ export interface BugInfo {
     priority?: number;
     url?: string;
     creator?: string;
+    assignee?: {
+        displayName: string;
+        uniqueName: string;
+    };
 }
 
 export type MyWorkItemsMode = "assigned" | "mentioned" | "following";
@@ -262,4 +266,26 @@ export interface PlanOverviewResponse {
     bugsByState: PlanOverviewBugStateCount[];
     bugs: BugInfo[];
     suites: PlanOverviewSuiteDetail[];
+}
+
+export interface TestPlanProgressCounts {
+    total: number;
+    passed: number;
+    failed: number;
+    blocked: number;
+    notApplicable: number;
+    notExecuted: number;
+}
+
+export interface TestPlanProgressNode {
+    id: number;
+    title: string;
+    counts: TestPlanProgressCounts;
+    children: TestPlanProgressNode[];
+}
+
+export interface TestPlanProgressResponse {
+    planId: number;
+    planTitle: string;
+    nodes: TestPlanProgressNode[];
 }

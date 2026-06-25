@@ -25,6 +25,53 @@ export const azdoOrg = axios.create({
     },
 });
 
+// The Test Plan Progress Report's hierarchy/rollup data isn't exposed by the
+// `_apis` REST surface above - it's only available through the Analytics
+// OData feed, which lives on a different host (analytics.dev.azure.com, not
+// dev.azure.com) and isn't part of the public REST API.
+export const azdoOdata = axios.create({
+    baseURL: `https://analytics.dev.azure.com/${process.env.AZDO_ORG}/${encodeURIComponent(
+        process.env.AZDO_PROJECT!
+    )}/_odata/v4.0-preview`,
+    headers: {
+        Authorization: `Basic ${auth}`,
+    },
+});
+
+export async function getTestSuiteHierarchy(planId: number) {
+    const apply =
+        `filter(( TestPlanId eq ${planId} ) and ( IdLevel3 ne null ))` +
+        `/groupby((IdLevel1,IdLevel2,IdLevel3,TestPlanTitle,TitleLevel2,TitleLevel3,TestPlanId))`;
+
+    const response = await azdoOdata.get(
+        `/TestSuites?$apply=${encodeURIComponent(apply)}`
+    );
+
+    return response.data.value;
+}
+
+export async function getTestSuiteCurrentCounts(
+    planId: number,
+    dateSK: number
+) {
+    const apply =
+        `filter(( TestPlanId eq ${planId} ) and ( DateSK eq ${dateSK} ))` +
+        `/groupby((TestSuite/IdLevel3,DateSK), aggregate(` +
+        `$count as TotalCount, ` +
+        `cast(ResultOutcome eq 'Passed', Edm.Int32) with sum as Passed, ` +
+        `cast(ResultOutcome eq 'Failed', Edm.Int32) with sum as Failed, ` +
+        `cast(ResultOutcome eq 'Blocked', Edm.Int32) with sum as Blocked, ` +
+        `cast(ResultOutcome eq 'NotApplicable', Edm.Int32) with sum as NotApplicable, ` +
+        `cast(ResultOutcome eq 'None', Edm.Int32) with sum as NotExecuted, ` +
+        `cast(ResultOutcome ne 'None', Edm.Int32) with sum as Executed))`;
+
+    const response = await azdoOdata.get(
+        `/TestPointHistorySnapshot?$apply=${encodeURIComponent(apply)}`
+    );
+
+    return response.data.value;
+}
+
 export async function getTestPlans() {
     const response = await azdo.get(
         "/testplan/plans?api-version=7.1"

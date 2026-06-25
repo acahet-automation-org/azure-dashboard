@@ -44,6 +44,9 @@ export function BugsTable({
                     <TableHeaderCell>
                         {t("bugsTable.columns.creator")}
                     </TableHeaderCell>
+                    <TableHeaderCell>
+                        {t("bugsTable.columns.assignee")}
+                    </TableHeaderCell>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -82,6 +85,9 @@ export function BugsTable({
                                 </Badge>
                             </TableCell>
                             <TableCell>{bug.creator ?? ""}</TableCell>
+                            <TableCell>
+                                {bug.assignee?.displayName ?? ""}
+                            </TableCell>
                         </TableRow>
                     );
                 })}

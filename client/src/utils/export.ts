@@ -3,10 +3,13 @@ import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import html2canvas from "html2canvas";
 import type {
+    BugInfo,
     PlanOverviewResponse,
     PlanOverviewSuiteDetail,
     TestCaseRow,
+    TestPlanProgressCounts,
 } from "../types";
+import { passedPercent } from "./progressReport";
 
 export interface ExportableRow {
     testPlan?: string;
@@ -736,5 +739,144 @@ export function buildPlanOverviewSuitePdfBase64(
         });
     }
 
+    return pdfDocToBase64(doc);
+}
+
+export function buildPlanProgressFilename(planTitle: string): string {
+    return `${sanitizeFilenamePart(planTitle)}_progress_report.pdf`;
+}
+
+export interface PlanProgressPdfLabels {
+    titlePrefix: string;
+    testCases: string;
+    testCasesRun: string;
+    passed: string;
+    failed: string;
+    blocked: string;
+    passRate: string;
+    bugsTitle: string;
+    bugsEmpty: string;
+    bugColumns: {
+        id: string;
+        title: string;
+        state: string;
+        creator: string;
+        assignee: string;
+    };
+}
+
+function buildPlanProgressPdfDocument(
+    planTitle: string,
+    counts: TestPlanProgressCounts,
+    bugs: BugInfo[],
+    labels: PlanProgressPdfLabels,
+    charts: ChartImage[] = []
+): jsPDF {
+    const executed = counts.total - counts.notExecuted;
+
+    const doc = new jsPDF();
+
+    doc.setFontSize(14);
+    doc.text(`${labels.titlePrefix}: ${planTitle}`, PDF_MARGIN, 15);
+
+    autoTable(doc, {
+        startY: 22,
+        head: [
+            [
+                labels.testCases,
+                labels.testCasesRun,
+                labels.passed,
+                labels.failed,
+                labels.blocked,
+                labels.passRate,
+            ],
+        ],
+        body: [
+            [
+                String(counts.total),
+                `${executed} / ${counts.total}`,
+                String(counts.passed),
+                String(counts.failed),
+                String(counts.blocked),
+                `${passedPercent(counts)}%`,
+            ],
+        ],
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [0, 90, 158] },
+    });
+
+    let nextY =
+        (doc as unknown as { lastAutoTable: { finalY: number } })
+            .lastAutoTable.finalY + 10;
+
+    nextY = addChartImagesRow(doc, charts, nextY);
+
+    nextY = ensurePdfSpace(doc, nextY, 20);
+
+    doc.setFontSize(12);
+    doc.text(labels.bugsTitle, PDF_MARGIN, nextY);
+    nextY += 4;
+
+    if (bugs.length > 0) {
+        autoTable(doc, {
+            startY: nextY,
+            head: [
+                [
+                    labels.bugColumns.id,
+                    labels.bugColumns.title,
+                    labels.bugColumns.state,
+                    labels.bugColumns.creator,
+                    labels.bugColumns.assignee,
+                ],
+            ],
+            body: bugs.map((bug) => [
+                String(bug.id),
+                bug.title,
+                bug.state,
+                bug.creator ?? "",
+                bug.assignee?.displayName ?? "",
+            ]),
+            styles: { fontSize: 8 },
+            headStyles: { fillColor: [0, 90, 158] },
+        });
+    } else {
+        doc.setFontSize(9);
+        doc.text(labels.bugsEmpty, PDF_MARGIN, nextY + 4);
+    }
+
+    return doc;
+}
+
+export function exportPlanProgressToPdf(
+    planTitle: string,
+    counts: TestPlanProgressCounts,
+    bugs: BugInfo[],
+    labels: PlanProgressPdfLabels,
+    charts: ChartImage[] = []
+): void {
+    const doc = buildPlanProgressPdfDocument(
+        planTitle,
+        counts,
+        bugs,
+        labels,
+        charts
+    );
+    doc.save(buildPlanProgressFilename(planTitle));
+}
+
+export function buildPlanProgressPdfBase64(
+    planTitle: string,
+    counts: TestPlanProgressCounts,
+    bugs: BugInfo[],
+    labels: PlanProgressPdfLabels,
+    charts: ChartImage[] = []
+): string {
+    const doc = buildPlanProgressPdfDocument(
+        planTitle,
+        counts,
+        bugs,
+        labels,
+        charts
+    );
     return pdfDocToBase64(doc);
 }
