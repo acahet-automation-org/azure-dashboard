@@ -9,17 +9,19 @@ import {
     TableCell,
 } from "@fluentui/react-components";
 import { useTranslation } from "react-i18next";
-import type { BugInfo } from "../types";
+import type { WorkItemSummary } from "../types";
 
-export function BugsTable({
-    bugs,
+const CLOSED_STATES = ["Closed", "Resolved", "Removed", "Done"];
+
+export function WorkItemsTable({
+    items,
     ariaLabel,
 }: {
-    bugs: BugInfo[];
+    items: WorkItemSummary[];
     ariaLabel: string;
 }) {
     const { t } = useTranslation();
-    const showPriority = bugs.some((bug) => bug.priority != null);
+    const showPriority = items.some((item) => item.priority != null);
 
     return (
         <Table aria-label={ariaLabel}>
@@ -27,59 +29,65 @@ export function BugsTable({
                 <TableRow>
                     {showPriority && (
                         <TableHeaderCell>
-                            {t("bugsTable.columns.priority")}
+                            {t("workItemsTable.columns.priority")}
                         </TableHeaderCell>
                     )}
                     <TableHeaderCell>
-                        {t("bugsTable.columns.id")}
+                        {t("workItemsTable.columns.id")}
                     </TableHeaderCell>
                     <TableHeaderCell>
-                        {t("bugsTable.columns.title")}
+                        {t("workItemsTable.columns.title")}
                     </TableHeaderCell>
                     <TableHeaderCell>
-                        {t("bugsTable.columns.state")}
+                        {t("workItemsTable.columns.type")}
                     </TableHeaderCell>
                     <TableHeaderCell>
-                        {t("bugsTable.columns.creator")}
+                        {t("workItemsTable.columns.state")}
+                    </TableHeaderCell>
+                    <TableHeaderCell>
+                        {t("workItemsTable.columns.assignee")}
                     </TableHeaderCell>
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {bugs.map((bug) => {
-                    const isActive = bug.state !== "Closed";
+                {items.map((item) => {
+                    const isActive = !CLOSED_STATES.includes(item.state);
 
                     return (
-                        <TableRow key={bug.id}>
+                        <TableRow key={item.id}>
                             {showPriority && (
                                 <TableCell>
-                                    {bug.priority != null
-                                        ? `P${bug.priority}`
+                                    {item.priority != null
+                                        ? `P${item.priority}`
                                         : ""}
                                 </TableCell>
                             )}
                             <TableCell>
-                                {bug.url ? (
+                                {item.url ? (
                                     <Link
-                                        href={bug.url}
+                                        href={item.url}
                                         target="_blank"
                                         rel="noreferrer"
                                     >
-                                        {bug.id}
+                                        {item.id}
                                     </Link>
                                 ) : (
-                                    bug.id
+                                    item.id
                                 )}
                             </TableCell>
-                            <TableCell>{bug.title}</TableCell>
+                            <TableCell>{item.title}</TableCell>
+                            <TableCell>{item.type}</TableCell>
                             <TableCell>
                                 <Badge
                                     color={isActive ? "danger" : "success"}
                                     appearance="tint"
                                 >
-                                    {bug.state}
+                                    {item.state}
                                 </Badge>
                             </TableCell>
-                            <TableCell>{bug.creator ?? ""}</TableCell>
+                            <TableCell>
+                                {item.assignee?.displayName ?? ""}
+                            </TableCell>
                         </TableRow>
                     );
                 })}

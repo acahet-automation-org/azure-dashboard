@@ -156,6 +156,7 @@ const BUG_FIELDS = [
     "System.Reason",
     "System.AreaPath",
     "System.CreatedDate",
+    "System.CreatedBy",
     "System.ChangedDate",
     "Microsoft.VSTS.Common.Priority",
     "Microsoft.VSTS.Common.Severity",

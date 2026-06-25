@@ -22,7 +22,8 @@ import { ChartsGrid } from "../components/ChartsGrid";
 import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
-import { BugList } from "../components/BugList";
+import { BugsTable } from "../components/BugsTable";
+import { Pagination } from "../components/Pagination";
 import { fetchDefects } from "../api/client";
 
 const useStyles = makeStyles({
@@ -32,6 +33,8 @@ const useStyles = makeStyles({
         gap: tokens.spacingVerticalS,
     },
 });
+
+const GAPS_PAGE_SIZE = 5;
 
 function toChartData(
     record: Record<string, number>
@@ -45,6 +48,7 @@ export function DefectManagementPage() {
     const styles = useStyles();
     const { t } = useTranslation();
     const [excludeClosed, setExcludeClosed] = useState(true);
+    const [gapsPage, setGapsPage] = useState(1);
 
     const { data, isLoading, isError, error, refetch } = useQuery({
         queryKey: ["defects"],
@@ -53,6 +57,15 @@ export function DefectManagementPage() {
 
     const filteredGaps = data?.stats.defectsWithoutLinkedTestCase.filter(
         (b) => !excludeClosed || b.state !== "Closed"
+    );
+
+    const gapsPageCount = filteredGaps
+        ? Math.max(1, Math.ceil(filteredGaps.length / GAPS_PAGE_SIZE))
+        : 1;
+    const currentGapsPage = Math.min(gapsPage, gapsPageCount);
+    const paginatedGaps = filteredGaps?.slice(
+        (currentGapsPage - 1) * GAPS_PAGE_SIZE,
+        currentGapsPage * GAPS_PAGE_SIZE
     );
 
     return (
@@ -80,8 +93,8 @@ export function DefectManagementPage() {
                                 value={
                                     data.stats.mttrDays != null
                                         ? t("defectManagementPage.stats.days", {
-                                              value: data.stats.mttrDays,
-                                          })
+                                            value: data.stats.mttrDays,
+                                        })
                                         : t("defectManagementPage.stats.notAvailable")
                                 }
                             />
@@ -232,12 +245,27 @@ export function DefectManagementPage() {
                         >
                             <Switch
                                 checked={excludeClosed}
-                                onChange={(_, data) => setExcludeClosed(data.checked)}
+                                onChange={(_, data) => {
+                                    setExcludeClosed(data.checked);
+                                    setGapsPage(1);
+                                }}
                                 label={t("defectManagementPage.sections.excludeClosed")}
                             />
 
-                            {filteredGaps && filteredGaps.length > 0 ? (
-                                <BugList bugs={filteredGaps} />
+                            {paginatedGaps && paginatedGaps.length > 0 ? (
+                                <>
+                                    <BugsTable
+                                        bugs={paginatedGaps}
+                                        ariaLabel={t(
+                                            "defectManagementPage.sections.withoutLinkedTestCase"
+                                        )}
+                                    />
+                                    <Pagination
+                                        page={currentGapsPage}
+                                        pageCount={gapsPageCount}
+                                        onPageChange={setGapsPage}
+                                    />
+                                </>
                             ) : (
                                 <EmptyState
                                     message={t("defectManagementPage.sections.noGaps")}

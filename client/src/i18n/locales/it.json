@@ -296,11 +296,27 @@
     },
     "bugsTable": {
         "columns": {
+            "priority": "Priorità",
             "id": "ID",
             "title": "Titolo",
             "state": "Stato",
             "creator": "Creatore"
         }
+    },
+    "workItemsTable": {
+        "columns": {
+            "priority": "Priorità",
+            "id": "ID",
+            "title": "Titolo",
+            "type": "Tipo",
+            "state": "Stato",
+            "assignee": "Assegnatario"
+        }
+    },
+    "pagination": {
+        "previous": "Pagina precedente",
+        "next": "Pagina successiva",
+        "pageOf": "Pagina {{page}} di {{pageCount}}"
     },
     "errorState": {
         "title": "Si è verificato un errore",

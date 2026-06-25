@@ -17,41 +17,52 @@ export async function sendTeamsMessage(
     await axios.post(webhookUrl, card);
 }
 
-export function buildBugCreatedCard(bug: DefectRecord) {
+// MessageCard "sections"/"facts" fields render as a flat text stream in some
+// Teams flows (e.g. Power Automate webhook triggers), losing their visual
+// grouping. Both cards below instead render each bug as a markdown text
+// block, which is the format that's known to render reliably.
+function formatBugBlock(
+    bug: DefectRecord,
+    options: { includeArea?: boolean } = {}
+): string {
+    const severity = bug.severity ?? "Unspecified";
+    const priority =
+        bug.priority != null
+            ? String(bug.priority)
+            : "Unspecified";
+
     const facts = [
-        { name: "Severity", value: bug.severity },
-        {
-            name: "Priority",
-            value:
-                bug.priority != null
-                    ? String(bug.priority)
-                    : undefined,
-        },
-        { name: "Area", value: bug.areaPath },
-    ].filter(
-        (fact): fact is { name: string; value: string } =>
-            fact.value != null
-    );
+        `Severity: ${severity}`,
+        `Priority: ${priority}`,
+    ];
+
+    if (options.includeArea) {
+        facts.push(`Area: ${bug.areaPath}`);
+    }
+
+    const link = bug.url
+        ? `[Open in Azure DevOps](${bug.url})`
+        : "";
+
+    return [
+        `**#${bug.id} - ${bug.title}**`,
+        facts.join(" · "),
+        link,
+    ]
+        .filter(Boolean)
+        .join("  \n");
+}
+
+export function buildBugCreatedCard(bug: DefectRecord) {
+    const title = `New bug #${bug.id}`;
 
     return {
         "@type": "MessageCard",
         "@context": "http://schema.org/extensions",
         themeColor: "D13438",
-        summary: `New bug #${bug.id}: ${bug.title}`,
-        title: `New bug #${bug.id}`,
-        text: bug.title,
-        sections: [{ facts }],
-        potentialAction: bug.url
-            ? [
-                  {
-                      "@type": "OpenUri",
-                      name: "Open in Azure DevOps",
-                      targets: [
-                          { os: "default", uri: bug.url },
-                      ],
-                  },
-              ]
-            : [],
+        summary: `${title}: ${bug.title}`,
+        title,
+        text: formatBugBlock(bug, { includeArea: true }),
     };
 }
 
@@ -62,29 +73,10 @@ export function buildBugsReportedTodayCard(
         process.env.TEAMS_GREETING_NAME ?? "team";
     const greeting = `Hey ${recipient}, ${bugs.length} bug(s) were created today`;
 
-    const bugBlocks = bugs.map((bug) => {
-        const severity = bug.severity ?? "Unspecified";
-        const priority =
-            bug.priority != null
-                ? String(bug.priority)
-                : "Unspecified";
-        const link = bug.url
-            ? `[Open in Azure DevOps](${bug.url})`
-            : "";
+    const bugBlocks = bugs.map((bug) =>
+        formatBugBlock(bug)
+    );
 
-        return [
-            `**#${bug.id} - ${bug.title}**`,
-            `Severity: ${severity} · Priority: ${priority}`,
-            link,
-        ]
-            .filter(Boolean)
-            .join("  \n");
-    });
-
-    // One section separator ("---") between bug blocks, since the
-    // structured MessageCard "sections"/"facts" fields render as one flat
-    // text stream in some Teams flows (e.g. Power Automate webhook
-    // triggers), losing the visual grouping between bugs.
     const text = [
         greeting,
         "",

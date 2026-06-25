@@ -217,6 +217,7 @@ export interface DefectRecord {
     reopenedCount: number;
     hasLinkedTestCase: boolean;
     url?: string;
+    creator?: string;
 }
 
 export interface DefectWithoutTestCase {
@@ -225,6 +226,7 @@ export interface DefectWithoutTestCase {
     state: string;
     priority?: number;
     url?: string;
+    creator?: string;
 }
 
 export interface DefectTrendPoint {

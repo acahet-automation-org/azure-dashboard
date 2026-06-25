@@ -7,7 +7,7 @@ import { PageLayout } from "../components/PageLayout";
 import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
-import { WorkItemList } from "../components/WorkItemList";
+import { WorkItemsTable } from "../components/WorkItemsTable";
 import { fetchMyWorkItems } from "../api/client";
 import type { MyWorkItemsMode } from "../types";
 
@@ -50,10 +50,10 @@ export function MyWorkItemsPage() {
 
                 items = username
                     ? data.filter(
-                          (item) =>
-                              item.assignee?.uniqueName?.toLowerCase() ===
-                              username
-                      )
+                        (item) =>
+                            item.assignee?.uniqueName?.toLowerCase() ===
+                            username
+                    )
                     : [];
             }
         } else {
@@ -65,11 +65,11 @@ export function MyWorkItemsPage() {
 
                 items = displayName
                     ? data.filter((item) =>
-                          item.mentions?.some(
-                              (mention) =>
-                                  mention.toLowerCase() === displayName
-                          )
-                      )
+                        item.mentions?.some(
+                            (mention) =>
+                                mention.toLowerCase() === displayName
+                        )
+                    )
                     : [];
             }
         }
@@ -90,7 +90,7 @@ export function MyWorkItemsPage() {
                 <Tab value="assigned">
                     {t("myWorkItemsPage.filters.assignedToMe")}
                 </Tab>
-                <Tab value="mentioned">
+                <Tab value="mentioned" style={{ display: "none" }}>
                     {t("myWorkItemsPage.filters.mentioned")}
                 </Tab>
                 <Tab value="following">
@@ -112,7 +112,10 @@ export function MyWorkItemsPage() {
 
             {data && (
                 myItems.length > 0 ? (
-                    <WorkItemList items={myItems} />
+                    <WorkItemsTable
+                        items={myItems}
+                        ariaLabel={t("myWorkItemsPage.title")}
+                    />
                 ) : (
                     <EmptyState message={t("myWorkItemsPage.empty")} />
                 )

@@ -296,11 +296,27 @@
     },
     "bugsTable": {
         "columns": {
+            "priority": "Priority",
             "id": "ID",
             "title": "Title",
             "state": "State",
             "creator": "Creator"
         }
+    },
+    "workItemsTable": {
+        "columns": {
+            "priority": "Priority",
+            "id": "ID",
+            "title": "Title",
+            "type": "Type",
+            "state": "State",
+            "assignee": "Assignee"
+        }
+    },
+    "pagination": {
+        "previous": "Previous page",
+        "next": "Next page",
+        "pageOf": "Page {{page}} of {{pageCount}}"
     },
     "errorState": {
         "title": "Something went wrong",

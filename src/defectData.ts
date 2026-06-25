@@ -107,6 +107,7 @@ async function buildDefectRecord(
         reopenedCount: countReopenings(revisions),
         hasLinkedTestCase: linkedToTestCase,
         url: buildWorkItemUrl(bug.id),
+        creator: bug.fields["System.CreatedBy"]?.displayName,
     };
 }
 
@@ -333,6 +334,7 @@ export function computeDefectStats(
                 state: r.state,
                 priority: r.priority,
                 url: r.url,
+                creator: r.creator,
             }))
             .sort((a, b) => {
                 if (a.priority == null) {
