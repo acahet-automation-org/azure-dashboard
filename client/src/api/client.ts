@@ -13,6 +13,7 @@ import type {
     MyWorkItemsMode,
     PlanOverviewResponse,
     TestPlanProgressResponse,
+    BugInfo,
 } from "../types";
 import { loginRequest } from "../authConfig";
 import { msalInstance } from "../msalInstance";
@@ -118,6 +119,15 @@ export function fetchPlanProgress(
     planId: number
 ): Promise<TestPlanProgressResponse> {
     return getJson(`/api/plans/${planId}/progress`);
+}
+
+export function fetchPlanProgressBugs(
+    planId: number,
+    suiteIds: number[]
+): Promise<BugInfo[]> {
+    const qs = suiteIds.length ? `?suiteIds=${suiteIds.join(",")}` : "";
+
+    return getJson(`/api/plans/${planId}/progress/bugs${qs}`);
 }
 
 export function fetchAutomationDashboard(

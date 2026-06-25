@@ -3,17 +3,13 @@ import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import html2canvas from "html2canvas";
 import type {
+    BugInfo,
     PlanOverviewResponse,
     PlanOverviewSuiteDetail,
     TestCaseRow,
     TestPlanProgressCounts,
-    TestPlanProgressNode,
 } from "../types";
-import {
-    runPercent,
-    passedPercent,
-    failedPercent,
-} from "./progressReport";
+import { passedPercent } from "./progressReport";
 
 export interface ExportableRow {
     testPlan?: string;
@@ -750,27 +746,30 @@ export function buildPlanProgressFilename(planTitle: string): string {
     return `${sanitizeFilenamePart(planTitle)}_progress_report.pdf`;
 }
 
-function flattenProgressRows(
-    nodes: TestPlanProgressNode[],
-    depth = 0
-): string[][] {
-    return nodes.flatMap((node) => [
-        [
-            `${"  ".repeat(depth)}${node.title}`,
-            String(node.counts.total),
-            String(runPercent(node.counts)),
-            String(passedPercent(node.counts)),
-            String(failedPercent(node.counts)),
-            String(node.counts.notExecuted),
-        ],
-        ...flattenProgressRows(node.children, depth + 1),
-    ]);
+export interface PlanProgressPdfLabels {
+    titlePrefix: string;
+    testCases: string;
+    testCasesRun: string;
+    passed: string;
+    failed: string;
+    blocked: string;
+    passRate: string;
+    bugsTitle: string;
+    bugsEmpty: string;
+    bugColumns: {
+        id: string;
+        title: string;
+        state: string;
+        creator: string;
+        assignee: string;
+    };
 }
 
 function buildPlanProgressPdfDocument(
     planTitle: string,
     counts: TestPlanProgressCounts,
-    nodes: TestPlanProgressNode[],
+    bugs: BugInfo[],
+    labels: PlanProgressPdfLabels,
     charts: ChartImage[] = []
 ): jsPDF {
     const executed = counts.total - counts.notExecuted;
@@ -778,18 +777,18 @@ function buildPlanProgressPdfDocument(
     const doc = new jsPDF();
 
     doc.setFontSize(14);
-    doc.text(`Progress Report: ${planTitle}`, PDF_MARGIN, 15);
+    doc.text(`${labels.titlePrefix}: ${planTitle}`, PDF_MARGIN, 15);
 
     autoTable(doc, {
         startY: 22,
         head: [
             [
-                "Test Cases",
-                "Test Cases Run",
-                "Passed",
-                "Failed",
-                "Blocked",
-                "Pass Rate",
+                labels.testCases,
+                labels.testCasesRun,
+                labels.passed,
+                labels.failed,
+                labels.blocked,
+                labels.passRate,
             ],
         ],
         body: [
@@ -812,25 +811,37 @@ function buildPlanProgressPdfDocument(
 
     nextY = addChartImagesRow(doc, charts, nextY);
 
-    if (nodes.length > 0) {
-        nextY = ensurePdfSpace(doc, nextY, 20);
+    nextY = ensurePdfSpace(doc, nextY, 20);
 
+    doc.setFontSize(12);
+    doc.text(labels.bugsTitle, PDF_MARGIN, nextY);
+    nextY += 4;
+
+    if (bugs.length > 0) {
         autoTable(doc, {
             startY: nextY,
             head: [
                 [
-                    "Test Plan Name",
-                    "Test Cases",
-                    "Run %",
-                    "Passed %",
-                    "Failed %",
-                    "Not Run Count",
+                    labels.bugColumns.id,
+                    labels.bugColumns.title,
+                    labels.bugColumns.state,
+                    labels.bugColumns.creator,
+                    labels.bugColumns.assignee,
                 ],
             ],
-            body: flattenProgressRows(nodes),
+            body: bugs.map((bug) => [
+                String(bug.id),
+                bug.title,
+                bug.state,
+                bug.creator ?? "",
+                bug.assignee?.displayName ?? "",
+            ]),
             styles: { fontSize: 8 },
             headStyles: { fillColor: [0, 90, 158] },
         });
+    } else {
+        doc.setFontSize(9);
+        doc.text(labels.bugsEmpty, PDF_MARGIN, nextY + 4);
     }
 
     return doc;
@@ -839,19 +850,33 @@ function buildPlanProgressPdfDocument(
 export function exportPlanProgressToPdf(
     planTitle: string,
     counts: TestPlanProgressCounts,
-    nodes: TestPlanProgressNode[],
+    bugs: BugInfo[],
+    labels: PlanProgressPdfLabels,
     charts: ChartImage[] = []
 ): void {
-    const doc = buildPlanProgressPdfDocument(planTitle, counts, nodes, charts);
+    const doc = buildPlanProgressPdfDocument(
+        planTitle,
+        counts,
+        bugs,
+        labels,
+        charts
+    );
     doc.save(buildPlanProgressFilename(planTitle));
 }
 
 export function buildPlanProgressPdfBase64(
     planTitle: string,
     counts: TestPlanProgressCounts,
-    nodes: TestPlanProgressNode[],
+    bugs: BugInfo[],
+    labels: PlanProgressPdfLabels,
     charts: ChartImage[] = []
 ): string {
-    const doc = buildPlanProgressPdfDocument(planTitle, counts, nodes, charts);
+    const doc = buildPlanProgressPdfDocument(
+        planTitle,
+        counts,
+        bugs,
+        labels,
+        charts
+    );
     return pdfDocToBase64(doc);
 }

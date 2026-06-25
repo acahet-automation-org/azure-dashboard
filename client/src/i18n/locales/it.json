@@ -139,18 +139,9 @@
             "passRateChart": "Percentuale di Successo",
             "executedLabel": "Eseguiti"
         },
-        "table": {
-            "ariaLabel": "Report di avanzamento del piano di test",
-            "expand": "Espandi",
-            "collapse": "Comprimi",
-            "columns": {
-                "title": "Nome Piano di Test",
-                "testPoints": "Casi di Test",
-                "runPercent": "% Eseguiti",
-                "passedPercent": "% Superati",
-                "failedPercent": "% Falliti",
-                "notRunCount": "Conteggio Non Eseguiti"
-            }
+        "bugsSection": {
+            "title": "Bug",
+            "empty": "Nessun bug aperto collegato ai test case di questo piano."
         }
     },
     "automationDashboardPage": {
@@ -337,7 +328,8 @@
             "id": "ID",
             "title": "Titolo",
             "state": "Stato",
-            "creator": "Creatore"
+            "creator": "Creatore",
+            "assignee": "Assegnatario"
         }
     },
     "workItemsTable": {

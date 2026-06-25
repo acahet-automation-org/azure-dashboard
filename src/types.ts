@@ -10,6 +10,10 @@ export interface BugInfo {
     state: string;
     url?: string;
     creator?: string;
+    assignee?: {
+        displayName: string;
+        uniqueName: string;
+    };
 }
 
 export type MyWorkItemsMode = "assigned" | "mentioned" | "following";

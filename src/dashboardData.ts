@@ -120,6 +120,14 @@ export async function buildTestCaseRow(
             state: b.fields["System.State"],
             url: buildWorkItemUrl(b.id),
             creator: b.fields["System.CreatedBy"]?.displayName,
+            assignee: b.fields["System.AssignedTo"]
+                ? {
+                      displayName:
+                          b.fields["System.AssignedTo"].displayName,
+                      uniqueName:
+                          b.fields["System.AssignedTo"].uniqueName,
+                  }
+                : undefined,
         })),
         lastRunId,
         lastRunUrl: lastRunId

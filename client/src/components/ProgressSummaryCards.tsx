@@ -15,19 +15,15 @@ import { runPercent, passedPercent } from "../utils/progressReport";
 
 const useStyles = makeStyles({
     container: {
-        display: "grid",
-        gridTemplateColumns: "minmax(200px, 260px) 1fr",
-        gap: tokens.spacingHorizontalM,
-        alignItems: "stretch",
-
-        "@media (max-width: 720px)": {
-            gridTemplateColumns: "1fr",
-        },
-    },
-    statsColumn: {
         display: "flex",
         flexDirection: "column",
         gap: tokens.spacingVerticalM,
+    },
+    statsColumn: {
+        display: "flex",
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: tokens.spacingHorizontalM,
     },
     chartsRow: {
         display: "grid",

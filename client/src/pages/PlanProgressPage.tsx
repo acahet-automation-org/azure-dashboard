@@ -8,6 +8,7 @@ import {
     Button,
     Spinner,
     Text,
+    Title3,
     makeStyles,
     tokens,
 } from "@fluentui/react-components";
@@ -20,9 +21,14 @@ import { PageLayout } from "../components/PageLayout";
 import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
-import { ProgressReportTable } from "../components/ProgressReportTable";
 import { ProgressSummaryCards } from "../components/ProgressSummaryCards";
-import { fetchPlans, fetchPlanProgress, sendEmailReport } from "../api/client";
+import { BugsTable } from "../components/BugsTable";
+import {
+    fetchPlans,
+    fetchPlanProgress,
+    fetchPlanProgressBugs,
+    sendEmailReport,
+} from "../api/client";
 import {
     collectLeafOptions,
     filterProgressTree,
@@ -37,7 +43,7 @@ import {
     captureChartImage,
     exportPlanProgressToPdf,
 } from "../utils/export";
-import type { ChartImage } from "../utils/export";
+import type { ChartImage, PlanProgressPdfLabels } from "../utils/export";
 
 const emailReportEnabled =
     import.meta.env.VITE_ENABLE_EMAIL_REPORT === "true";
@@ -105,6 +111,13 @@ export function PlanProgressPage() {
         enabled: selectedPlanId != null,
     });
 
+    const { data: bugs, isLoading: isBugsLoading } = useQuery({
+        queryKey: ["plan-progress-bugs", selectedPlanId, selectedSuiteIds],
+        queryFn: () =>
+            fetchPlanProgressBugs(selectedPlanId!, selectedSuiteIds),
+        enabled: selectedPlanId != null,
+    });
+
     const selectedPlanName = plans?.find(
         (p) => p.id === selectedPlanId
     )?.name;
@@ -132,6 +145,25 @@ export function PlanProgressPage() {
 
     const planTitle = data?.planTitle ?? selectedPlanName ?? "";
 
+    const pdfLabels: PlanProgressPdfLabels = {
+        titlePrefix: t("planProgressPage.title"),
+        testCases: t("planProgressPage.summary.testPoints"),
+        testCasesRun: t("planProgressPage.summary.testPointsRun"),
+        passed: t("outcome.Passed"),
+        failed: t("outcome.Failed"),
+        blocked: t("outcome.Blocked"),
+        passRate: t("planProgressPage.summary.passRate"),
+        bugsTitle: t("planProgressPage.bugsSection.title"),
+        bugsEmpty: t("planProgressPage.bugsSection.empty"),
+        bugColumns: {
+            id: t("bugsTable.columns.id"),
+            title: t("bugsTable.columns.title"),
+            state: t("bugsTable.columns.state"),
+            creator: t("bugsTable.columns.creator"),
+            assignee: t("bugsTable.columns.assignee"),
+        },
+    };
+
     const captureCharts = async (): Promise<ChartImage[]> => {
         const captured = await Promise.all([
             captureChartImage(
@@ -158,7 +190,8 @@ export function PlanProgressPage() {
             exportPlanProgressToPdf(
                 planTitle,
                 summaryCounts,
-                filteredNodes,
+                bugs ?? [],
+                pdfLabels,
                 charts
             );
         } finally {
@@ -174,7 +207,8 @@ export function PlanProgressPage() {
         const pdfBase64 = buildPlanProgressPdfBase64(
             planTitle,
             summaryCounts,
-            filteredNodes,
+            bugs ?? [],
+            pdfLabels,
             charts
         );
 
@@ -367,7 +401,26 @@ export function PlanProgressPage() {
                         </div>
 
                         <div className={styles.section}>
-                            <ProgressReportTable nodes={filteredNodes} />
+                            <Title3 as="h2">
+                                {t("planProgressPage.bugsSection.title")}
+                            </Title3>
+
+                            {isBugsLoading ? (
+                                <LoadingCardGrid count={3} />
+                            ) : bugs && bugs.length > 0 ? (
+                                <BugsTable
+                                    bugs={bugs}
+                                    ariaLabel={t(
+                                        "planProgressPage.bugsSection.title"
+                                    )}
+                                />
+                            ) : (
+                                <EmptyState
+                                    message={t(
+                                        "planProgressPage.bugsSection.empty"
+                                    )}
+                                />
+                            )}
                         </div>
                     </>
                 ) : (

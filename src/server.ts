@@ -42,6 +42,8 @@ import {
 import {
     computeTestPlanProgress,
     clearTestPlanProgressCache,
+    computeTestPlanProgressBugs,
+    clearTestPlanProgressBugsCache,
 } from "./testPlanProgressData.js";
 import {
     startBugSummaryScheduler,
@@ -175,6 +177,27 @@ app.get("/api/plans/:planId/progress", async (req, res) => {
         const planId = Number(req.params.planId);
 
         res.json(await computeTestPlanProgress(planId));
+    } catch (error: any) {
+        console.error(error);
+
+        res.status(500).json({
+            message: error.message,
+        });
+    }
+});
+
+app.get("/api/plans/:planId/progress/bugs", async (req, res) => {
+    try {
+        const planId = Number(req.params.planId);
+        const suiteIdsParam = req.query.suiteIds as string | undefined;
+        const suiteIds = suiteIdsParam
+            ? suiteIdsParam
+                  .split(",")
+                  .map(Number)
+                  .filter(Number.isFinite)
+            : undefined;
+
+        res.json(await computeTestPlanProgressBugs(planId, suiteIds));
     } catch (error: any) {
         console.error(error);
 
@@ -326,6 +349,7 @@ app.post("/api/refresh", (_, res) => {
     clearAutomationCache();
     clearPlanOverviewCache();
     clearTestPlanProgressCache();
+    clearTestPlanProgressBugsCache();
 
     res.status(204).end();
 });

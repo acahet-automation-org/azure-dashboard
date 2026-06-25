@@ -1,8 +1,13 @@
 import {
     getTestSuiteHierarchy,
     getTestSuiteCurrentCounts,
+    getSuites,
+    getTestCases,
+    getTestPoints,
 } from "./azdo.js";
+import { buildTestCaseRow } from "./dashboardData.js";
 import type {
+    BugInfo,
     TestPlanProgressCounts,
     TestPlanProgressNode,
     TestPlanProgressResponse,
@@ -136,6 +141,96 @@ export async function computeTestPlanProgress(
     };
 
     cache.set(planId, { data, timestamp: now });
+
+    return data;
+}
+
+const bugsCache = new Map<
+    string,
+    { data: BugInfo[]; timestamp: number }
+>();
+
+export function clearTestPlanProgressBugsCache(): void {
+    bugsCache.clear();
+}
+
+// suiteIds come from the Progress Report's Level3 hierarchy, which is the
+// same ID space as the Test Plan REST API's suite IDs (verified: the
+// Analytics OData TestSuites.IdLevel3 values match testplan/plans/{id}/suites
+// suite.id values 1:1), so they can be passed straight to getTestCases /
+// getTestPoints below.
+export async function computeTestPlanProgressBugs(
+    planId: number,
+    suiteIds?: number[]
+): Promise<BugInfo[]> {
+    const normalizedSuiteIds = suiteIds?.length
+        ? [...new Set(suiteIds)].sort((a, b) => a - b)
+        : [];
+    const cacheKey = `${planId}:${normalizedSuiteIds.join(",")}`;
+    const cached = bugsCache.get(cacheKey);
+    const now = Date.now();
+
+    if (cached && now - cached.timestamp < CACHE_DURATION_MS) {
+        return cached.data;
+    }
+
+    const targetSuiteIds = normalizedSuiteIds.length
+        ? normalizedSuiteIds
+        : (await getSuites(planId)).map((suite: any) => suite.id);
+
+    const bugsById = new Map<number, BugInfo>();
+
+    await Promise.all(
+        targetSuiteIds.map(async (suiteId: number) => {
+            const [testCases, testPoints] = await Promise.all([
+                getTestCases(planId, suiteId),
+                getTestPoints(planId, suiteId),
+            ]);
+
+            const outcomesByTestCase: Record<number, string[]> = {};
+            const lastRunByTestCase: Record<number, number> = {};
+
+            for (const point of testPoints) {
+                const tcId = point.testCaseReference?.id;
+
+                if (tcId == null) {
+                    continue;
+                }
+
+                if (!outcomesByTestCase[tcId]) {
+                    outcomesByTestCase[tcId] = [];
+                }
+
+                outcomesByTestCase[tcId].push(
+                    point.results?.outcome ?? "none"
+                );
+            }
+
+            const rows = await Promise.all(
+                testCases.map((tc: any) =>
+                    buildTestCaseRow(
+                        tc,
+                        "",
+                        "",
+                        outcomesByTestCase,
+                        lastRunByTestCase
+                    )
+                )
+            );
+
+            for (const row of rows) {
+                for (const bug of row.bugs) {
+                    if (bug.state !== "Closed") {
+                        bugsById.set(bug.id, bug);
+                    }
+                }
+            }
+        })
+    );
+
+    const data = [...bugsById.values()];
+
+    bugsCache.set(cacheKey, { data, timestamp: now });
 
     return data;
 }

@@ -139,18 +139,9 @@
             "passRateChart": "Pass Rate",
             "executedLabel": "Run"
         },
-        "table": {
-            "ariaLabel": "Test plan progress report",
-            "expand": "Expand",
-            "collapse": "Collapse",
-            "columns": {
-                "title": "Test Plan Name",
-                "testPoints": "Test Cases",
-                "runPercent": "Run %",
-                "passedPercent": "Passed %",
-                "failedPercent": "Failed %",
-                "notRunCount": "Not Run Count"
-            }
+        "bugsSection": {
+            "title": "Bugs",
+            "empty": "No open bugs linked to this plan's test cases."
         }
     },
     "automationDashboardPage": {
@@ -337,7 +328,8 @@
             "id": "ID",
             "title": "Title",
             "state": "State",
-            "creator": "Creator"
+            "creator": "Creator",
+            "assignee": "Assignee"
         }
     },
     "workItemsTable": {
