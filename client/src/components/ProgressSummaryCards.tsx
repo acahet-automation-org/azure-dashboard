@@ -38,10 +38,17 @@ const useStyles = makeStyles({
             gridTemplateColumns: "1fr",
         },
     },
+    chartColumn: {
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: tokens.spacingVerticalS,
+    },
     donutWrap: {
         position: "relative",
         display: "flex",
         justifyContent: "center",
+        width: "100%",
     },
     donutLabel: {
         position: "absolute",
@@ -49,12 +56,6 @@ const useStyles = makeStyles({
         left: "50%",
         transform: "translate(-50%, -50%)",
         textAlign: "center",
-    },
-    passRateRow: {
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: tokens.spacingVerticalS,
     },
     legend: {
         display: "flex",
@@ -80,7 +81,10 @@ const useStyles = makeStyles({
     },
 });
 
-const RUN_COLORS = ["#107c10", tokens.colorNeutralBackground4];
+const RUN_COLORS: Record<string, string> = {
+    executed: "#107c10",
+    remaining: "#8a8886",
+};
 
 const PASS_RATE_COLORS: Record<string, string> = {
     passed: "#107c10",
@@ -92,6 +96,11 @@ const OUTCOME_LABEL_KEYS: Record<string, string> = {
     passed: "outcome.Passed",
     failed: "outcome.Failed",
     blocked: "outcome.Blocked",
+};
+
+const RUN_LABEL_KEYS: Record<string, string> = {
+    executed: "planProgressPage.summary.executedLabel",
+    remaining: "outcome.NotRun",
 };
 
 export function ProgressSummaryCards({
@@ -121,13 +130,21 @@ export function ProgressSummaryCards({
         { name: "blocked", value: counts.blocked },
     ].filter((entry) => entry.value > 0);
 
-    const legendEntries: Array<{
+    const passRateLegendEntries: Array<{
         key: keyof typeof PASS_RATE_COLORS;
         count: number;
     }> = [
         { key: "passed", count: counts.passed },
         { key: "failed", count: counts.failed },
         { key: "blocked", count: counts.blocked },
+    ];
+
+    const runLegendEntries: Array<{
+        key: keyof typeof RUN_COLORS;
+        count: number;
+    }> = [
+        { key: "executed", count: executed },
+        { key: "remaining", count: counts.notExecuted },
     ];
 
     return (
@@ -149,48 +166,69 @@ export function ProgressSummaryCards({
 
             <div className={styles.chartsRow}>
                 <ChartCard title={t("planProgressPage.summary.runChart")}>
-                    <div className={styles.donutWrap} ref={runChartRef}>
-                        <ResponsiveContainer width="100%" height={200}>
-                            <PieChart>
-                                <Pie
-                                    data={runChartData}
-                                    dataKey="value"
-                                    nameKey="name"
-                                    innerRadius={62}
-                                    outerRadius={88}
-                                    startAngle={90}
-                                    endAngle={-270}
-                                    stroke="none"
-                                >
-                                    {runChartData.map((entry, index) => (
-                                        <Cell
-                                            key={entry.name}
-                                            fill={RUN_COLORS[index]}
-                                        />
-                                    ))}
-                                </Pie>
-                                <Tooltip
-                                    formatter={(value, name) => [
-                                        value,
-                                        name === "executed"
-                                            ? t(
-                                                  "planProgressPage.summary.executedLabel"
-                                              )
-                                            : t("outcome.NotRun"),
-                                    ]}
-                                />
-                            </PieChart>
-                        </ResponsiveContainer>
-                        <div className={styles.donutLabel}>
-                            <Text size={700} weight="bold">
-                                {run}%
-                            </Text>
+                    <div className={styles.chartColumn} ref={runChartRef}>
+                        <div className={styles.donutWrap}>
+                            <ResponsiveContainer width="100%" height={180}>
+                                <PieChart>
+                                    <Pie
+                                        data={runChartData}
+                                        dataKey="value"
+                                        nameKey="name"
+                                        innerRadius={62}
+                                        outerRadius={88}
+                                        startAngle={90}
+                                        endAngle={-270}
+                                        stroke="none"
+                                    >
+                                        {runChartData.map((entry) => (
+                                            <Cell
+                                                key={entry.name}
+                                                fill={RUN_COLORS[entry.name]}
+                                            />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip
+                                        formatter={(value, name) => [
+                                            value,
+                                            t(
+                                                RUN_LABEL_KEYS[
+                                                    name as string
+                                                ]
+                                            ),
+                                        ]}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                            <div className={styles.donutLabel}>
+                                <Text size={700} weight="bold">
+                                    {run}%
+                                </Text>
+                            </div>
+                        </div>
+                        <div className={styles.legend}>
+                            {runLegendEntries.map(({ key, count }) => (
+                                <div key={key} className={styles.legendRow}>
+                                    <span
+                                        className={styles.legendDot}
+                                        style={{
+                                            backgroundColor: RUN_COLORS[key],
+                                        }}
+                                    />
+                                    <Text
+                                        className={styles.legendCount}
+                                        weight="semibold"
+                                    >
+                                        {count}
+                                    </Text>
+                                    <Text>{t(RUN_LABEL_KEYS[key])}</Text>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </ChartCard>
 
                 <ChartCard title={t("planProgressPage.summary.passRateChart")}>
-                    <div className={styles.passRateRow} ref={passRateChartRef}>
+                    <div className={styles.chartColumn} ref={passRateChartRef}>
                         <ResponsiveContainer width="100%" height={180}>
                             <PieChart>
                                 <Pie
@@ -223,7 +261,7 @@ export function ProgressSummaryCards({
                             </PieChart>
                         </ResponsiveContainer>
                         <div className={styles.legend}>
-                            {legendEntries.map(({ key, count }) => (
+                            {passRateLegendEntries.map(({ key, count }) => (
                                 <div key={key} className={styles.legendRow}>
                                     <span
                                         className={styles.legendDot}
