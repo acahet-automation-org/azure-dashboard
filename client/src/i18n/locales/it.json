@@ -234,6 +234,11 @@
     },
     "defectManagementPage": {
         "title": "Gestione Difetti",
+        "tabs": {
+            "overview": "Panoramica",
+            "quality": "Qualità e Salute del Processo",
+            "resource": "Risorse e Focus"
+        },
         "stats": {
             "totalOpen": "Bug Aperti",
             "totalClosed": "Bug Chiusi",
@@ -243,7 +248,15 @@
             "bugsPerStory": "Bug per Story",
             "days": "{{value}} giorni",
             "notAvailable": "N/D",
-            "withoutLinkedTestCase": "Difetti Senza Test Case Collegati"
+            "notConfigured": "Non configurato",
+            "withoutLinkedTestCase": "Difetti Senza Test Case Collegati",
+            "leakageRate": "Tasso di Fuga dei Difetti",
+            "rejectionRate": "Tasso di Rigetto dei Difetti",
+            "firstTimeFixRate": "Tasso di Risoluzione al Primo Tentativo",
+            "backlogDirection": "Andamento del Backlog",
+            "backlogDirection_growing": "In Crescita",
+            "backlogDirection_stable": "Stabile",
+            "backlogDirection_shrinking": "In Diminuzione"
         },
         "charts": {
             "trend": "Andamento Bug nel Tempo",
@@ -254,12 +267,21 @@
             "byPriority": "Bug per Priorità",
             "byComponent": "Difetti per Componente/Modulo",
             "byTeam": "Difetti per Team",
-            "aging": "Anzianità dei Difetti"
+            "aging": "Anzianità dei Difetti",
+            "rejectionReasons": "Motivi di Rigetto",
+            "noRejections": "Nessun difetto rigettato nei dati di processo correnti.",
+            "density": "Densità dei Difetti (Bug per Story Point)",
+            "noDensity": "Nessun componente con story point su cui calcolare la densità.",
+            "backlogTrend": "Tasso di Crescita del Backlog (Apertura vs. Risoluzione)",
+            "backlogDelta": "Aperti - Chiusi"
         },
         "sections": {
             "withoutLinkedTestCase": "Difetti Senza Test Case Collegati",
             "excludeClosed": "Escludi difetti chiusi",
-            "noGaps": "Nessun difetto senza un test case collegato."
+            "noGaps": "Nessun difetto senza un test case collegato.",
+            "highAttention": "Massima Attenzione (SLA Superati)",
+            "noBreaches": "Nessun difetto supera attualmente la soglia SLA di anzianità.",
+            "openInAdo": "Apri in Azure DevOps →"
         }
     },
     "commonErrorsPage": {
@@ -296,6 +318,14 @@
         "allPriorities": "Tutte le Priorità",
         "search": "Cerca",
         "searchPlaceholder": "Cerca per titolo del test case..."
+    },
+    "defectFilterBar": {
+        "iteration": "Sprint/Iterazione",
+        "allIterations": "Tutti gli Sprint",
+        "environment": "Ambiente",
+        "allEnvironments": "Tutti gli Ambienti",
+        "targetVersion": "Versione Target",
+        "allTargetVersions": "Tutte le Versioni Target"
     },
     "suiteCard": {
         "total": "Totale: {{count}}",

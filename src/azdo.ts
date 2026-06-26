@@ -202,12 +202,14 @@ const BUG_FIELDS = [
     "System.State",
     "System.Reason",
     "System.AreaPath",
+    "System.IterationPath",
     "System.CreatedDate",
     "System.CreatedBy",
     "System.ChangedDate",
     "Microsoft.VSTS.Common.Priority",
     "Microsoft.VSTS.Common.Severity",
     "Microsoft.VSTS.Common.ClosedDate",
+    "Microsoft.VSTS.Build.FoundIn",
 ];
 
 export async function getAllBugFields(): Promise<
@@ -216,6 +218,33 @@ export async function getAllBugFields(): Promise<
     const ids = await getActiveBugIds();
 
     return getWorkItems(ids, BUG_FIELDS);
+}
+
+const STORY_FIELDS = [
+    "System.Id",
+    "System.AreaPath",
+    "Microsoft.VSTS.Scheduling.StoryPoints",
+];
+
+export async function getStoriesWithFields(): Promise<
+    any[]
+> {
+    const response = await azdo.post(
+        "/wit/wiql?api-version=7.1",
+        {
+            query: `
+        SELECT [System.Id]
+        FROM WorkItems
+        WHERE [System.WorkItemType] IN ('User Story', 'Product Backlog Item', 'Requirement')
+      `,
+        }
+    );
+
+    const ids = response.data.workItems.map(
+        (w: { id: number }) => w.id
+    );
+
+    return getWorkItems(ids, STORY_FIELDS);
 }
 
 export async function getWorkItemRevisions(

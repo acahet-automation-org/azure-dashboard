@@ -8,6 +8,7 @@ import type {
     TestPlanSummary,
     TestSuiteSummary,
     DefectDashboardResponse,
+    DefectFilters,
     CommonErrorsResponse,
     WorkItemSummary,
     MyWorkItemsMode,
@@ -142,8 +143,19 @@ export function fetchExecutionTrend(): Promise<ExecutionTrendResponse> {
     return getJson("/api/execution-trend");
 }
 
-export function fetchDefects(): Promise<DefectDashboardResponse> {
-    return getJson("/api/defects");
+export function fetchDefects(
+    filters?: DefectFilters
+): Promise<DefectDashboardResponse> {
+    const params = new URLSearchParams();
+
+    if (filters?.iteration) params.set("iteration", filters.iteration);
+    if (filters?.area) params.set("area", filters.area);
+    if (filters?.environment) params.set("environment", filters.environment);
+    if (filters?.targetVersion) params.set("targetVersion", filters.targetVersion);
+
+    const qs = params.toString();
+
+    return getJson(`/api/defects${qs ? `?${qs}` : ""}`);
 }
 
 export function fetchCommonErrors(): Promise<CommonErrorsResponse> {

@@ -23,6 +23,8 @@ import {
     computeDefectStats,
     clearDefectCache,
     getStoryCount,
+    getStoryPointsByArea,
+    filterRecords,
 } from "./defectData.js";
 import {
     getCommonErrorsData,
@@ -227,18 +229,34 @@ app.get("/api/automation", async (req, res) => {
     }
 });
 
-app.get("/api/defects", async (_, res) => {
+app.get("/api/defects", async (req, res) => {
     try {
-        const [records, storyCount] =
+        const [records, storyCount, storyPointsByArea] =
             await Promise.all([
                 getDefectData(),
                 getStoryCount(),
+                getStoryPointsByArea(),
             ]);
+
+        const filtered = filterRecords(records, {
+            iteration: req.query.iteration as
+                | string
+                | undefined,
+            area: req.query.area as string | undefined,
+            environment: req.query.environment as
+                | string
+                | undefined,
+            targetVersion: req.query.targetVersion as
+                | string
+                | undefined,
+        });
 
         res.json({
             stats: computeDefectStats(
-                records,
-                storyCount
+                filtered,
+                storyCount,
+                storyPointsByArea,
+                records
             ),
             cacheTimestamp: getDefectCacheTimestamp(),
         });
