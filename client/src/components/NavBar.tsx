@@ -13,11 +13,9 @@ import {
     mergeClasses,
     tokens,
 } from "@fluentui/react-components";
-import { ArrowClockwiseRegular, ChevronDownRegular } from "@fluentui/react-icons";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ChevronDownRegular } from "@fluentui/react-icons";
 import { useTranslation } from "react-i18next";
 import { useMsal } from "@azure/msal-react";
-import { postRefresh } from "../api/client";
 import { useThemeMode } from "../hooks/useThemeMode";
 import { NAV_HEIGHT } from "../layoutConstants";
 import { LanguageSwitcher } from "./LanguageSwitcher";
@@ -56,13 +54,12 @@ const useStyles = makeStyles({
         width: "auto",
     },
     tabs: {
-        overflowX: "auto",
+        display: "contents",
     },
     tabsRow: {
         display: "flex",
         alignItems: "center",
         flexWrap: "wrap",
-        overflowX: "auto",
     },
     automationTrigger: {
         fontWeight: tokens.fontWeightRegular,
@@ -136,28 +133,10 @@ export function NavBar() {
     const styles = useStyles();
     const navigate = useNavigate();
     const location = useLocation();
-    const queryClient = useQueryClient();
     const { t } = useTranslation();
     const { mode } = useThemeMode();
     const { instance, accounts } = useMsal();
     const activeAccount = instance.getActiveAccount() ?? accounts[0];
-
-    const refreshMutation = useMutation({
-        mutationFn: postRefresh,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["suites"] });
-            queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-            queryClient.invalidateQueries({ queryKey: ["runs"] });
-            queryClient.invalidateQueries({ queryKey: ["plans"] });
-            queryClient.invalidateQueries({ queryKey: ["plan-overview"] });
-            queryClient.invalidateQueries({ queryKey: ["plan-progress"] });
-            queryClient.invalidateQueries({ queryKey: ["automation"] });
-            queryClient.invalidateQueries({ queryKey: ["execution-trend"] });
-            queryClient.invalidateQueries({ queryKey: ["defects"] });
-            queryClient.invalidateQueries({ queryKey: ["common-errors"] });
-            queryClient.invalidateQueries({ queryKey: ["my-work-items"] });
-        },
-    });
 
     return (
         <nav className={styles.bar} aria-label={t("nav.primary")}>
@@ -228,38 +207,7 @@ export function NavBar() {
 
                 <LanguageSwitcher />
                 <ThemeSwitcher />
-
-                <Button
-                    appearance="secondary"
-                    icon={<ArrowClockwiseRegular />}
-                    onClick={() => refreshMutation.mutate()}
-                    disabled={refreshMutation.isPending}
-                >
-                    {refreshMutation.isPending
-                        ? t("nav.refreshing")
-                        : t("nav.refresh")}
-                </Button>
-
-                <Button
-                    appearance="secondary"
-                    onClick={() =>
-                        instance.logoutRedirect({
-                            account: activeAccount,
-                            postLogoutRedirectUri: "/",
-                        })
-                    }
-                >
-                    {t("nav.signOut")}
-                </Button>
             </div>
-
-            {refreshMutation.isError && (
-                <Text role="alert" style={{ color: tokens.colorPaletteRedForeground1 }}>
-                    {t("nav.refreshFailed", {
-                        message: refreshMutation.error.message,
-                    })}
-                </Text>
-            )}
         </nav>
     );
 }
