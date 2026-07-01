@@ -302,6 +302,9 @@
     "myWorkItemsPage": {
         "title": "I Miei Elementi di Lavoro",
         "empty": "Nessun elemento di lavoro trovato per questa vista.",
+        "emptyAssigned": "Niente assegnato a te al momento - goditi la calma!",
+        "emptyMentioned": "Nessuno ti ha menzionato ultimamente.",
+        "emptyFollowing": "Non stai ancora seguendo nulla.",
         "filters": {
             "assignedToMe": "Assegnati a me",
             "mentioned": "Menzionati",
@@ -320,6 +323,7 @@
         "searchPlaceholder": "Cerca per titolo del test case..."
     },
     "defectFilterBar": {
+        "project": "Progetto",
         "iteration": "Sprint/Iterazione",
         "allIterations": "Tutti gli Sprint",
         "environment": "Ambiente",

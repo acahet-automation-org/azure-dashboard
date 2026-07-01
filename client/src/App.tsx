@@ -43,7 +43,7 @@ function AppRoutes() {
             <Routes>
                 <Route path="/" element={<SuitesPage />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/last-5-runs" element={<RunsPage />} />
+                <Route path="/last-10-runs" element={<RunsPage />} />
                 <Route path="/plans" element={<PlansPage />} />
                 <Route path="/plans/:planId" element={<PlanDetailPage />} />
                 <Route path="/plan-overview" element={<PlanOverviewPage />} />

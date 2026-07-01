@@ -29,10 +29,16 @@ export function DefectFilterBar({
     availableFilters,
     filters,
     onChange,
+    project,
+    availableProjects,
+    onProjectChange,
 }: {
     availableFilters: DefectFilterOptions;
     filters: DefectFilters;
     onChange: (next: DefectFilters) => void;
+    project: string;
+    availableProjects: string[];
+    onProjectChange: (next: string) => void;
 }) {
     const styles = useStyles();
     const { t } = useTranslation();
@@ -43,6 +49,26 @@ export function DefectFilterBar({
 
     return (
         <div className={styles.bar}>
+            {availableProjects.length > 1 && (
+                <Field label={t("defectFilterBar.project")} className={styles.field}>
+                    <Dropdown
+                        expandIcon={<ChevronDownRegular className={styles.chevron} />}
+                        button={{ className: styles.dropdownButton }}
+                        value={project}
+                        selectedOptions={[project]}
+                        onOptionSelect={(_, data) =>
+                            onProjectChange(data.optionValue ?? project)
+                        }
+                    >
+                        {availableProjects.map((p) => (
+                            <Option key={p} value={p}>
+                                {p}
+                            </Option>
+                        ))}
+                    </Dropdown>
+                </Field>
+            )}
+
             <Field label={t("defectFilterBar.iteration")} className={styles.field}>
                 <Dropdown
                     expandIcon={<ChevronDownRegular className={styles.chevron} />}

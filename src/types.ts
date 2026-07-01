@@ -36,6 +36,7 @@ export interface WorkItemSummary {
 export interface TestCaseRow {
     planName: string;
     areaPath: string;
+    iteration?: string;
     suiteName: string;
     testCaseId: number;
     testCaseTitle: string;

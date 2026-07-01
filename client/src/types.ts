@@ -262,6 +262,8 @@ export interface DefectStats {
 export interface DefectDashboardResponse {
     stats: DefectStats;
     cacheTimestamp: number;
+    availableProjects: string[];
+    project: string;
 }
 
 export interface PlanOverviewBugState {

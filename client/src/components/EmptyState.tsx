@@ -1,4 +1,5 @@
-import { Text, makeStyles, tokens } from "@fluentui/react-components";
+import { cloneElement, type ReactElement } from "react";
+import { Text, makeStyles, mergeClasses, tokens } from "@fluentui/react-components";
 import { FolderRegular } from "@fluentui/react-icons";
 
 const useStyles = makeStyles({
@@ -15,12 +16,25 @@ const useStyles = makeStyles({
     },
 });
 
-export function EmptyState({ message }: { message: string }) {
+export function EmptyState({
+    message,
+    icon,
+}: {
+    message: string;
+    icon?: ReactElement;
+}) {
     const styles = useStyles();
+
+    const renderedIcon = icon
+        ? cloneElement(icon, {
+              className: mergeClasses(styles.icon, icon.props.className),
+              "aria-hidden": true,
+          })
+        : <FolderRegular className={styles.icon} aria-hidden="true" />;
 
     return (
         <div className={styles.container}>
-            <FolderRegular className={styles.icon} aria-hidden="true" />
+            {renderedIcon}
             <Text>{message}</Text>
         </div>
     );

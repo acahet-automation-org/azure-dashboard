@@ -79,7 +79,7 @@ const useStyles = makeStyles({
 const routeForValue: Record<string, string> = {
     suites: "/",
     dashboard: "/dashboard",
-    runs: "/last-5-runs",
+    runs: "/last-10-runs",
     plans: "/plans",
     "plan-overview": "/plan-overview",
     "plan-progress": "/plan-progress",
@@ -98,7 +98,7 @@ function valueForPath(pathname: string): string {
         return "dashboard";
     }
 
-    if (pathname === "/last-5-runs") {
+    if (pathname === "/last-10-runs") {
         return "runs";
     }
 

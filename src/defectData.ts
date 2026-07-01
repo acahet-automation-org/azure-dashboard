@@ -7,7 +7,10 @@ import {
     getWorkItems,
     extractWorkItemIds,
     buildWorkItemUrl,
+    getAvailableProjects,
+    resolveProject,
 } from "./azdo.js";
+import { getDashboardData } from "./dashboardData.js";
 import type {
     DefectRecord,
     DefectStats,
@@ -20,8 +23,12 @@ import type {
     DefectFilterOptions,
 } from "./types.js";
 
-let defectCache: DefectRecord[] | null = null;
-let cacheTimestamp = 0;
+// Keyed by project name, since Defect Management can point at either
+// AZDO_PROJECT or AZDO_PROJECT_2 and each needs its own cached snapshot.
+const defectCacheByProject = new Map<
+    string,
+    { data: DefectRecord[]; timestamp: number }
+>();
 
 const CACHE_DURATION_MS = 5 * 60 * 1000;
 
@@ -52,8 +59,10 @@ const SLA_THRESHOLD_DAYS: Record<string, number> = {
     default: 30,
 };
 
-export function getDefectCacheTimestamp(): number {
-    return cacheTimestamp;
+export function getDefectCacheTimestamp(
+    project: string = process.env.AZDO_PROJECT!
+): number {
+    return defectCacheByProject.get(project)?.timestamp ?? 0;
 }
 
 function countReopenings(revisions: any[]): number {
@@ -83,16 +92,19 @@ function countReopenings(revisions: any[]): number {
 }
 
 async function hasLinkedTestCase(
-    bugId: number
+    bugId: number,
+    project: string
 ): Promise<boolean> {
-    const workItem = await getWorkItem(bugId);
+    const workItem = await getWorkItem(bugId, project);
 
     const linkedIds = extractWorkItemIds(
         workItem.relations
     );
 
     const linkedItems = await getWorkItems(
-        linkedIds
+        linkedIds,
+        undefined,
+        project
     );
 
     return linkedItems.some(
@@ -102,13 +114,50 @@ async function hasLinkedTestCase(
     );
 }
 
+// Bugs are rarely tagged with a real sprint themselves (System.IterationPath
+// mostly defaults to the project/team root), so the sprint shown for a bug
+// is instead borrowed from the Test Plan of the test case it's linked to -
+// that's where this project's actual sprint assignments live. That mapping
+// only exists for the default project's Test Plans, so other projects get
+// no sprint data this way (their bugs fall back to no iteration shown).
+async function getBugIterationMap(
+    project: string
+): Promise<Map<number, string>> {
+    const iterationByBug = new Map<number, string>();
+
+    if (project !== process.env.AZDO_PROJECT) {
+        return iterationByBug;
+    }
+
+    const testCases = await getDashboardData();
+
+    for (const tc of testCases) {
+        if (!tc.iteration) {
+            continue;
+        }
+
+        for (const bug of tc.bugs) {
+            if (!iterationByBug.has(bug.id)) {
+                iterationByBug.set(
+                    bug.id,
+                    tc.iteration
+                );
+            }
+        }
+    }
+
+    return iterationByBug;
+}
+
 async function buildDefectRecord(
-    bug: any
+    bug: any,
+    iterationByBug: Map<number, string>,
+    project: string
 ): Promise<DefectRecord> {
     const [revisions, linkedToTestCase] =
         await Promise.all([
-            getWorkItemRevisions(bug.id),
-            hasLinkedTestCase(bug.id),
+            getWorkItemRevisions(bug.id, project),
+            hasLinkedTestCase(bug.id, project),
         ]);
 
     return {
@@ -125,8 +174,7 @@ async function buildDefectRecord(
             "Microsoft.VSTS.Common.Priority"
             ],
         areaPath: bug.fields["System.AreaPath"],
-        iterationPath:
-            bug.fields["System.IterationPath"],
+        iterationPath: iterationByBug.get(bug.id),
         environment:
             bug.fields["Microsoft.VSTS.Build.FoundIn"],
         createdDate:
@@ -139,44 +187,49 @@ async function buildDefectRecord(
             bug.fields["System.ChangedDate"],
         reopenedCount: countReopenings(revisions),
         hasLinkedTestCase: linkedToTestCase,
-        url: buildWorkItemUrl(bug.id),
+        url: buildWorkItemUrl(bug.id, project),
         creator: bug.fields["System.CreatedBy"]?.displayName,
     };
 }
 
-export async function buildDefectRecords(): Promise<
-    DefectRecord[]
-> {
-    const bugs = await getAllBugFields();
+export async function buildDefectRecords(
+    project: string = process.env.AZDO_PROJECT!
+): Promise<DefectRecord[]> {
+    const [bugs, iterationByBug] = await Promise.all([
+        getAllBugFields(project),
+        getBugIterationMap(project),
+    ]);
 
     return Promise.all(
-        bugs.map((bug) => buildDefectRecord(bug))
+        bugs.map((bug) =>
+            buildDefectRecord(bug, iterationByBug, project)
+        )
     );
 }
 
-export async function getDefectData(): Promise<
-    DefectRecord[]
-> {
+export async function getDefectData(
+    project: string = process.env.AZDO_PROJECT!
+): Promise<DefectRecord[]> {
     const now = Date.now();
+    const cached = defectCacheByProject.get(project);
 
-    if (
-        defectCache &&
-        now - cacheTimestamp < CACHE_DURATION_MS
-    ) {
-        return defectCache;
+    if (cached && now - cached.timestamp < CACHE_DURATION_MS) {
+        return cached.data;
     }
 
-    defectCache = await buildDefectRecords();
-    cacheTimestamp = now;
+    const data = await buildDefectRecords(project);
 
-    return defectCache;
+    defectCacheByProject.set(project, {
+        data,
+        timestamp: now,
+    });
+
+    return data;
 }
 
 export function clearDefectCache(): void {
-    defectCache = null;
-    cacheTimestamp = 0;
-    storyPointsCache = null;
-    storyPointsCacheTimestamp = 0;
+    defectCacheByProject.clear();
+    storyPointsCacheByProject.clear();
 }
 
 function groupCount(
@@ -593,27 +646,30 @@ function computeAvailableFilters(
     };
 }
 
-let storyPointsCache: Record<string, number> | null = null;
-let storyPointsCacheTimestamp = 0;
+const storyPointsCacheByProject = new Map<
+    string,
+    { data: Record<string, number>; timestamp: number }
+>();
 
-export async function getStoryPointsByArea(): Promise<
-    Record<string, number>
-> {
+export async function getStoryPointsByArea(
+    project: string = process.env.AZDO_PROJECT!
+): Promise<Record<string, number>> {
     const now = Date.now();
+    const cached = storyPointsCacheByProject.get(project);
 
-    if (
-        storyPointsCache &&
-        now - storyPointsCacheTimestamp < CACHE_DURATION_MS
-    ) {
-        return storyPointsCache;
+    if (cached && now - cached.timestamp < CACHE_DURATION_MS) {
+        return cached.data;
     }
 
-    const stories = await getStoriesWithFields();
+    const stories = await getStoriesWithFields(project);
+    const data = computeStoryPointsByArea(stories);
 
-    storyPointsCache = computeStoryPointsByArea(stories);
-    storyPointsCacheTimestamp = now;
+    storyPointsCacheByProject.set(project, {
+        data,
+        timestamp: now,
+    });
 
-    return storyPointsCache;
+    return data;
 }
 
 export function computeDefectStats(
@@ -715,4 +771,4 @@ export function computeDefectStats(
     };
 }
 
-export { getStoryCount };
+export { getStoryCount, getAvailableProjects, resolveProject };

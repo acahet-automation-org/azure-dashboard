@@ -25,6 +25,8 @@ import {
     getStoryCount,
     getStoryPointsByArea,
     filterRecords,
+    getAvailableProjects,
+    resolveProject,
 } from "./defectData.js";
 import {
     getCommonErrorsData,
@@ -231,11 +233,15 @@ app.get("/api/automation", async (req, res) => {
 
 app.get("/api/defects", async (req, res) => {
     try {
+        const project = resolveProject(
+            req.query.project as string | undefined
+        );
+
         const [records, storyCount, storyPointsByArea] =
             await Promise.all([
-                getDefectData(),
-                getStoryCount(),
-                getStoryPointsByArea(),
+                getDefectData(project),
+                getStoryCount(project),
+                getStoryPointsByArea(project),
             ]);
 
         const filtered = filterRecords(records, {
@@ -258,7 +264,9 @@ app.get("/api/defects", async (req, res) => {
                 storyPointsByArea,
                 records
             ),
-            cacheTimestamp: getDefectCacheTimestamp(),
+            cacheTimestamp: getDefectCacheTimestamp(project),
+            availableProjects: getAvailableProjects(),
+            project,
         });
     } catch (error: any) {
         console.error(error);

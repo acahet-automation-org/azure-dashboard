@@ -302,6 +302,9 @@
     "myWorkItemsPage": {
         "title": "My Work Items",
         "empty": "No work items found for this view.",
+        "emptyAssigned": "Nothing assigned to you right now - enjoy the calm!",
+        "emptyMentioned": "No one's mentioned you lately.",
+        "emptyFollowing": "You're not following anything yet.",
         "filters": {
             "assignedToMe": "Assigned to me",
             "mentioned": "Mentioned",
@@ -320,6 +323,7 @@
         "searchPlaceholder": "Search test case title..."
     },
     "defectFilterBar": {
+        "project": "Project",
         "iteration": "Sprint/Iteration",
         "allIterations": "All Sprints",
         "environment": "Environment",
