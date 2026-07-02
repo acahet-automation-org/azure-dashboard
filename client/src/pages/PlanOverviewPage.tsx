@@ -558,11 +558,11 @@ export function PlanOverviewPage() {
                                         formatter={(
                                             value,
                                             _name,
-                                            item: { payload: { outcome: string } }
+                                            item: { payload?: { outcome: string } }
                                         ) => [
                                             value,
                                             t(
-                                                `outcome.${item.payload.outcome}`
+                                                `outcome.${item.payload?.outcome ?? ""}`
                                             ),
                                         ]}
                                     />
@@ -743,11 +743,11 @@ export function PlanOverviewPage() {
                                             formatter={(
                                                 value,
                                                 _name,
-                                                item: { payload: { outcome: string } }
+                                                item: { payload?: { outcome: string } }
                                             ) => [
                                                 value,
                                                 t(
-                                                    `outcome.${item.payload.outcome}`
+                                                    `outcome.${item.payload?.outcome ?? ""}`
                                                 ),
                                             ]}
                                         />

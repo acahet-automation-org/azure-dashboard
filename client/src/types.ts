@@ -204,9 +204,34 @@ export interface DefectTrendPoint {
     openTotal: number;
 }
 
+export interface BacklogTrendPoint extends DefectTrendPoint {
+    delta: number;
+}
+
 export interface AgingBucket {
     bucket: string;
     count: number;
+}
+
+export type BacklogDirection = "growing" | "stable" | "shrinking";
+
+export interface DefectSummary extends BugInfo {
+    severity?: string;
+    ageDays?: number;
+}
+
+export interface DefectFilterOptions {
+    iterations: string[];
+    areas: string[];
+    environments: string[];
+    targetVersions: string[];
+}
+
+export interface DefectFilters {
+    iteration: string;
+    area: string;
+    environment: string;
+    targetVersion: string;
 }
 
 export interface DefectStats {
@@ -223,11 +248,22 @@ export interface DefectStats {
     duplicateRate: number;
     bugsPerStory: number | null;
     defectsWithoutLinkedTestCase: BugInfo[];
+    defectLeakageRate: number | null;
+    defectRejectionRate: number;
+    rejectionReasons: Record<string, number>;
+    firstTimeFixRate: number | null;
+    densityByComponent: Record<string, number | null>;
+    backlogTrend: BacklogTrendPoint[];
+    backlogDirection: BacklogDirection;
+    slaBreaches: DefectSummary[];
+    availableFilters: DefectFilterOptions;
 }
 
 export interface DefectDashboardResponse {
     stats: DefectStats;
     cacheTimestamp: number;
+    availableProjects: string[];
+    project: string;
 }
 
 export interface PlanOverviewBugState {
@@ -288,4 +324,9 @@ export interface TestPlanProgressResponse {
     planId: number;
     planTitle: string;
     nodes: TestPlanProgressNode[];
+}
+
+export interface DeleteTestCasesResult {
+    deleted: number[];
+    failed: { id: number; message: string }[];
 }

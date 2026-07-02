@@ -15,6 +15,50 @@ export const azdo = axios.create({
     },
 });
 
+// Defect Management can be pointed at a second Azure DevOps project
+// (AZDO_PROJECT_2). Each project gets its own axios instance, cached so
+// repeated calls for the same project reuse the same client.
+const projectClients = new Map<string, ReturnType<typeof axios.create>>();
+
+function getAzdoClient(project: string) {
+    let client = projectClients.get(project);
+
+    if (!client) {
+        client = axios.create({
+            baseURL: `https://dev.azure.com/${process.env.AZDO_ORG}/${encodeURIComponent(
+                project
+            )}/_apis`,
+            headers: {
+                Authorization: `Basic ${auth}`,
+                "Content-Type": "application/json",
+            },
+        });
+
+        projectClients.set(project, client);
+    }
+
+    return client;
+}
+
+export function getAvailableProjects(): string[] {
+    return [
+        process.env.AZDO_PROJECT!,
+        process.env.AZDO_PROJECT_2,
+    ].filter((p): p is string => Boolean(p));
+}
+
+// Query params are user-controlled, so the requested project is only
+// honored if it's one of the two configured above - anything else silently
+// falls back to the default project rather than letting a caller reach an
+// arbitrary project in the org via the shared PAT.
+export function resolveProject(requested?: string): string {
+    const available = getAvailableProjects();
+
+    return requested && available.includes(requested)
+        ? requested
+        : process.env.AZDO_PROJECT!;
+}
+
 // Some APIs (Favorites, Notification Subscriptions) are organization-scoped
 // rather than project-scoped, so they can't go through the `azdo` client above.
 export const azdoOrg = axios.create({
@@ -99,6 +143,14 @@ export async function getTestCases(
     return response.data.value;
 }
 
+export async function deleteTestCase(
+    id: number
+): Promise<void> {
+    await azdo.delete(
+        `/test/testcases/${id}?api-version=7.1`
+    );
+}
+
 export async function getTestPoints(
     planId: number,
     suiteId: number
@@ -111,21 +163,42 @@ export async function getTestPoints(
 }
 
 export async function getTestRuns() {
-    const response = await azdo.get(
-        "/test/runs?api-version=7.1&$top=50&includeRunDetails=true"
-    );
+    try {
+        const response = await azdo.get(
+            "/test/runs?api-version=7.1&$top=50&includeRunDetails=true"
+        );
 
-    return response.data.value;
+        return response.data.value;
+    } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 404) {
+            return [];
+        }
+
+        throw error;
+    }
 }
 
+// Azure DevOps' `/test/runs` list endpoint can keep returning a run after
+// it's been deleted (the run detail lookup then 404s with "does not exist
+// in this project. It may have been deleted."). Returning null here (rather
+// than an empty stats array) lets callers tell "run exists, no stats yet"
+// apart from "run doesn't exist anymore" and drop the latter entirely.
 export async function getTestRunStatistics(
     runId: number
-) {
-    const response = await azdo.get(
-        `/test/runs/${runId}/statistics?api-version=7.1`
-    );
+): Promise<any[] | null> {
+    try {
+        const response = await azdo.get(
+            `/test/runs/${runId}/statistics?api-version=7.1`
+        );
 
-    return response.data.runStatistics;
+        return response.data.runStatistics;
+    } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 404) {
+            return null;
+        }
+
+        throw error;
+    }
 }
 
 export async function getTestRunResults(
@@ -138,8 +211,10 @@ export async function getTestRunResults(
     return response.data.value;
 }
 
-export async function getActiveBugIds(): Promise<number[]> {
-    const response = await azdo.post(
+export async function getActiveBugIds(
+    project: string = process.env.AZDO_PROJECT!
+): Promise<number[]> {
+    const response = await getAzdoClient(project).post(
         "/wit/wiql?api-version=7.1",
         {
             query: `
@@ -155,8 +230,11 @@ export async function getActiveBugIds(): Promise<number[]> {
     );
 }
 
-export async function getWorkItem(id: number) {
-    const response = await azdo.get(
+export async function getWorkItem(
+    id: number,
+    project: string = process.env.AZDO_PROJECT!
+) {
+    const response = await getAzdoClient(project).get(
         `/wit/workitems/${id}?$expand=relations&api-version=7.1`
     );
 
@@ -165,7 +243,8 @@ export async function getWorkItem(id: number) {
 
 export async function getWorkItems(
     ids: number[],
-    fields?: string[]
+    fields?: string[],
+    project: string = process.env.AZDO_PROJECT!
 ) {
     if (!ids.length) {
         return [];
@@ -181,16 +260,50 @@ export async function getWorkItems(
         ? `&fields=${fields.join(",")}`
         : "";
 
-    const results = await Promise.all(
-        chunks.map(async (chunk) => {
-            const response = await azdo.get(
+    const client = getAzdoClient(project);
+
+    const fetchChunk = async (
+        chunk: number[]
+    ): Promise<any[]> => {
+        try {
+            const response = await client.get(
                 `/wit/workitems?ids=${chunk.join(
                     ","
                 )}${fieldsParam}&api-version=7.1`
             );
 
             return response.data.value;
-        })
+        } catch (error) {
+            if (
+                axios.isAxiosError(error) &&
+                error.response?.status === 404 &&
+                chunk.length > 1
+            ) {
+                // Azure DevOps 404s the whole batch if even one id in it no
+                // longer exists (e.g. a followed/mentioned work item was
+                // deleted), rather than just omitting that id. Fall back to
+                // fetching this chunk one id at a time so the still-valid
+                // ids aren't lost too.
+                const singles = await Promise.all(
+                    chunk.map((id) => fetchChunk([id]))
+                );
+
+                return singles.flat();
+            }
+
+            if (
+                axios.isAxiosError(error) &&
+                error.response?.status === 404
+            ) {
+                return [];
+            }
+
+            throw error;
+        }
+    };
+
+    const results = await Promise.all(
+        chunks.map(fetchChunk)
     );
 
     return results.flat();
@@ -202,34 +315,66 @@ const BUG_FIELDS = [
     "System.State",
     "System.Reason",
     "System.AreaPath",
+    "System.IterationPath",
     "System.CreatedDate",
     "System.CreatedBy",
     "System.ChangedDate",
     "Microsoft.VSTS.Common.Priority",
     "Microsoft.VSTS.Common.Severity",
     "Microsoft.VSTS.Common.ClosedDate",
+    "Microsoft.VSTS.Build.FoundIn",
 ];
 
-export async function getAllBugFields(): Promise<
-    any[]
-> {
-    const ids = await getActiveBugIds();
+export async function getAllBugFields(
+    project: string = process.env.AZDO_PROJECT!
+): Promise<any[]> {
+    const ids = await getActiveBugIds(project);
 
-    return getWorkItems(ids, BUG_FIELDS);
+    return getWorkItems(ids, BUG_FIELDS, project);
+}
+
+const STORY_FIELDS = [
+    "System.Id",
+    "System.AreaPath",
+    "Microsoft.VSTS.Scheduling.StoryPoints",
+];
+
+export async function getStoriesWithFields(
+    project: string = process.env.AZDO_PROJECT!
+): Promise<any[]> {
+    const response = await getAzdoClient(project).post(
+        "/wit/wiql?api-version=7.1",
+        {
+            query: `
+        SELECT [System.Id]
+        FROM WorkItems
+        WHERE [System.WorkItemType] IN ('User Story', 'Product Backlog Item', 'Requirement')
+      `,
+        }
+    );
+
+    const ids = response.data.workItems.map(
+        (w: { id: number }) => w.id
+    );
+
+    return getWorkItems(ids, STORY_FIELDS, project);
 }
 
 export async function getWorkItemRevisions(
-    id: number
+    id: number,
+    project: string = process.env.AZDO_PROJECT!
 ): Promise<any[]> {
-    const response = await azdo.get(
+    const response = await getAzdoClient(project).get(
         `/wit/workitems/${id}/revisions?api-version=7.1`
     );
 
     return response.data.value;
 }
 
-export async function getStoryCount(): Promise<number> {
-    const response = await azdo.post(
+export async function getStoryCount(
+    project: string = process.env.AZDO_PROJECT!
+): Promise<number> {
+    const response = await getAzdoClient(project).post(
         "/wit/wiql?api-version=7.1",
         {
             query: `
@@ -361,13 +506,14 @@ export async function getBugWorkItemTypeStates(): Promise<
     return response.data.value;
 }
 
-export function buildWorkItemUrl(id: number): string {
+export function buildWorkItemUrl(
+    id: number,
+    project: string = process.env.AZDO_PROJECT!
+): string {
     const org = process.env.AZDO_ORG;
-    const project = encodeURIComponent(
-        process.env.AZDO_PROJECT!
-    );
+    const encodedProject = encodeURIComponent(project);
 
-    return `https://dev.azure.com/${org}/${project}/_workitems/edit/${id}`;
+    return `https://dev.azure.com/${org}/${encodedProject}/_workitems/edit/${id}`;
 }
 
 export function buildTestRunUrl(runId: number): string {

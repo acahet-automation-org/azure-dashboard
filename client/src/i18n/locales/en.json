@@ -17,6 +17,7 @@
         "defects": "Defect Management",
         "commonErrors": "Common Errors",
         "myWorkItems": "My Work Items",
+        "removeTestCases": "Remove Test Cases",
         "refresh": "Refresh Now",
         "refreshing": "Refreshing...",
         "refreshFailed": "Refresh failed: {{message}}",
@@ -234,6 +235,11 @@
     },
     "defectManagementPage": {
         "title": "Defect Management",
+        "tabs": {
+            "overview": "Overview",
+            "quality": "Quality & Process Health",
+            "resource": "Resource & Focus"
+        },
         "stats": {
             "totalOpen": "Open Bugs",
             "totalClosed": "Closed Bugs",
@@ -243,7 +249,15 @@
             "bugsPerStory": "Bugs per Story",
             "days": "{{value}} days",
             "notAvailable": "N/A",
-            "withoutLinkedTestCase": "Defects Without Linked Test Cases"
+            "notConfigured": "Not configured",
+            "withoutLinkedTestCase": "Defects Without Linked Test Cases",
+            "leakageRate": "Defect Leakage Rate",
+            "rejectionRate": "Defect Rejection Rate",
+            "firstTimeFixRate": "First-Time Fix Rate",
+            "backlogDirection": "Backlog Trend",
+            "backlogDirection_growing": "Growing",
+            "backlogDirection_stable": "Stable",
+            "backlogDirection_shrinking": "Shrinking"
         },
         "charts": {
             "trend": "Bug Trend Over Time",
@@ -254,12 +268,21 @@
             "byPriority": "Bugs by Priority",
             "byComponent": "Defects by Component/Module",
             "byTeam": "Defects by Team",
-            "aging": "Defect Aging"
+            "aging": "Defect Aging",
+            "rejectionReasons": "Rejection Reasons",
+            "noRejections": "No rejected defects in the current process data.",
+            "density": "Defect Density (Bugs per Story Point)",
+            "noDensity": "No components with story points to compute density against.",
+            "backlogTrend": "Backlog Growth Rate (Arrival vs. Resolution)",
+            "backlogDelta": "Opened - Closed"
         },
         "sections": {
             "withoutLinkedTestCase": "Defects Without Linked Test Cases",
             "excludeClosed": "Exclude closed defects",
-            "noGaps": "No defects without a linked test case."
+            "noGaps": "No defects without a linked test case.",
+            "highAttention": "High Attention (SLA Breaches)",
+            "noBreaches": "No defects currently breach their SLA age threshold.",
+            "openInAdo": "Open in Azure DevOps →"
         }
     },
     "commonErrorsPage": {
@@ -280,6 +303,9 @@
     "myWorkItemsPage": {
         "title": "My Work Items",
         "empty": "No work items found for this view.",
+        "emptyAssigned": "Nothing assigned to you right now - enjoy the calm!",
+        "emptyMentioned": "No one's mentioned you lately.",
+        "emptyFollowing": "You're not following anything yet.",
         "filters": {
             "assignedToMe": "Assigned to me",
             "mentioned": "Mentioned",
@@ -296,6 +322,15 @@
         "allPriorities": "All Priorities",
         "search": "Search",
         "searchPlaceholder": "Search test case title..."
+    },
+    "defectFilterBar": {
+        "project": "Project",
+        "iteration": "Sprint/Iteration",
+        "allIterations": "All Sprints",
+        "environment": "Environment",
+        "allEnvironments": "All Environments",
+        "targetVersion": "Target Version",
+        "allTargetVersions": "All Target Versions"
     },
     "suiteCard": {
         "total": "Total: {{count}}",
@@ -370,5 +405,28 @@
         "csv": "Export as CSV",
         "excel": "Export as Excel",
         "email": "Send report by email"
+    },
+    "removeTestCasesPage": {
+        "title": "Remove Test Cases",
+        "planFilter": {
+            "label": "Test Plan",
+            "placeholder": "Select a test plan"
+        },
+        "selectPlanFirst": "Select a test plan to browse and remove its test cases.",
+        "selectSuite": "Select all test cases in {{suiteName}}",
+        "selectedCount": "{{count}} selected",
+        "clearSelection": "Clear selection",
+        "deleteSelected": "Delete selected",
+        "confirm": {
+            "title": "Delete {{count}} test cases?",
+            "message": "This permanently removes the following test case work items from Azure DevOps (moved to the Recycle Bin) and from every suite they belong to:",
+            "cancel": "Cancel",
+            "confirm": "Delete {{count}} test cases"
+        },
+        "result": {
+            "successTitle": "{{count}} test case(s) deleted.",
+            "failedSummary": "{{count}} test case(s) could not be deleted.",
+            "errorTitle": "Delete failed"
+        }
     }
 }

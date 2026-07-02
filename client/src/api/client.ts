@@ -8,12 +8,14 @@ import type {
     TestPlanSummary,
     TestSuiteSummary,
     DefectDashboardResponse,
+    DefectFilters,
     CommonErrorsResponse,
     WorkItemSummary,
     MyWorkItemsMode,
     PlanOverviewResponse,
     TestPlanProgressResponse,
     BugInfo,
+    DeleteTestCasesResult,
 } from "../types";
 import { loginRequest } from "../authConfig";
 import { msalInstance } from "../msalInstance";
@@ -142,8 +144,21 @@ export function fetchExecutionTrend(): Promise<ExecutionTrendResponse> {
     return getJson("/api/execution-trend");
 }
 
-export function fetchDefects(): Promise<DefectDashboardResponse> {
-    return getJson("/api/defects");
+export function fetchDefects(
+    filters?: DefectFilters,
+    project?: string
+): Promise<DefectDashboardResponse> {
+    const params = new URLSearchParams();
+
+    if (filters?.iteration) params.set("iteration", filters.iteration);
+    if (filters?.area) params.set("area", filters.area);
+    if (filters?.environment) params.set("environment", filters.environment);
+    if (filters?.targetVersion) params.set("targetVersion", filters.targetVersion);
+    if (project) params.set("project", project);
+
+    const qs = params.toString();
+
+    return getJson(`/api/defects${qs ? `?${qs}` : ""}`);
 }
 
 export function fetchCommonErrors(): Promise<CommonErrorsResponse> {
@@ -178,6 +193,28 @@ export async function sendEmailReport(payload: {
             body?.message ?? `Email report failed (${res.status})`
         );
     }
+}
+
+export async function deleteTestCases(
+    ids: number[]
+): Promise<DeleteTestCasesResult> {
+    const res = await authorizedFetch("/api/test-cases/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+    });
+
+    if (!res.ok) {
+        const body = await res
+            .json()
+            .catch(() => null);
+
+        throw new Error(
+            body?.message ?? `Delete failed (${res.status})`
+        );
+    }
+
+    return res.json();
 }
 
 export async function postRefresh(): Promise<void> {

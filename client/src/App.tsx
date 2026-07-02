@@ -26,6 +26,9 @@ const DefectManagementPage = lazy(() =>
 );
 const CommonErrorsPage = lazy(() => import("./pages/CommonErrorsPage").then((m) => ({ default: m.CommonErrorsPage })));
 const MyWorkItemsPage = lazy(() => import("./pages/MyWorkItemsPage").then((m) => ({ default: m.MyWorkItemsPage })));
+const RemoveTestCasesPage = lazy(() =>
+    import("./pages/RemoveTestCasesPage").then((m) => ({ default: m.RemoveTestCasesPage }))
+);
 
 function PageFallback() {
     return (
@@ -43,7 +46,7 @@ function AppRoutes() {
             <Routes>
                 <Route path="/" element={<SuitesPage />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/last-5-runs" element={<RunsPage />} />
+                <Route path="/last-10-runs" element={<RunsPage />} />
                 <Route path="/plans" element={<PlansPage />} />
                 <Route path="/plans/:planId" element={<PlanDetailPage />} />
                 <Route path="/plan-overview" element={<PlanOverviewPage />} />
@@ -53,6 +56,7 @@ function AppRoutes() {
                 <Route path="/defects" element={<DefectManagementPage />} />
                 <Route path="/common-errors" element={<CommonErrorsPage />} />
                 <Route path="/my-work-items" element={<MyWorkItemsPage />} />
+                <Route path="/remove-test-cases" element={<RemoveTestCasesPage />} />
             </Routes>
         </Suspense>
     );

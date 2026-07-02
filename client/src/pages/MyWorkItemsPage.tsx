@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useMsal } from "@azure/msal-react";
 import { TabList, Tab, Switch } from "@fluentui/react-components";
+import { WeatherSunnyRegular } from "@fluentui/react-icons";
 import { PageLayout } from "../components/PageLayout";
 import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
@@ -10,6 +11,12 @@ import { EmptyState } from "../components/EmptyState";
 import { WorkItemsTable } from "../components/WorkItemsTable";
 import { fetchMyWorkItems } from "../api/client";
 import type { MyWorkItemsMode } from "../types";
+
+const EMPTY_MESSAGE_KEY: Record<MyWorkItemsMode, string> = {
+    assigned: "myWorkItemsPage.emptyAssigned",
+    mentioned: "myWorkItemsPage.emptyMentioned",
+    following: "myWorkItemsPage.emptyFollowing",
+};
 
 export function MyWorkItemsPage() {
     const { t } = useTranslation();
@@ -117,7 +124,10 @@ export function MyWorkItemsPage() {
                         ariaLabel={t("myWorkItemsPage.title")}
                     />
                 ) : (
-                    <EmptyState message={t("myWorkItemsPage.empty")} />
+                    <EmptyState
+                        message={t(EMPTY_MESSAGE_KEY[mode])}
+                        icon={<WeatherSunnyRegular />}
+                    />
                 )
             )}
         </PageLayout>

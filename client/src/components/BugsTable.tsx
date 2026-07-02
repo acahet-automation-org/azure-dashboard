@@ -15,9 +15,11 @@ import { compareByState } from "../utils/bugState";
 export function BugsTable({
     bugs,
     ariaLabel,
+    quickActionLabel,
 }: {
     bugs: BugInfo[];
     ariaLabel: string;
+    quickActionLabel?: string;
 }) {
     const { t } = useTranslation();
     const sortedBugs = [...bugs].sort(compareByState);
@@ -47,6 +49,7 @@ export function BugsTable({
                     <TableHeaderCell>
                         {t("bugsTable.columns.assignee")}
                     </TableHeaderCell>
+                    {quickActionLabel && <TableHeaderCell />}
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -88,6 +91,19 @@ export function BugsTable({
                             <TableCell>
                                 {bug.assignee?.displayName ?? ""}
                             </TableCell>
+                            {quickActionLabel && (
+                                <TableCell>
+                                    {bug.url && (
+                                        <Link
+                                            href={bug.url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        >
+                                            {quickActionLabel}
+                                        </Link>
+                                    )}
+                                </TableCell>
+                            )}
                         </TableRow>
                     );
                 })}

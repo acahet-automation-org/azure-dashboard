@@ -36,6 +36,7 @@ export interface WorkItemSummary {
 export interface TestCaseRow {
     planName: string;
     areaPath: string;
+    iteration?: string;
     suiteName: string;
     testCaseId: number;
     testCaseTitle: string;
@@ -215,6 +216,8 @@ export interface DefectRecord {
     severity?: string;
     priority?: number;
     areaPath: string;
+    iterationPath?: string;
+    environment?: string;
     createdDate: string;
     closedDate?: string;
     changedDate: string;
@@ -224,14 +227,18 @@ export interface DefectRecord {
     creator?: string;
 }
 
-export interface DefectWithoutTestCase {
+export interface DefectSummary {
     id: number;
     title: string;
     state: string;
     priority?: number;
+    severity?: string;
+    ageDays?: number;
     url?: string;
     creator?: string;
 }
+
+export type DefectWithoutTestCase = DefectSummary;
 
 export interface DefectTrendPoint {
     weekStart: string;
@@ -240,9 +247,29 @@ export interface DefectTrendPoint {
     openTotal: number;
 }
 
+export interface BacklogTrendPoint extends DefectTrendPoint {
+    delta: number;
+}
+
 export interface AgingBucket {
     bucket: string;
     count: number;
+}
+
+export type BacklogDirection = "growing" | "stable" | "shrinking";
+
+export interface DefectFilterOptions {
+    iterations: string[];
+    areas: string[];
+    environments: string[];
+    targetVersions: string[];
+}
+
+export interface DefectFilterParams {
+    iteration?: string;
+    area?: string;
+    environment?: string;
+    targetVersion?: string;
 }
 
 export interface DefectStats {
@@ -259,6 +286,15 @@ export interface DefectStats {
     duplicateRate: number;
     bugsPerStory: number | null;
     defectsWithoutLinkedTestCase: DefectWithoutTestCase[];
+    defectLeakageRate: number | null;
+    defectRejectionRate: number;
+    rejectionReasons: Record<string, number>;
+    firstTimeFixRate: number | null;
+    densityByComponent: Record<string, number | null>;
+    backlogTrend: BacklogTrendPoint[];
+    backlogDirection: BacklogDirection;
+    slaBreaches: DefectSummary[];
+    availableFilters: DefectFilterOptions;
 }
 
 export interface DefectDashboardResponse {
@@ -327,4 +363,9 @@ export interface TestPlanProgressResponse {
     planId: number;
     planTitle: string;
     nodes: TestPlanProgressNode[];
+}
+
+export interface DeleteTestCasesResult {
+    deleted: number[];
+    failed: { id: number; message: string }[];
 }

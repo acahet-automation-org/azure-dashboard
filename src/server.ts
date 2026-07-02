@@ -12,6 +12,7 @@ import {
     computeExecutionTrend,
     computeTestPlans,
     computePlanSuites,
+    deleteTestCases,
 } from "./dashboardData.js";
 import {
     getAutomationDashboard,
@@ -23,6 +24,10 @@ import {
     computeDefectStats,
     clearDefectCache,
     getStoryCount,
+    getStoryPointsByArea,
+    filterRecords,
+    getAvailableProjects,
+    resolveProject,
 } from "./defectData.js";
 import {
     getCommonErrorsData,
@@ -207,6 +212,41 @@ app.get("/api/plans/:planId/progress/bugs", async (req, res) => {
     }
 });
 
+app.post("/api/test-cases/delete", async (req, res) => {
+    const ids = Array.isArray(req.body?.ids)
+        ? req.body.ids
+              .map(Number)
+              .filter(Number.isInteger)
+        : [];
+
+    if (ids.length === 0) {
+        res.status(400).json({
+            message: "ids is required",
+        });
+
+        return;
+    }
+
+    try {
+        const result = await deleteTestCases(ids);
+
+        if (result.deleted.length > 0) {
+            clearAutomationCache();
+            clearPlanOverviewCache();
+            clearTestPlanProgressCache();
+            clearTestPlanProgressBugsCache();
+        }
+
+        res.json(result);
+    } catch (error: any) {
+        console.error(error);
+
+        res.status(500).json({
+            message: error.message,
+        });
+    }
+});
+
 app.get("/api/automation", async (req, res) => {
     try {
         const planId = Number(req.query.planId);
@@ -227,20 +267,42 @@ app.get("/api/automation", async (req, res) => {
     }
 });
 
-app.get("/api/defects", async (_, res) => {
+app.get("/api/defects", async (req, res) => {
     try {
-        const [records, storyCount] =
+        const project = resolveProject(
+            req.query.project as string | undefined
+        );
+
+        const [records, storyCount, storyPointsByArea] =
             await Promise.all([
-                getDefectData(),
-                getStoryCount(),
+                getDefectData(project),
+                getStoryCount(project),
+                getStoryPointsByArea(project),
             ]);
+
+        const filtered = filterRecords(records, {
+            iteration: req.query.iteration as
+                | string
+                | undefined,
+            area: req.query.area as string | undefined,
+            environment: req.query.environment as
+                | string
+                | undefined,
+            targetVersion: req.query.targetVersion as
+                | string
+                | undefined,
+        });
 
         res.json({
             stats: computeDefectStats(
-                records,
-                storyCount
+                filtered,
+                storyCount,
+                storyPointsByArea,
+                records
             ),
-            cacheTimestamp: getDefectCacheTimestamp(),
+            cacheTimestamp: getDefectCacheTimestamp(project),
+            availableProjects: getAvailableProjects(),
+            project,
         });
     } catch (error: any) {
         console.error(error);

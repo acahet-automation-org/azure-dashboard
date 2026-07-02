@@ -2,29 +2,67 @@ import {
     getAllBugFields,
     getWorkItemRevisions,
     getStoryCount,
+    getStoriesWithFields,
     getWorkItem,
     getWorkItems,
     extractWorkItemIds,
     buildWorkItemUrl,
+    getAvailableProjects,
+    resolveProject,
 } from "./azdo.js";
+import { getDashboardData } from "./dashboardData.js";
 import type {
     DefectRecord,
     DefectStats,
     DefectTrendPoint,
+    BacklogTrendPoint,
     AgingBucket,
-    DefectWithoutTestCase,
+    DefectSummary,
+    BacklogDirection,
+    DefectFilterParams,
+    DefectFilterOptions,
 } from "./types.js";
 
-let defectCache: DefectRecord[] | null = null;
-let cacheTimestamp = 0;
+// Keyed by project name, since Defect Management can point at either
+// AZDO_PROJECT or AZDO_PROJECT_2 and each needs its own cached snapshot.
+const defectCacheByProject = new Map<
+    string,
+    { data: DefectRecord[]; timestamp: number }
+>();
 
 const CACHE_DURATION_MS = 5 * 60 * 1000;
 
 const REOPENED_FROM_STATES = ["Resolved", "Closed"];
 const REOPENED_TO_STATES = ["Active", "New"];
 
-export function getDefectCacheTimestamp(): number {
-    return cacheTimestamp;
+// Seeded with the canonical VSTS/Agile rejection reasons. Whether these
+// actually appear depends on the project's process template - some
+// processes (e.g. ours) track System.Reason as workflow transitions
+// instead of a rejection judgement, in which case this legitimately
+// computes to 0% rather than "not configured" (same as duplicateRate).
+const REJECTED_REASONS = new Set([
+    "Not a Bug",
+    "Cannot Reproduce",
+    "As Designed",
+    "Won't Fix",
+    "Invalid",
+]);
+
+// Days a bug may stay open before it's flagged in the High Attention list.
+// Keyed by the exact Microsoft.VSTS.Common.Severity label used in this
+// project; "default" covers severities not explicitly listed.
+const SLA_THRESHOLD_DAYS: Record<string, number> = {
+    "1 - Critical": 1,
+    "2 - High": 5,
+    "3 - Medium": 10,
+    "4 - Low": 30,
+    default: 30,
+};
+
+export function getDefectCacheTimestamp(
+    project: string = process.env.AZDO_PROJECT!
+): number {
+    return defectCacheByProject.get(project)?.timestamp ?? 0;
 }
 
 function countReopenings(revisions: any[]): number {
@@ -54,16 +92,19 @@ function countReopenings(revisions: any[]): number {
 }
 
 async function hasLinkedTestCase(
-    bugId: number
+    bugId: number,
+    project: string
 ): Promise<boolean> {
-    const workItem = await getWorkItem(bugId);
+    const workItem = await getWorkItem(bugId, project);
 
     const linkedIds = extractWorkItemIds(
         workItem.relations
     );
 
     const linkedItems = await getWorkItems(
-        linkedIds
+        linkedIds,
+        undefined,
+        project
     );
 
     return linkedItems.some(
@@ -73,13 +114,50 @@ async function hasLinkedTestCase(
     );
 }
 
+// Bugs are rarely tagged with a real sprint themselves (System.IterationPath
+// mostly defaults to the project/team root), so the sprint shown for a bug
+// is instead borrowed from the Test Plan of the test case it's linked to -
+// that's where this project's actual sprint assignments live. That mapping
+// only exists for the default project's Test Plans, so other projects get
+// no sprint data this way (their bugs fall back to no iteration shown).
+async function getBugIterationMap(
+    project: string
+): Promise<Map<number, string>> {
+    const iterationByBug = new Map<number, string>();
+
+    if (project !== process.env.AZDO_PROJECT) {
+        return iterationByBug;
+    }
+
+    const testCases = await getDashboardData();
+
+    for (const tc of testCases) {
+        if (!tc.iteration) {
+            continue;
+        }
+
+        for (const bug of tc.bugs) {
+            if (!iterationByBug.has(bug.id)) {
+                iterationByBug.set(
+                    bug.id,
+                    tc.iteration
+                );
+            }
+        }
+    }
+
+    return iterationByBug;
+}
+
 async function buildDefectRecord(
-    bug: any
+    bug: any,
+    iterationByBug: Map<number, string>,
+    project: string
 ): Promise<DefectRecord> {
     const [revisions, linkedToTestCase] =
         await Promise.all([
-            getWorkItemRevisions(bug.id),
-            hasLinkedTestCase(bug.id),
+            getWorkItemRevisions(bug.id, project),
+            hasLinkedTestCase(bug.id, project),
         ]);
 
     return {
@@ -96,6 +174,9 @@ async function buildDefectRecord(
             "Microsoft.VSTS.Common.Priority"
             ],
         areaPath: bug.fields["System.AreaPath"],
+        iterationPath: iterationByBug.get(bug.id),
+        environment:
+            bug.fields["Microsoft.VSTS.Build.FoundIn"],
         createdDate:
             bug.fields["System.CreatedDate"],
         closedDate:
@@ -106,42 +187,49 @@ async function buildDefectRecord(
             bug.fields["System.ChangedDate"],
         reopenedCount: countReopenings(revisions),
         hasLinkedTestCase: linkedToTestCase,
-        url: buildWorkItemUrl(bug.id),
+        url: buildWorkItemUrl(bug.id, project),
         creator: bug.fields["System.CreatedBy"]?.displayName,
     };
 }
 
-export async function buildDefectRecords(): Promise<
-    DefectRecord[]
-> {
-    const bugs = await getAllBugFields();
+export async function buildDefectRecords(
+    project: string = process.env.AZDO_PROJECT!
+): Promise<DefectRecord[]> {
+    const [bugs, iterationByBug] = await Promise.all([
+        getAllBugFields(project),
+        getBugIterationMap(project),
+    ]);
 
     return Promise.all(
-        bugs.map((bug) => buildDefectRecord(bug))
+        bugs.map((bug) =>
+            buildDefectRecord(bug, iterationByBug, project)
+        )
     );
 }
 
-export async function getDefectData(): Promise<
-    DefectRecord[]
-> {
+export async function getDefectData(
+    project: string = process.env.AZDO_PROJECT!
+): Promise<DefectRecord[]> {
     const now = Date.now();
+    const cached = defectCacheByProject.get(project);
 
-    if (
-        defectCache &&
-        now - cacheTimestamp < CACHE_DURATION_MS
-    ) {
-        return defectCache;
+    if (cached && now - cached.timestamp < CACHE_DURATION_MS) {
+        return cached.data;
     }
 
-    defectCache = await buildDefectRecords();
-    cacheTimestamp = now;
+    const data = await buildDefectRecords(project);
 
-    return defectCache;
+    defectCacheByProject.set(project, {
+        data,
+        timestamp: now,
+    });
+
+    return data;
 }
 
 export function clearDefectCache(): void {
-    defectCache = null;
-    cacheTimestamp = 0;
+    defectCacheByProject.clear();
+    storyPointsCacheByProject.clear();
 }
 
 function groupCount(
@@ -307,9 +395,288 @@ function computeAgingBuckets(
     return counts;
 }
 
+function computeRejectionRate(
+    records: DefectRecord[]
+): number {
+    if (records.length === 0) {
+        return 0;
+    }
+
+    const rejectedCount = records.filter(
+        (r) => r.reason && REJECTED_REASONS.has(r.reason)
+    ).length;
+
+    return (
+        Math.round(
+            (rejectedCount / records.length) * 1000
+        ) / 10
+    );
+}
+
+function computeRejectionReasons(
+    records: DefectRecord[]
+): Record<string, number> {
+    return groupCount(
+        records.filter(
+            (r) =>
+                r.reason && REJECTED_REASONS.has(r.reason)
+        ),
+        (r) => r.reason
+    );
+}
+
+function computeFirstTimeFixRate(
+    records: DefectRecord[]
+): number | null {
+    const resolved = records.filter(
+        (r) => r.closedDate
+    );
+
+    if (resolved.length === 0) {
+        return null;
+    }
+
+    const fixedFirstTry = resolved.filter(
+        (r) => r.reopenedCount === 0
+    ).length;
+
+    return (
+        Math.round(
+            (fixedFirstTry / resolved.length) * 1000
+        ) / 10
+    );
+}
+
+function computeLeakageRate(
+    records: DefectRecord[]
+): number | null {
+    const withEnvironment = records.filter(
+        (r) => r.environment
+    );
+
+    if (withEnvironment.length === 0) {
+        return null;
+    }
+
+    const foundInProd = withEnvironment.filter((r) =>
+        r.environment!.toLowerCase().includes("prod")
+    ).length;
+
+    return (
+        Math.round(
+            (foundInProd / withEnvironment.length) * 1000
+        ) / 10
+    );
+}
+
+function computeDensityByComponent(
+    records: DefectRecord[],
+    storyPointsByArea: Record<string, number>
+): Record<string, number | null> {
+    const bugCounts = groupCount(
+        records,
+        (r) => r.areaPath
+    );
+    const result: Record<string, number | null> = {};
+
+    for (const [area, count] of Object.entries(
+        bugCounts
+    )) {
+        const points = storyPointsByArea[area];
+
+        result[area] =
+            points && points > 0
+                ? Math.round((count / points) * 100) /
+                100
+                : null;
+    }
+
+    return result;
+}
+
+function computeSlaBreaches(
+    records: DefectRecord[]
+): DefectSummary[] {
+    const now = Date.now();
+
+    return records
+        .filter((r) => r.state !== "Closed")
+        .map((r) => {
+            const ageDays =
+                (now -
+                    new Date(
+                        r.createdDate
+                    ).getTime()) /
+                (1000 * 60 * 60 * 24);
+            const threshold =
+                SLA_THRESHOLD_DAYS[r.severity ?? ""] ??
+                SLA_THRESHOLD_DAYS.default;
+
+            return { record: r, ageDays, threshold };
+        })
+        .filter(({ ageDays, threshold }) => ageDays > threshold)
+        .sort(
+            (a, b) =>
+                (b.ageDays - b.threshold) -
+                (a.ageDays - a.threshold)
+        )
+        .map(({ record, ageDays }) => ({
+            id: record.id,
+            title: record.title,
+            state: record.state,
+            priority: record.priority,
+            severity: record.severity,
+            ageDays: Math.round(ageDays),
+            url: record.url,
+            creator: record.creator,
+        }));
+}
+
+function computeBacklogTrend(
+    trend: DefectTrendPoint[]
+): BacklogTrendPoint[] {
+    return trend.map((point) => ({
+        ...point,
+        delta: point.opened - point.closed,
+    }));
+}
+
+function computeBacklogDirection(
+    backlogTrend: BacklogTrendPoint[]
+): BacklogDirection {
+    const recent = backlogTrend.slice(-4);
+
+    if (recent.length === 0) {
+        return "stable";
+    }
+
+    const avgDelta =
+        recent.reduce((sum, p) => sum + p.delta, 0) /
+        recent.length;
+
+    if (avgDelta > 0.5) {
+        return "growing";
+    }
+
+    if (avgDelta < -0.5) {
+        return "shrinking";
+    }
+
+    return "stable";
+}
+
+function computeStoryPointsByArea(
+    stories: any[]
+): Record<string, number> {
+    const result: Record<string, number> = {};
+
+    for (const story of stories) {
+        const area = story.fields["System.AreaPath"];
+        const points =
+            story.fields[
+            "Microsoft.VSTS.Scheduling.StoryPoints"
+            ];
+
+        if (!area || !points) {
+            continue;
+        }
+
+        result[area] = (result[area] ?? 0) + points;
+    }
+
+    return result;
+}
+
+export function filterRecords(
+    records: DefectRecord[],
+    params: DefectFilterParams
+): DefectRecord[] {
+    return records.filter((r) => {
+        if (
+            params.iteration &&
+            r.iterationPath !== params.iteration
+        ) {
+            return false;
+        }
+
+        if (
+            params.area &&
+            r.areaPath !== params.area
+        ) {
+            return false;
+        }
+
+        if (
+            params.environment &&
+            r.environment !== params.environment
+        ) {
+            return false;
+        }
+
+        return true;
+    });
+}
+
+function computeAvailableFilters(
+    records: DefectRecord[]
+): DefectFilterOptions {
+    const iterations = new Set<string>();
+    const areas = new Set<string>();
+    const environments = new Set<string>();
+
+    for (const r of records) {
+        if (r.iterationPath) {
+            iterations.add(r.iterationPath);
+        }
+
+        if (r.areaPath) {
+            areas.add(r.areaPath);
+        }
+
+        if (r.environment) {
+            environments.add(r.environment);
+        }
+    }
+
+    return {
+        iterations: [...iterations].sort(),
+        areas: [...areas].sort(),
+        environments: [...environments].sort(),
+        targetVersions: [],
+    };
+}
+
+const storyPointsCacheByProject = new Map<
+    string,
+    { data: Record<string, number>; timestamp: number }
+>();
+
+export async function getStoryPointsByArea(
+    project: string = process.env.AZDO_PROJECT!
+): Promise<Record<string, number>> {
+    const now = Date.now();
+    const cached = storyPointsCacheByProject.get(project);
+
+    if (cached && now - cached.timestamp < CACHE_DURATION_MS) {
+        return cached.data;
+    }
+
+    const stories = await getStoriesWithFields(project);
+    const data = computeStoryPointsByArea(stories);
+
+    storyPointsCacheByProject.set(project, {
+        data,
+        timestamp: now,
+    });
+
+    return data;
+}
+
 export function computeDefectStats(
     records: DefectRecord[],
-    storyCount: number
+    storyCount: number,
+    storyPointsByArea: Record<string, number> = {},
+    allRecordsForFilterOptions: DefectRecord[] = records
 ): DefectStats {
     const totalClosed = records.filter(
         (r) => r.state === "Closed"
@@ -325,7 +692,7 @@ export function computeDefectStats(
         (r) => r.reopenedCount > 0
     ).length;
 
-    const defectsWithoutLinkedTestCase: DefectWithoutTestCase[] =
+    const defectsWithoutLinkedTestCase: DefectSummary[] =
         records
             .filter((r) => !r.hasLinkedTestCase)
             .map((r) => ({
@@ -348,6 +715,9 @@ export function computeDefectStats(
                 return a.priority - b.priority;
             });
 
+    const trend = computeTrend(records);
+    const backlogTrend = computeBacklogTrend(trend);
+
     return {
         totalOpen,
         totalClosed,
@@ -368,7 +738,7 @@ export function computeDefectStats(
             records,
             (r) => r.areaPath
         ),
-        trend: computeTrend(records),
+        trend,
         mttrDays: computeMttrDays(records),
         agingBuckets: computeAgingBuckets(records),
         reopenedBugCount,
@@ -384,7 +754,21 @@ export function computeDefectStats(
             ) / 100
             : null,
         defectsWithoutLinkedTestCase,
+        defectLeakageRate: computeLeakageRate(records),
+        defectRejectionRate: computeRejectionRate(records),
+        rejectionReasons: computeRejectionReasons(records),
+        firstTimeFixRate: computeFirstTimeFixRate(records),
+        densityByComponent: computeDensityByComponent(
+            records,
+            storyPointsByArea
+        ),
+        backlogTrend,
+        backlogDirection: computeBacklogDirection(backlogTrend),
+        slaBreaches: computeSlaBreaches(records),
+        availableFilters: computeAvailableFilters(
+            allRecordsForFilterOptions
+        ),
     };
 }
 
-export { getStoryCount };
+export { getStoryCount, getAvailableProjects, resolveProject };

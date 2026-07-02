@@ -10,6 +10,7 @@ import {
     extractWorkItemIds,
     buildWorkItemUrl,
     buildTestRunUrl,
+    deleteTestCase,
 } from "./azdo.js";
 import type {
     TestCaseRow,
@@ -21,6 +22,7 @@ import type {
     TestPlanSummary,
     TestSuiteSummary,
     TestCaseSummary,
+    DeleteTestCasesResult,
 } from "./types.js";
 
 let dashboardCache: TestCaseRow[] | null = null;
@@ -63,7 +65,8 @@ export async function buildTestCaseRow(
     planName: string,
     suiteName: string,
     outcomesByTestCase: Record<number, string[]>,
-    lastRunByTestCase: Record<number, number>
+    lastRunByTestCase: Record<number, number>,
+    planIteration?: string
 ): Promise<TestCaseRow> {
     const workItem = await getWorkItem(
         tc.workItem.id
@@ -99,6 +102,7 @@ export async function buildTestCaseRow(
             workItem.fields[
             "System.AreaPath"
             ],
+        iteration: planIteration,
         suiteName,
         testCaseId: tc.workItem.id,
         testCaseTitle: tc.workItem.name,
@@ -217,7 +221,8 @@ export async function buildDashboard(): Promise<
                         plan.name,
                         suite.name,
                         outcomesByTestCase,
-                        lastRunByTestCase
+                        lastRunByTestCase,
+                        plan.iteration
                     )
                 )
             );
@@ -579,13 +584,20 @@ export async function computeRunCards(): Promise<
         })
         .slice(0, 10);
 
-    return Promise.all(
+    const cards = await Promise.all(
         last10.map(
-            async (run: any): Promise<RunCard> => {
+            async (run: any): Promise<RunCard | null> => {
                 const stats =
                     await getTestRunStatistics(
                         run.id
                     );
+
+                // A null result means Azure DevOps no longer has this run
+                // (it lingers in the runs list after deletion) - drop it
+                // rather than showing a phantom zeroed-out card.
+                if (stats === null) {
+                    return null;
+                }
 
                 const { counts, total, passRate } =
                     summarizeRunStats(stats);
@@ -606,6 +618,10 @@ export async function computeRunCards(): Promise<
             }
         )
     );
+
+    return cards.filter(
+        (card): card is RunCard => card !== null
+    );
 }
 
 export async function computeExecutionTrend(): Promise<
@@ -613,13 +629,29 @@ export async function computeExecutionTrend(): Promise<
 > {
     const runs = await getTestRuns();
 
-    const runStats = await Promise.all(
-        runs.map(async (run: any) => ({
-            run,
-            ...summarizeRunStats(
-                await getTestRunStatistics(run.id)
-            ),
-        }))
+    const runStatsWithNulls = await Promise.all(
+        runs.map(async (run: any) => {
+            const stats = await getTestRunStatistics(
+                run.id
+            );
+
+            // See computeRunCards: a null result means the run no longer
+            // exists in Azure DevOps despite still appearing in the runs
+            // list, so it's excluded from the trend entirely.
+            if (stats === null) {
+                return null;
+            }
+
+            return {
+                run,
+                ...summarizeRunStats(stats),
+            };
+        })
+    );
+
+    const runStats = runStatsWithNulls.filter(
+        (entry): entry is NonNullable<typeof entry> =>
+            entry !== null
     );
 
     const byDate = new Map<
@@ -694,4 +726,34 @@ export async function computeExecutionTrend(): Promise<
                 cumulativeExecuted,
             };
         });
+}
+
+export async function deleteTestCases(
+    ids: number[]
+): Promise<DeleteTestCasesResult> {
+    const results = await Promise.allSettled(
+        ids.map((id) => deleteTestCase(id))
+    );
+
+    const deleted: number[] = [];
+    const failed: { id: number; message: string }[] = [];
+
+    results.forEach((result, index) => {
+        if (result.status === "fulfilled") {
+            deleted.push(ids[index]);
+        } else {
+            failed.push({
+                id: ids[index],
+                message:
+                    result.reason?.message ??
+                    "Unknown error",
+            });
+        }
+    });
+
+    if (deleted.length > 0) {
+        clearDashboardCache();
+    }
+
+    return { deleted, failed };
 }
