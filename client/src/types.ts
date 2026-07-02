@@ -225,6 +225,7 @@ export interface DefectFilterOptions {
     areas: string[];
     environments: string[];
     targetVersions: string[];
+    suites: string[];
 }
 
 export interface DefectFilters {
@@ -232,6 +233,7 @@ export interface DefectFilters {
     area: string;
     environment: string;
     targetVersion: string;
+    suite: string;
 }
 
 export interface DefectStats {
@@ -241,6 +243,7 @@ export interface DefectStats {
     byPriority: Record<string, number>;
     byComponent: Record<string, number>;
     byTeam: Record<string, number>;
+    byTestSuite: Record<string, number>;
     trend: DefectTrendPoint[];
     mttrDays: number | null;
     agingBuckets: AgingBucket[];

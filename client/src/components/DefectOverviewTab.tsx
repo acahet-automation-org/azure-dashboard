@@ -249,6 +249,27 @@ export function DefectOverviewTab({ stats }: { stats: DefectStats }) {
                     </ResponsiveContainer>
                 </ChartCard>
 
+                <ChartCard title={t("defectManagementPage.charts.byTestSuite")}>
+                    <ResponsiveContainer width="100%" height={280}>
+                        <BarChart
+                            data={toChartData(stats.byTestSuite)}
+                            layout="vertical"
+                            margin={{ left: 24 }}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis type="number" allowDecimals={false} />
+                            <YAxis
+                                type="category"
+                                dataKey="name"
+                                width={160}
+                                tick={{ fontSize: 12 }}
+                            />
+                            <Tooltip />
+                            <Bar dataKey="count" fill="#605e5c" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </ChartCard>
+
                 <ChartCard title={t("defectManagementPage.charts.aging")}>
                     <ResponsiveContainer width="100%" height={280}>
                         <BarChart data={stats.agingBuckets}>

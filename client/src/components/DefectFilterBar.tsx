@@ -46,6 +46,7 @@ export function DefectFilterBar({
     const allIterations = t("defectFilterBar.allIterations");
     const allEnvironments = t("defectFilterBar.allEnvironments");
     const allTargetVersions = t("defectFilterBar.allTargetVersions");
+    const allSuites = t("defectFilterBar.allSuites");
 
     return (
         <div className={styles.bar}>
@@ -128,6 +129,30 @@ export function DefectFilterBar({
                         {availableFilters.environments.map((environment) => (
                             <Option key={environment} value={environment}>
                                 {environment}
+                            </Option>
+                        ))}
+                    </Dropdown>
+                </Field>
+            )}
+
+            {availableFilters.suites.length > 0 && (
+                <Field label={t("defectFilterBar.suite")} className={styles.field}>
+                    <Dropdown
+                        expandIcon={<ChevronDownRegular className={styles.chevron} />}
+                        button={{ className: styles.dropdownButton }}
+                        value={filters.suite || allSuites}
+                        selectedOptions={filters.suite ? [filters.suite] : [""]}
+                        onOptionSelect={(_, data) =>
+                            onChange({
+                                ...filters,
+                                suite: data.optionValue ?? "",
+                            })
+                        }
+                    >
+                        <Option value="">{allSuites}</Option>
+                        {availableFilters.suites.map((suite) => (
+                            <Option key={suite} value={suite}>
+                                {suite}
                             </Option>
                         ))}
                     </Dropdown>

@@ -217,6 +217,7 @@ export interface DefectRecord {
     priority?: number;
     areaPath: string;
     iterationPath?: string;
+    suiteName?: string;
     environment?: string;
     createdDate: string;
     closedDate?: string;
@@ -263,6 +264,7 @@ export interface DefectFilterOptions {
     areas: string[];
     environments: string[];
     targetVersions: string[];
+    suites: string[];
 }
 
 export interface DefectFilterParams {
@@ -270,6 +272,7 @@ export interface DefectFilterParams {
     area?: string;
     environment?: string;
     targetVersion?: string;
+    suite?: string;
 }
 
 export interface DefectStats {
@@ -279,6 +282,7 @@ export interface DefectStats {
     byPriority: Record<string, number>;
     byComponent: Record<string, number>;
     byTeam: Record<string, number>;
+    byTestSuite: Record<string, number>;
     trend: DefectTrendPoint[];
     mttrDays: number | null;
     agingBuckets: AgingBucket[];

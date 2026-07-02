@@ -268,6 +268,7 @@
             "byPriority": "Bug per Priorità",
             "byComponent": "Difetti per Componente/Modulo",
             "byTeam": "Difetti per Team",
+            "byTestSuite": "Bug per Test Suite",
             "aging": "Anzianità dei Difetti",
             "rejectionReasons": "Motivi di Rigetto",
             "noRejections": "Nessun difetto rigettato nei dati di processo correnti.",
@@ -330,7 +331,9 @@
         "environment": "Ambiente",
         "allEnvironments": "Tutti gli Ambienti",
         "targetVersion": "Versione Target",
-        "allTargetVersions": "Tutte le Versioni Target"
+        "allTargetVersions": "Tutte le Versioni Target",
+        "suite": "Suite di Test",
+        "allSuites": "Tutte le Suite di Test"
     },
     "suiteCard": {
         "total": "Totale: {{count}}",
