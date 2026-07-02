@@ -10,7 +10,7 @@ import {
     extractWorkItemIds,
     buildWorkItemUrl,
     buildTestRunUrl,
-    deleteTestCasesFromSuite,
+    deleteTestCase,
 } from "./azdo.js";
 import type {
     TestCaseRow,
@@ -22,7 +22,6 @@ import type {
     TestPlanSummary,
     TestSuiteSummary,
     TestCaseSummary,
-    DeleteTestCaseItem,
     DeleteTestCasesResult,
 } from "./types.js";
 
@@ -514,7 +513,6 @@ export async function computePlanSuites(
                         testCases.map((tc: any) => ({
                             id: tc.workItem.id,
                             title: tc.workItem.name,
-                            suiteId: suite.id,
                         })),
                     ];
                 }
@@ -731,57 +729,25 @@ export async function computeExecutionTrend(): Promise<
 }
 
 export async function deleteTestCases(
-    items: DeleteTestCaseItem[]
+    ids: number[]
 ): Promise<DeleteTestCasesResult> {
-    // The ADO API removes test cases from a suite, not by bare id, so items
-    // sharing a (planId, suiteId) are batched into a single request.
-    const groups = new Map<
-        string,
-        { planId: number; suiteId: number; testCaseIds: number[] }
-    >();
-
-    for (const item of items) {
-        const key = `${item.planId}:${item.suiteId}`;
-        const group = groups.get(key);
-
-        if (group) {
-            group.testCaseIds.push(item.testCaseId);
-        } else {
-            groups.set(key, {
-                planId: item.planId,
-                suiteId: item.suiteId,
-                testCaseIds: [item.testCaseId],
-            });
-        }
-    }
-
-    const groupList = [...groups.values()];
-
     const results = await Promise.allSettled(
-        groupList.map((group) =>
-            deleteTestCasesFromSuite(
-                group.planId,
-                group.suiteId,
-                group.testCaseIds
-            )
-        )
+        ids.map((id) => deleteTestCase(id))
     );
 
     const deleted: number[] = [];
     const failed: { id: number; message: string }[] = [];
 
     results.forEach((result, index) => {
-        const group = groupList[index];
-
         if (result.status === "fulfilled") {
-            deleted.push(...group.testCaseIds);
+            deleted.push(ids[index]);
         } else {
-            const message =
-                result.reason?.message ?? "Unknown error";
-
-            for (const testCaseId of group.testCaseIds) {
-                failed.push({ id: testCaseId, message });
-            }
+            failed.push({
+                id: ids[index],
+                message:
+                    result.reason?.message ??
+                    "Unknown error",
+            });
         }
     });
 

@@ -213,35 +213,22 @@ app.get("/api/plans/:planId/progress/bugs", async (req, res) => {
 });
 
 app.post("/api/test-cases/delete", async (req, res) => {
-    const items = Array.isArray(req.body?.items)
-        ? req.body.items
-              .map((item: any) => ({
-                  planId: Number(item?.planId),
-                  suiteId: Number(item?.suiteId),
-                  testCaseId: Number(item?.testCaseId),
-              }))
-              .filter(
-                  (item: {
-                      planId: number;
-                      suiteId: number;
-                      testCaseId: number;
-                  }) =>
-                      Number.isInteger(item.planId) &&
-                      Number.isInteger(item.suiteId) &&
-                      Number.isInteger(item.testCaseId)
-              )
+    const ids = Array.isArray(req.body?.ids)
+        ? req.body.ids
+              .map(Number)
+              .filter(Number.isInteger)
         : [];
 
-    if (items.length === 0) {
+    if (ids.length === 0) {
         res.status(400).json({
-            message: "items is required",
+            message: "ids is required",
         });
 
         return;
     }
 
     try {
-        const result = await deleteTestCases(items);
+        const result = await deleteTestCases(ids);
 
         if (result.deleted.length > 0) {
             clearAutomationCache();

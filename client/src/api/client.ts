@@ -15,7 +15,6 @@ import type {
     PlanOverviewResponse,
     TestPlanProgressResponse,
     BugInfo,
-    DeleteTestCaseItem,
     DeleteTestCasesResult,
 } from "../types";
 import { loginRequest } from "../authConfig";
@@ -197,12 +196,12 @@ export async function sendEmailReport(payload: {
 }
 
 export async function deleteTestCases(
-    items: DeleteTestCaseItem[]
+    ids: number[]
 ): Promise<DeleteTestCasesResult> {
     const res = await authorizedFetch("/api/test-cases/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ ids }),
     });
 
     if (!res.ok) {
