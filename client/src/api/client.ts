@@ -15,6 +15,8 @@ import type {
     PlanOverviewResponse,
     TestPlanProgressResponse,
     BugInfo,
+    DeleteTestCaseItem,
+    DeleteTestCasesResult,
 } from "../types";
 import { loginRequest } from "../authConfig";
 import { msalInstance } from "../msalInstance";
@@ -192,6 +194,28 @@ export async function sendEmailReport(payload: {
             body?.message ?? `Email report failed (${res.status})`
         );
     }
+}
+
+export async function deleteTestCases(
+    items: DeleteTestCaseItem[]
+): Promise<DeleteTestCasesResult> {
+    const res = await authorizedFetch("/api/test-cases/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items }),
+    });
+
+    if (!res.ok) {
+        const body = await res
+            .json()
+            .catch(() => null);
+
+        throw new Error(
+            body?.message ?? `Delete failed (${res.status})`
+        );
+    }
+
+    return res.json();
 }
 
 export async function postRefresh(): Promise<void> {

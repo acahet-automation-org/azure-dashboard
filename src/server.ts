@@ -12,6 +12,7 @@ import {
     computeExecutionTrend,
     computeTestPlans,
     computePlanSuites,
+    deleteTestCases,
 } from "./dashboardData.js";
 import {
     getAutomationDashboard,
@@ -202,6 +203,54 @@ app.get("/api/plans/:planId/progress/bugs", async (req, res) => {
             : undefined;
 
         res.json(await computeTestPlanProgressBugs(planId, suiteIds));
+    } catch (error: any) {
+        console.error(error);
+
+        res.status(500).json({
+            message: error.message,
+        });
+    }
+});
+
+app.post("/api/test-cases/delete", async (req, res) => {
+    const items = Array.isArray(req.body?.items)
+        ? req.body.items
+              .map((item: any) => ({
+                  planId: Number(item?.planId),
+                  suiteId: Number(item?.suiteId),
+                  testCaseId: Number(item?.testCaseId),
+              }))
+              .filter(
+                  (item: {
+                      planId: number;
+                      suiteId: number;
+                      testCaseId: number;
+                  }) =>
+                      Number.isInteger(item.planId) &&
+                      Number.isInteger(item.suiteId) &&
+                      Number.isInteger(item.testCaseId)
+              )
+        : [];
+
+    if (items.length === 0) {
+        res.status(400).json({
+            message: "items is required",
+        });
+
+        return;
+    }
+
+    try {
+        const result = await deleteTestCases(items);
+
+        if (result.deleted.length > 0) {
+            clearAutomationCache();
+            clearPlanOverviewCache();
+            clearTestPlanProgressCache();
+            clearTestPlanProgressBugsCache();
+        }
+
+        res.json(result);
     } catch (error: any) {
         console.error(error);
 

@@ -143,6 +143,17 @@ export async function getTestCases(
     return response.data.value;
 }
 
+export async function deleteTestCasesFromSuite(
+    planId: number,
+    suiteId: number,
+    testCaseIds: number[]
+): Promise<void> {
+    await azdo.delete(
+        `/testplan/plans/${planId}/suites/${suiteId}/testcase` +
+        `?testIds=${testCaseIds.join(",")}&api-version=7.1`
+    );
+}
+
 export async function getTestPoints(
     planId: number,
     suiteId: number

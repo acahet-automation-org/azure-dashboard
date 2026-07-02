@@ -71,6 +71,7 @@ export interface TestPlanSummary {
 export interface TestCaseSummary {
     id: number;
     title: string;
+    suiteId: number;
 }
 
 export interface TestSuiteSummary {
@@ -363,4 +364,15 @@ export interface TestPlanProgressResponse {
     planId: number;
     planTitle: string;
     nodes: TestPlanProgressNode[];
+}
+
+export interface DeleteTestCaseItem {
+    planId: number;
+    suiteId: number;
+    testCaseId: number;
+}
+
+export interface DeleteTestCasesResult {
+    deleted: number[];
+    failed: { id: number; message: string }[];
 }

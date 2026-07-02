@@ -17,6 +17,7 @@
         "defects": "Defect Management",
         "commonErrors": "Common Errors",
         "myWorkItems": "My Work Items",
+        "removeTestCases": "Remove Test Cases",
         "refresh": "Refresh Now",
         "refreshing": "Refreshing...",
         "refreshFailed": "Refresh failed: {{message}}",
@@ -404,5 +405,28 @@
         "csv": "Export as CSV",
         "excel": "Export as Excel",
         "email": "Send report by email"
+    },
+    "removeTestCasesPage": {
+        "title": "Remove Test Cases",
+        "planFilter": {
+            "label": "Test Plan",
+            "placeholder": "Select a test plan"
+        },
+        "selectPlanFirst": "Select a test plan to browse and remove its test cases.",
+        "selectSuite": "Select all test cases in {{suiteName}}",
+        "selectedCount": "{{count}} selected",
+        "clearSelection": "Clear selection",
+        "deleteSelected": "Delete selected",
+        "confirm": {
+            "title": "Delete {{count}} test cases?",
+            "message": "This permanently removes the following test case work items from Azure DevOps (moved to the Recycle Bin) and from every suite they belong to:",
+            "cancel": "Cancel",
+            "confirm": "Delete {{count}} test cases"
+        },
+        "result": {
+            "successTitle": "{{count}} test case(s) deleted.",
+            "failedSummary": "{{count}} test case(s) could not be deleted.",
+            "errorTitle": "Delete failed"
+        }
     }
 }

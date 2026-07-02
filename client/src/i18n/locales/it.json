@@ -17,6 +17,7 @@
         "defects": "Gestione Difetti",
         "commonErrors": "Errori Comuni",
         "myWorkItems": "I Miei Elementi",
+        "removeTestCases": "Rimuovi Test Case",
         "refresh": "Aggiorna Ora",
         "refreshing": "Aggiornamento...",
         "refreshFailed": "Aggiornamento non riuscito: {{message}}",
@@ -404,5 +405,28 @@
         "csv": "Esporta come CSV",
         "excel": "Esporta come Excel",
         "email": "Invia report via email"
+    },
+    "removeTestCasesPage": {
+        "title": "Rimuovi Test Case",
+        "planFilter": {
+            "label": "Piano di Test",
+            "placeholder": "Seleziona un piano di test"
+        },
+        "selectPlanFirst": "Seleziona un piano di test per sfogliare e rimuovere i suoi test case.",
+        "selectSuite": "Seleziona tutti i test case in {{suiteName}}",
+        "selectedCount": "{{count}} selezionati",
+        "clearSelection": "Deseleziona tutto",
+        "deleteSelected": "Elimina selezionati",
+        "confirm": {
+            "title": "Eliminare {{count}} test case?",
+            "message": "Questa operazione rimuove definitivamente i seguenti work item Test Case da Azure DevOps (spostati nel Cestino) e da tutte le suite a cui appartengono:",
+            "cancel": "Annulla",
+            "confirm": "Elimina {{count}} test case"
+        },
+        "result": {
+            "successTitle": "{{count}} test case eliminati.",
+            "failedSummary": "{{count}} test case non è stato possibile eliminare.",
+            "errorTitle": "Eliminazione non riuscita"
+        }
     }
 }

@@ -86,6 +86,7 @@ const routeForValue: Record<string, string> = {
     execution: "/test-execution",
     defects: "/defects",
     "my-work-items": "/my-work-items",
+    "remove-test-cases": "/remove-test-cases",
 };
 
 const AUTOMATION_SECTION_PATHS = [
@@ -124,6 +125,10 @@ function valueForPath(pathname: string): string {
 
     if (pathname === "/my-work-items") {
         return "my-work-items";
+    }
+
+    if (pathname === "/remove-test-cases") {
+        return "remove-test-cases";
     }
 
     return "suites";
@@ -168,6 +173,7 @@ export function NavBar() {
                     <Tab value="execution">{t("nav.execution")}</Tab>
                     <Tab value="defects">{t("nav.defects")}</Tab>
                     <Tab value="my-work-items">{t("nav.myWorkItems")}</Tab>
+                    <Tab value="remove-test-cases">{t("nav.removeTestCases")}</Tab>
                 </TabList>
 
                 <Menu>
