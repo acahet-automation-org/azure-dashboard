@@ -181,11 +181,16 @@ async function buildDefectRecord(
         ]);
 
     let iterationPath: string | undefined;
-    let suiteName: string | undefined;
+    const suiteNames = new Set<string>();
 
     for (const tcId of linkedTestCaseIds) {
         iterationPath ??= iterationByTestCase.get(tcId);
-        suiteName ??= suiteByTestCase.get(tcId);
+
+        const suite = suiteByTestCase.get(tcId);
+
+        if (suite) {
+            suiteNames.add(suite);
+        }
     }
 
     return {
@@ -203,7 +208,9 @@ async function buildDefectRecord(
             ],
         areaPath: bug.fields["System.AreaPath"],
         iterationPath,
-        suiteName,
+        suiteNames: suiteNames.size
+            ? [...suiteNames]
+            : undefined,
         environment:
             bug.fields["Microsoft.VSTS.Build.FoundIn"],
         createdDate:
@@ -279,6 +286,8 @@ function groupCount(
 
 // Like groupCount, but seeded with every known suite name at 0 first, so
 // suites with no bugs still show up in the chart instead of being omitted.
+// A bug linked to test cases in multiple suites counts once toward each of
+// its suites, since it genuinely affects all of them.
 function computeByTestSuite(
     records: DefectRecord[],
     allSuiteNames: string[]
@@ -290,9 +299,13 @@ function computeByTestSuite(
     }
 
     for (const record of records) {
-        const key = record.suiteName ?? "Unspecified";
+        const keys = record.suiteNames?.length
+            ? record.suiteNames
+            : ["Unspecified"];
 
-        result[key] = (result[key] ?? 0) + 1;
+        for (const key of keys) {
+            result[key] = (result[key] ?? 0) + 1;
+        }
     }
 
     return result;
@@ -666,7 +679,7 @@ export function filterRecords(
 
         if (
             params.suite &&
-            r.suiteName !== params.suite
+            !r.suiteNames?.includes(params.suite)
         ) {
             return false;
         }
@@ -676,12 +689,13 @@ export function filterRecords(
 }
 
 function computeAvailableFilters(
-    records: DefectRecord[]
+    records: DefectRecord[],
+    allSuiteNames: string[] = []
 ): DefectFilterOptions {
     const iterations = new Set<string>();
     const areas = new Set<string>();
     const environments = new Set<string>();
-    const suites = new Set<string>();
+    const suites = new Set<string>(allSuiteNames);
 
     for (const r of records) {
         if (r.iterationPath) {
@@ -696,8 +710,8 @@ function computeAvailableFilters(
             environments.add(r.environment);
         }
 
-        if (r.suiteName) {
-            suites.add(r.suiteName);
+        for (const suite of r.suiteNames ?? []) {
+            suites.add(suite);
         }
     }
 
@@ -876,7 +890,8 @@ export function computeDefectStats(
         backlogDirection: computeBacklogDirection(backlogTrend),
         slaBreaches: computeSlaBreaches(records),
         availableFilters: computeAvailableFilters(
-            allRecordsForFilterOptions
+            allRecordsForFilterOptions,
+            allSuiteNames
         ),
     };
 }
