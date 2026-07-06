@@ -181,16 +181,11 @@ async function buildDefectRecord(
         ]);
 
     let iterationPath: string | undefined;
-    const suiteNames = new Set<string>();
+    let suiteName: string | undefined;
 
     for (const tcId of linkedTestCaseIds) {
         iterationPath ??= iterationByTestCase.get(tcId);
-
-        const suite = suiteByTestCase.get(tcId);
-
-        if (suite) {
-            suiteNames.add(suite);
-        }
+        suiteName ??= suiteByTestCase.get(tcId);
     }
 
     return {
@@ -208,9 +203,7 @@ async function buildDefectRecord(
             ],
         areaPath: bug.fields["System.AreaPath"],
         iterationPath,
-        suiteNames: suiteNames.size
-            ? [...suiteNames]
-            : undefined,
+        suiteName,
         environment:
             bug.fields["Microsoft.VSTS.Build.FoundIn"],
         createdDate:
@@ -286,8 +279,6 @@ function groupCount(
 
 // Like groupCount, but seeded with every known suite name at 0 first, so
 // suites with no bugs still show up in the chart instead of being omitted.
-// A bug linked to test cases in multiple suites counts once toward each of
-// its suites, since it genuinely affects all of them.
 function computeByTestSuite(
     records: DefectRecord[],
     allSuiteNames: string[]
@@ -299,13 +290,9 @@ function computeByTestSuite(
     }
 
     for (const record of records) {
-        const keys = record.suiteNames?.length
-            ? record.suiteNames
-            : ["Unspecified"];
+        const key = record.suiteName ?? "Unspecified";
 
-        for (const key of keys) {
-            result[key] = (result[key] ?? 0) + 1;
-        }
+        result[key] = (result[key] ?? 0) + 1;
     }
 
     return result;
@@ -679,7 +666,7 @@ export function filterRecords(
 
         if (
             params.suite &&
-            !r.suiteNames?.includes(params.suite)
+            r.suiteName !== params.suite
         ) {
             return false;
         }
@@ -695,7 +682,7 @@ function computeAvailableFilters(
     const iterations = new Set<string>();
     const areas = new Set<string>();
     const environments = new Set<string>();
-    const suites = new Set<string>(allSuiteNames);
+    const suites = new Set<string>();
 
     for (const r of records) {
         if (r.iterationPath) {
@@ -710,8 +697,8 @@ function computeAvailableFilters(
             environments.add(r.environment);
         }
 
-        for (const suite of r.suiteNames ?? []) {
-            suites.add(suite);
+        if (r.suiteName) {
+            suites.add(r.suiteName);
         }
     }
 

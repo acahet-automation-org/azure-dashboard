@@ -217,7 +217,7 @@ export interface DefectRecord {
     priority?: number;
     areaPath: string;
     iterationPath?: string;
-    suiteNames?: string[];
+    suiteName?: string;
     environment?: string;
     createdDate: string;
     closedDate?: string;
