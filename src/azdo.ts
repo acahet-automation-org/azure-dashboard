@@ -15,50 +15,6 @@ export const azdo = axios.create({
     },
 });
 
-// Defect Management can be pointed at a second Azure DevOps project
-// (AZDO_PROJECT_2). Each project gets its own axios instance, cached so
-// repeated calls for the same project reuse the same client.
-const projectClients = new Map<string, ReturnType<typeof axios.create>>();
-
-function getAzdoClient(project: string) {
-    let client = projectClients.get(project);
-
-    if (!client) {
-        client = axios.create({
-            baseURL: `https://dev.azure.com/${process.env.AZDO_ORG}/${encodeURIComponent(
-                project
-            )}/_apis`,
-            headers: {
-                Authorization: `Basic ${auth}`,
-                "Content-Type": "application/json",
-            },
-        });
-
-        projectClients.set(project, client);
-    }
-
-    return client;
-}
-
-export function getAvailableProjects(): string[] {
-    return [
-        process.env.AZDO_PROJECT!,
-        process.env.AZDO_PROJECT_2,
-    ].filter((p): p is string => Boolean(p));
-}
-
-// Query params are user-controlled, so the requested project is only
-// honored if it's one of the two configured above - anything else silently
-// falls back to the default project rather than letting a caller reach an
-// arbitrary project in the org via the shared PAT.
-export function resolveProject(requested?: string): string {
-    const available = getAvailableProjects();
-
-    return requested && available.includes(requested)
-        ? requested
-        : process.env.AZDO_PROJECT!;
-}
-
 // Some APIs (Favorites, Notification Subscriptions) are organization-scoped
 // rather than project-scoped, so they can't go through the `azdo` client above.
 export const azdoOrg = axios.create({
@@ -211,10 +167,8 @@ export async function getTestRunResults(
     return response.data.value;
 }
 
-export async function getActiveBugIds(
-    project: string = process.env.AZDO_PROJECT!
-): Promise<number[]> {
-    const response = await getAzdoClient(project).post(
+export async function getActiveBugIds(): Promise<number[]> {
+    const response = await azdo.post(
         "/wit/wiql?api-version=7.1",
         {
             query: `
@@ -230,11 +184,8 @@ export async function getActiveBugIds(
     );
 }
 
-export async function getWorkItem(
-    id: number,
-    project: string = process.env.AZDO_PROJECT!
-) {
-    const response = await getAzdoClient(project).get(
+export async function getWorkItem(id: number) {
+    const response = await azdo.get(
         `/wit/workitems/${id}?$expand=relations&api-version=7.1`
     );
 
@@ -243,8 +194,7 @@ export async function getWorkItem(
 
 export async function getWorkItems(
     ids: number[],
-    fields?: string[],
-    project: string = process.env.AZDO_PROJECT!
+    fields?: string[]
 ) {
     if (!ids.length) {
         return [];
@@ -260,13 +210,11 @@ export async function getWorkItems(
         ? `&fields=${fields.join(",")}`
         : "";
 
-    const client = getAzdoClient(project);
-
     const fetchChunk = async (
         chunk: number[]
     ): Promise<any[]> => {
         try {
-            const response = await client.get(
+            const response = await azdo.get(
                 `/wit/workitems?ids=${chunk.join(
                     ","
                 )}${fieldsParam}&api-version=7.1`
@@ -325,12 +273,10 @@ const BUG_FIELDS = [
     "Microsoft.VSTS.Build.FoundIn",
 ];
 
-export async function getAllBugFields(
-    project: string = process.env.AZDO_PROJECT!
-): Promise<any[]> {
-    const ids = await getActiveBugIds(project);
+export async function getAllBugFields(): Promise<any[]> {
+    const ids = await getActiveBugIds();
 
-    return getWorkItems(ids, BUG_FIELDS, project);
+    return getWorkItems(ids, BUG_FIELDS);
 }
 
 const STORY_FIELDS = [
@@ -339,10 +285,8 @@ const STORY_FIELDS = [
     "Microsoft.VSTS.Scheduling.StoryPoints",
 ];
 
-export async function getStoriesWithFields(
-    project: string = process.env.AZDO_PROJECT!
-): Promise<any[]> {
-    const response = await getAzdoClient(project).post(
+export async function getStoriesWithFields(): Promise<any[]> {
+    const response = await azdo.post(
         "/wit/wiql?api-version=7.1",
         {
             query: `
@@ -357,24 +301,21 @@ export async function getStoriesWithFields(
         (w: { id: number }) => w.id
     );
 
-    return getWorkItems(ids, STORY_FIELDS, project);
+    return getWorkItems(ids, STORY_FIELDS);
 }
 
 export async function getWorkItemRevisions(
-    id: number,
-    project: string = process.env.AZDO_PROJECT!
+    id: number
 ): Promise<any[]> {
-    const response = await getAzdoClient(project).get(
+    const response = await azdo.get(
         `/wit/workitems/${id}/revisions?api-version=7.1`
     );
 
     return response.data.value;
 }
 
-export async function getStoryCount(
-    project: string = process.env.AZDO_PROJECT!
-): Promise<number> {
-    const response = await getAzdoClient(project).post(
+export async function getStoryCount(): Promise<number> {
+    const response = await azdo.post(
         "/wit/wiql?api-version=7.1",
         {
             query: `
@@ -534,12 +475,11 @@ export async function getBugWorkItemTypeStates(): Promise<
     return response.data.value;
 }
 
-export function buildWorkItemUrl(
-    id: number,
-    project: string = process.env.AZDO_PROJECT!
-): string {
+export function buildWorkItemUrl(id: number): string {
     const org = process.env.AZDO_ORG;
-    const encodedProject = encodeURIComponent(project);
+    const encodedProject = encodeURIComponent(
+        process.env.AZDO_PROJECT!
+    );
 
     return `https://dev.azure.com/${org}/${encodedProject}/_workitems/edit/${id}`;
 }

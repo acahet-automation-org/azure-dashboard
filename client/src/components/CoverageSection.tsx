@@ -21,12 +21,12 @@ const useStyles = makeStyles({
         gap: tokens.spacingVerticalS,
     },
     nameCell: {
-        width: "40%",
+        width: "28%",
         whiteSpace: "normal",
         wordBreak: "break-word",
     },
     statCell: {
-        width: "15%",
+        width: "12%",
     },
 });
 
@@ -42,6 +42,25 @@ function suitePassRate(stat: SuiteStat): number {
     return stat.total
         ? Math.round((stat.passed / stat.total) * 1000) / 10
         : 0;
+}
+
+// Not Applicable cases are neither a pass nor a fail, so they shouldn't
+// dilute the pass rate the way an unrun or failed case would - this
+// recomputes it over only the applicable (total - notApplicable) cases.
+function suitePassRateExcludingNA(stat: SuiteStat): number {
+    const applicable = stat.total - stat.notApplicable;
+
+    return applicable
+        ? Math.round((stat.passed / applicable) * 1000) / 10
+        : 0;
+}
+
+function suitePassRateNADelta(stat: SuiteStat): number {
+    return (
+        Math.round(
+            (suitePassRateExcludingNA(stat) - suitePassRate(stat)) * 10
+        ) / 10
+    );
 }
 
 function suiteCoveragePct(stat: SuiteStat): number {
@@ -82,20 +101,41 @@ function SuiteCoverageTable({
                     <TableHeaderCell className={styles.statCell}>
                         {t("testExecutionPage.coverage.columns.passRate")}
                     </TableHeaderCell>
+                    <TableHeaderCell className={styles.statCell}>
+                        {t(
+                            "testExecutionPage.coverage.columns.passRateExclNA"
+                        )}
+                    </TableHeaderCell>
+                    <TableHeaderCell className={styles.statCell}>
+                        {t(
+                            "testExecutionPage.coverage.columns.passRateNADelta"
+                        )}
+                    </TableHeaderCell>
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {entries.map(([name, stat]) => (
-                    <TableRow key={name}>
-                        <TableCell className={styles.nameCell}>
-                            {name}
-                        </TableCell>
-                        <TableCell>{stat.total}</TableCell>
-                        <TableCell>{suiteExecuted(stat)}</TableCell>
-                        <TableCell>{suiteCoveragePct(stat)}%</TableCell>
-                        <TableCell>{suitePassRate(stat)}%</TableCell>
-                    </TableRow>
-                ))}
+                {entries.map(([name, stat]) => {
+                    const delta = suitePassRateNADelta(stat);
+
+                    return (
+                        <TableRow key={name}>
+                            <TableCell className={styles.nameCell}>
+                                {name}
+                            </TableCell>
+                            <TableCell>{stat.total}</TableCell>
+                            <TableCell>{suiteExecuted(stat)}</TableCell>
+                            <TableCell>{suiteCoveragePct(stat)}%</TableCell>
+                            <TableCell>{suitePassRate(stat)}%</TableCell>
+                            <TableCell>
+                                {suitePassRateExcludingNA(stat)}%
+                            </TableCell>
+                            <TableCell>
+                                {delta > 0 ? "+" : ""}
+                                {delta}%
+                            </TableCell>
+                        </TableRow>
+                    );
+                })}
             </TableBody>
         </Table>
     );

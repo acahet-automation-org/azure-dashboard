@@ -145,8 +145,7 @@ export function fetchExecutionTrend(): Promise<ExecutionTrendResponse> {
 }
 
 export function fetchDefects(
-    filters?: DefectFilters,
-    project?: string
+    filters?: DefectFilters
 ): Promise<DefectDashboardResponse> {
     const params = new URLSearchParams();
 
@@ -155,7 +154,6 @@ export function fetchDefects(
     if (filters?.environment) params.set("environment", filters.environment);
     if (filters?.targetVersion) params.set("targetVersion", filters.targetVersion);
     if (filters?.suite) params.set("suite", filters.suite);
-    if (project) params.set("project", project);
 
     const qs = params.toString();
 
