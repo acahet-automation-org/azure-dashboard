@@ -16,6 +16,7 @@ const EMPTY_MESSAGE_KEY: Record<MyWorkItemsMode, string> = {
     assigned: "myWorkItemsPage.emptyAssigned",
     mentioned: "myWorkItemsPage.emptyMentioned",
     following: "myWorkItemsPage.emptyFollowing",
+    created: "myWorkItemsPage.emptyCreated",
 };
 
 export function MyWorkItemsPage() {
@@ -34,11 +35,12 @@ export function MyWorkItemsPage() {
 
     // The backend returns all active items (it can't resolve "me" since it
     // talks to Azure DevOps with a shared PAT). The real logged-in identity
-    // only exists here in the browser, so "assigned to me" and "mentioned"
-    // filter client-side, against each item's assignee or extracted comment
-    // mentions respectively. In SKIP_AUTH dev mode there's no logged-in
-    // identity to filter by, but the backend already narrowed "assigned" to
-    // the PAT owner's own items via @Me, so use the data as-is for that mode.
+    // only exists here in the browser, so "assigned to me", "created by me",
+    // and "mentioned" filter client-side, against each item's assignee,
+    // creator, or extracted comment mentions respectively. In SKIP_AUTH dev
+    // mode there's no logged-in identity to filter by, but the backend
+    // already narrowed "assigned"/"created" to the PAT owner's own items via
+    // @Me, so use the data as-is for those modes.
     // "Following" can't be filtered client-side at all (Azure DevOps doesn't
     // expose a "followed by" field per work item) - it always reflects
     // whichever identity the backend's PAT belongs to.
@@ -59,6 +61,20 @@ export function MyWorkItemsPage() {
                     ? data.filter(
                         (item) =>
                             item.assignee?.uniqueName?.toLowerCase() ===
+                            username
+                    )
+                    : [];
+            }
+        } else if (mode === "created") {
+            if (skipAuth) {
+                items = data;
+            } else {
+                const username = activeAccount?.username?.toLowerCase();
+
+                items = username
+                    ? data.filter(
+                        (item) =>
+                            item.creator?.uniqueName?.toLowerCase() ===
                             username
                     )
                     : [];
@@ -96,6 +112,9 @@ export function MyWorkItemsPage() {
             >
                 <Tab value="assigned">
                     {t("myWorkItemsPage.filters.assignedToMe")}
+                </Tab>
+                <Tab value="created">
+                    {t("myWorkItemsPage.filters.createdByMe")}
                 </Tab>
                 <Tab value="mentioned" style={{ display: "none" }}>
                     {t("myWorkItemsPage.filters.mentioned")}

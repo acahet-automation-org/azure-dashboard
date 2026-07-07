@@ -19,6 +19,7 @@ import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorGroupItem } from "../components/ErrorGroupItem";
 import { fetchCommonErrors } from "../api/client";
+import { categoryAxisWidth } from "../utils/chartAxis";
 
 const useStyles = makeStyles({
     section: {
@@ -84,7 +85,12 @@ export function CommonErrorsPage() {
                                             <YAxis
                                                 type="category"
                                                 dataKey="signature"
-                                                width={220}
+                                                width={categoryAxisWidth(
+                                                    data.errors.map(
+                                                        (err) => err.signature
+                                                    ),
+                                                    { min: 220 }
+                                                )}
                                                 tick={{ fontSize: 11 }}
                                             />
                                             <Tooltip />

@@ -15,7 +15,7 @@ import type {
 } from "./types.js";
 
 function zeroOutcomeCounts(): Record<Outcome, number> {
-    return { Passed: 0, Failed: 0, Blocked: 0, NotRun: 0 };
+    return { Passed: 0, Failed: 0, Blocked: 0, NotApplicable: 0, NotRun: 0 };
 }
 
 // Azure DevOps doesn't guarantee `_apis/wit/workitemtypes/Bug/states` returns
@@ -155,6 +155,7 @@ export async function computePlanOverview(
         Passed: 0,
         Failed: 0,
         Blocked: 0,
+        NotApplicable: 0,
         NotRun: 0,
     };
     const bugsById = new Map<number, BugInfo>();

@@ -212,6 +212,7 @@ export function DashboardPage() {
                 `<p>${t("dashboardPage.stats.passed")}: ${filteredStats.passed} | ` +
                 `${t("dashboardPage.stats.failed")}: ${filteredStats.failed} | ` +
                 `${t("dashboardPage.stats.blocked")}: ${filteredStats.blocked} | ` +
+                `${t("dashboardPage.stats.notApplicable")}: ${filteredStats.notApplicable} | ` +
                 `${t("dashboardPage.stats.notRun")}: ${filteredStats.notRun}</p>` +
                 `<p>${t("dashboardPage.stats.activeBugs")}: ${filteredStats.activeBugs}</p>`;
 
@@ -330,6 +331,10 @@ export function DashboardPage() {
                             label={t("dashboardPage.stats.blocked")}
                             value={filteredStats.blocked}
                             icon={<ErrorCircleFilled />}
+                        />
+                        <StatCard
+                            label={t("dashboardPage.stats.notApplicable")}
+                            value={filteredStats.notApplicable}
                         />
                         <StatCard
                             label={t("dashboardPage.stats.notRun")}

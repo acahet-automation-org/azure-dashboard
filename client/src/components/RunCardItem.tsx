@@ -63,6 +63,7 @@ export function RunCardItem({ run }: { run: RunCard }) {
                     passed: run.counts.Passed,
                     failed: run.counts.Failed,
                     blocked: run.counts.Blocked,
+                    notApplicable: run.counts.NotApplicable,
                     notRun: run.counts.NotRun,
                 })}
             </Text>

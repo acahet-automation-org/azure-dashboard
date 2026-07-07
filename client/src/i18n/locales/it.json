@@ -33,6 +33,7 @@
         "Passed": "Superato",
         "Failed": "Fallito",
         "Blocked": "Bloccato",
+        "NotApplicable": "Non Applicabile",
         "NotRun": "Non Eseguito",
         "ariaLabel": "Risultato: {{outcome}}"
     },
@@ -56,6 +57,7 @@
             "passed": "Superati",
             "failed": "Falliti",
             "blocked": "Bloccati",
+            "notApplicable": "Non Applicabili",
             "notRun": "Non Eseguiti",
             "passRate": "Percentuale di Successo"
         }
@@ -186,6 +188,7 @@
             "passed": "Superati",
             "failed": "Falliti",
             "blocked": "Bloccati",
+            "notApplicable": "Non Applicabili",
             "notRun": "Non Eseguiti"
         },
         "trends": {
@@ -268,6 +271,7 @@
             "byPriority": "Bug per Priorità",
             "byComponent": "Difetti per Componente/Modulo",
             "byTeam": "Difetti per Team",
+            "byTestSuite": "Bug per Test Suite",
             "aging": "Anzianità dei Difetti",
             "rejectionReasons": "Motivi di Rigetto",
             "noRejections": "Nessun difetto rigettato nei dati di processo correnti.",
@@ -306,8 +310,10 @@
         "emptyAssigned": "Niente assegnato a te al momento - goditi la calma!",
         "emptyMentioned": "Nessuno ti ha menzionato ultimamente.",
         "emptyFollowing": "Non stai ancora seguendo nulla.",
+        "emptyCreated": "Non hai ancora creato nessun elemento di lavoro.",
         "filters": {
             "assignedToMe": "Assegnati a me",
+            "createdByMe": "Creati da me",
             "mentioned": "Menzionati",
             "following": "Seguiti",
             "bugsOnly": "Solo bug"
@@ -330,11 +336,13 @@
         "environment": "Ambiente",
         "allEnvironments": "Tutti gli Ambienti",
         "targetVersion": "Versione Target",
-        "allTargetVersions": "Tutte le Versioni Target"
+        "allTargetVersions": "Tutte le Versioni Target",
+        "suite": "Suite di Test",
+        "allSuites": "Tutte le Suite di Test"
     },
     "suiteCard": {
         "total": "Totale: {{count}}",
-        "summary": "Superati {{passed}} · Falliti {{failed}} · Bloccati {{blocked}} · Non Eseguiti {{notRun}}",
+        "summary": "Superati {{passed}} · Falliti {{failed}} · Bloccati {{blocked}} · Non Applicabili {{notApplicable}} · Non Eseguiti {{notRun}}",
         "openBugs": "Bug aperti: {{count}}",
         "passRate": "Percentuale di successo: {{rate}}%"
     },
@@ -343,7 +351,7 @@
         "completed": "Completato: {{date}}",
         "completedNA": "N/D",
         "total": "Totale: {{count}}",
-        "summary": "Superati {{passed}} · Falliti {{failed}} · Bloccati {{blocked}} · Non Eseguiti {{notRun}}",
+        "summary": "Superati {{passed}} · Falliti {{failed}} · Bloccati {{blocked}} · Non Applicabili {{notApplicable}} · Non Eseguiti {{notRun}}",
         "passRate": "Percentuale di successo: {{rate}}%"
     },
     "planCard": {

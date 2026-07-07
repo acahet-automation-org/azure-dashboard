@@ -53,6 +53,10 @@ export function resolveOutcome(
         return "Blocked";
     }
 
+    if (normalized.every((o) => o === "notapplicable")) {
+        return "NotApplicable";
+    }
+
     if (normalized.every((o) => o === "passed")) {
         return "Passed";
     }
@@ -348,6 +352,10 @@ export function computeDashboardStats(
         (tc) => tc.outcome === "Blocked"
     ).length;
 
+    const notApplicableCount = allTestCases.filter(
+        (tc) => tc.outcome === "NotApplicable"
+    ).length;
+
     const notRunCount = allTestCases.filter(
         (tc) => tc.outcome === "NotRun"
     ).length;
@@ -371,6 +379,7 @@ export function computeDashboardStats(
         passedCount,
         failedCount,
         blockedCount,
+        notApplicableCount,
         notRunCount,
         executedCount,
         passRate,
@@ -393,6 +402,7 @@ export function computeSuiteStats(
                 passed: 0,
                 failed: 0,
                 blocked: 0,
+                notApplicable: 0,
                 notRun: 0,
                 openBugs: 0,
             };
@@ -408,6 +418,8 @@ export function computeSuiteStats(
             stat.failed++;
         } else if (tc.outcome === "Blocked") {
             stat.blocked++;
+        } else if (tc.outcome === "NotApplicable") {
+            stat.notApplicable++;
         } else {
             stat.notRun++;
         }
@@ -431,6 +443,7 @@ function summarizeRunStats(
         Passed: 0,
         Failed: 0,
         Blocked: 0,
+        NotApplicable: 0,
         NotRun: 0,
     };
 
@@ -445,6 +458,8 @@ function summarizeRunStats(
             counts.Failed += s.count;
         } else if (outcome === "blocked") {
             counts.Blocked += s.count;
+        } else if (outcome === "notapplicable") {
+            counts.NotApplicable += s.count;
         } else {
             counts.NotRun += s.count;
         }
@@ -454,6 +469,7 @@ function summarizeRunStats(
         counts.Passed +
         counts.Failed +
         counts.Blocked +
+        counts.NotApplicable +
         counts.NotRun;
 
     const passRate = total
@@ -660,6 +676,7 @@ export async function computeExecutionTrend(): Promise<
             passed: number;
             failed: number;
             blocked: number;
+            notApplicable: number;
             notRun: number;
         }
     >();
@@ -680,12 +697,14 @@ export async function computeExecutionTrend(): Promise<
             passed: 0,
             failed: 0,
             blocked: 0,
+            notApplicable: 0,
             notRun: 0,
         };
 
         bucket.passed += counts.Passed;
         bucket.failed += counts.Failed;
         bucket.blocked += counts.Blocked;
+        bucket.notApplicable += counts.NotApplicable;
         bucket.notRun += counts.NotRun;
 
         byDate.set(date, bucket);
@@ -702,6 +721,7 @@ export async function computeExecutionTrend(): Promise<
                 bucket.passed +
                 bucket.failed +
                 bucket.blocked +
+                bucket.notApplicable +
                 bucket.notRun;
 
             cumulativeExecuted +=
@@ -721,6 +741,7 @@ export async function computeExecutionTrend(): Promise<
                 passed: bucket.passed,
                 failed: bucket.failed,
                 blocked: bucket.blocked,
+                notApplicable: bucket.notApplicable,
                 notRun: bucket.notRun,
                 passRate,
                 cumulativeExecuted,

@@ -80,6 +80,7 @@ const useStyles = makeStyles({
 const RUN_COLORS: Record<string, string> = {
     executed: "#107c10",
     remaining: "#8a8886",
+    notApplicable: "#0078d4",
 };
 
 const PASS_RATE_COLORS: Record<string, string> = {
@@ -97,6 +98,7 @@ const OUTCOME_LABEL_KEYS: Record<string, string> = {
 const RUN_LABEL_KEYS: Record<string, string> = {
     executed: "planProgressPage.summary.executedLabel",
     remaining: "outcome.NotRun",
+    notApplicable: "outcome.NotApplicable",
 };
 
 export function ProgressSummaryCards({
@@ -111,13 +113,15 @@ export function ProgressSummaryCards({
     const { t } = useTranslation();
     const styles = useStyles();
 
-    const executed = counts.total - counts.notExecuted;
+    const executed =
+        counts.total - counts.notExecuted - counts.notApplicable;
     const run = runPercent(counts);
     const passed = passedPercent(counts);
 
     const runChartData = [
         { name: "executed", value: executed },
         { name: "remaining", value: counts.notExecuted },
+        { name: "notApplicable", value: counts.notApplicable },
     ];
 
     const passRateChartData = [
@@ -141,6 +145,7 @@ export function ProgressSummaryCards({
     }> = [
         { key: "executed", count: executed },
         { key: "remaining", count: counts.notExecuted },
+        { key: "notApplicable", count: counts.notApplicable },
     ];
 
     return (

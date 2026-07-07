@@ -71,6 +71,7 @@ export function SuiteCard({
                     passed: stat.passed,
                     failed: stat.failed,
                     blocked: stat.blocked,
+                    notApplicable: stat.notApplicable,
                     notRun: stat.notRun,
                 })}
             </Text>

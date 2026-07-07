@@ -2,6 +2,7 @@ import {
     getActiveWorkItemIds,
     getRecentlyChangedWorkItemIds,
     getFollowedWorkItemIds,
+    getCreatedWorkItemIds,
     getCommentMentions,
     getWorkItems,
     buildWorkItemUrl,
@@ -16,6 +17,7 @@ const MY_WORK_ITEM_FIELDS = [
     "Microsoft.VSTS.Common.Priority",
     "System.ChangedDate",
     "System.AssignedTo",
+    "System.CreatedBy",
 ];
 
 const MENTION_SCAN_WINDOW_DAYS = 30;
@@ -33,6 +35,12 @@ function toWorkItemSummary(wi: any): WorkItemSummary {
             ? {
                   displayName: wi.fields["System.AssignedTo"].displayName,
                   uniqueName: wi.fields["System.AssignedTo"].uniqueName,
+              }
+            : undefined,
+        creator: wi.fields["System.CreatedBy"]
+            ? {
+                  displayName: wi.fields["System.CreatedBy"].displayName,
+                  uniqueName: wi.fields["System.CreatedBy"].uniqueName,
               }
             : undefined,
     };
@@ -78,6 +86,13 @@ export async function getMentionedWorkItems(): Promise<WorkItemSummary[]> {
 
 export async function getFollowedWorkItems(): Promise<WorkItemSummary[]> {
     const ids = await getFollowedWorkItemIds();
+    const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS);
+
+    return items.map(toWorkItemSummary);
+}
+
+export async function getCreatedWorkItems(): Promise<WorkItemSummary[]> {
+    const ids = await getCreatedWorkItemIds();
     const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS);
 
     return items.map(toWorkItemSummary);

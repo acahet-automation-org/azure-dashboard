@@ -9,6 +9,7 @@ export interface GroupStats {
     passed: number;
     failed: number;
     blocked: number;
+    notApplicable: number;
     notRun: number;
     passRate: number;
 }
@@ -22,6 +23,7 @@ export function computeGroupStats(
     let passed = 0;
     let failed = 0;
     let blocked = 0;
+    let notApplicable = 0;
     let notRun = 0;
 
     for (const tc of rows) {
@@ -40,6 +42,8 @@ export function computeGroupStats(
             failed++;
         } else if (tc.outcome === "Blocked") {
             blocked++;
+        } else if (tc.outcome === "NotApplicable") {
+            notApplicable++;
         } else {
             notRun++;
         }
@@ -59,6 +63,7 @@ export function computeGroupStats(
         passed,
         failed,
         blocked,
+        notApplicable,
         notRun,
         passRate,
     };

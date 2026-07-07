@@ -21,6 +21,7 @@ import { EmptyState } from "./EmptyState";
 import { BugsTable } from "./BugsTable";
 import { Pagination } from "./Pagination";
 import { compareByState } from "../utils/bugState";
+import { categoryAxisWidth } from "../utils/chartAxis";
 import type { DefectStats } from "../types";
 
 const useStyles = makeStyles({
@@ -219,7 +220,9 @@ export function DefectOverviewTab({ stats }: { stats: DefectStats }) {
                             <YAxis
                                 type="category"
                                 dataKey="name"
-                                width={160}
+                                width={categoryAxisWidth(
+                                    Object.keys(stats.byComponent)
+                                )}
                                 tick={{ fontSize: 12 }}
                             />
                             <Tooltip />
@@ -240,11 +243,36 @@ export function DefectOverviewTab({ stats }: { stats: DefectStats }) {
                             <YAxis
                                 type="category"
                                 dataKey="name"
-                                width={160}
+                                width={categoryAxisWidth(
+                                    Object.keys(stats.byTeam)
+                                )}
                                 tick={{ fontSize: 12 }}
                             />
                             <Tooltip />
                             <Bar dataKey="count" fill="#038387" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </ChartCard>
+
+                <ChartCard title={t("defectManagementPage.charts.byTestSuite")}>
+                    <ResponsiveContainer width="100%" height={280}>
+                        <BarChart
+                            data={toChartData(stats.byTestSuite)}
+                            layout="vertical"
+                            margin={{ left: 24 }}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis type="number" allowDecimals={false} />
+                            <YAxis
+                                type="category"
+                                dataKey="name"
+                                width={categoryAxisWidth(
+                                    Object.keys(stats.byTestSuite)
+                                )}
+                                tick={{ fontSize: 12 }}
+                            />
+                            <Tooltip />
+                            <Bar dataKey="count" fill="#605e5c" />
                         </BarChart>
                     </ResponsiveContainer>
                 </ChartCard>

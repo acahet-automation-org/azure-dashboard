@@ -101,5 +101,5 @@ You should see the dashboard directly - no sign-in screen, since `SKIP_AUTH` is 
 - **"npm is not recognized"**: Node.js isn't installed correctly. Re-do step 1 and restart your terminal.
 - **Blank page or errors about Azure DevOps**: double-check the values in your root `.env` file (step 5) - typos in the org/project name or an expired token are the most common causes.
 - **Nothing happens after `npm run dev:all`**: make sure you ran `npm install` in both the root folder and the `client` folder (step 4).
-- **A "502" or "Bad Gateway" error, or the page looks stuck**: a server from a previous `npm run dev:all` run may still be holding the ports. Press `Ctrl + C` in the terminal, then run `npm run kill:vite` to clean up any leftover processes, and try `npm run dev:all` again.
+- **A "502" or "Bad Gateway" error, or the page looks stuck**: a server from a previous `npm run dev:all` run may still be holding the ports. Press `Ctrl + C` in the terminal, then run `npm run kill:dev` to clean up any leftover processes, and try `npm run dev:all` again.
 - **"My Work Items" page is empty**: that page only shows items assigned to the owner of the `AZDO_PAT` token. If that person currently has no active Tasks or Bugs assigned, an empty list is expected.

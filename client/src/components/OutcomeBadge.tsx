@@ -4,6 +4,7 @@ import {
     DismissCircleFilled,
     ErrorCircleFilled,
     SubtractCircleFilled,
+    CircleOffFilled,
 } from "@fluentui/react-icons";
 import { useTranslation } from "react-i18next";
 import type { Outcome } from "../types";
@@ -15,6 +16,7 @@ const outcomeConfig: Record<
     Passed: { color: "success", icon: <CheckmarkCircleFilled /> },
     Failed: { color: "danger", icon: <DismissCircleFilled /> },
     Blocked: { color: "severe", icon: <ErrorCircleFilled /> },
+    NotApplicable: { color: "informative", icon: <CircleOffFilled /> },
     NotRun: { color: "subtle", icon: <SubtractCircleFilled /> },
 };
 

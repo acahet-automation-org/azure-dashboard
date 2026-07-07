@@ -2,6 +2,7 @@ export type Outcome =
     | "Passed"
     | "Failed"
     | "Blocked"
+    | "NotApplicable"
     | "NotRun";
 
 export interface BugInfo {
@@ -17,7 +18,7 @@ export interface BugInfo {
     };
 }
 
-export type MyWorkItemsMode = "assigned" | "mentioned" | "following";
+export type MyWorkItemsMode = "assigned" | "mentioned" | "following" | "created";
 
 export interface WorkItemSummary {
     id: number;
@@ -28,6 +29,10 @@ export interface WorkItemSummary {
     changedDate?: string;
     url?: string;
     assignee?: {
+        displayName: string;
+        uniqueName: string;
+    };
+    creator?: {
         displayName: string;
         uniqueName: string;
     };
@@ -54,6 +59,7 @@ export interface SuiteStat {
     passed: number;
     failed: number;
     blocked: number;
+    notApplicable: number;
     notRun: number;
     openBugs: number;
 }
@@ -151,6 +157,7 @@ export interface DashboardStats {
     passedCount: number;
     failedCount: number;
     blockedCount: number;
+    notApplicableCount: number;
     notRunCount: number;
     executedCount: number;
     passRate: number;
@@ -168,6 +175,7 @@ export interface TrendPoint {
     passed: number;
     failed: number;
     blocked: number;
+    notApplicable: number;
     notRun: number;
     passRate: number;
     cumulativeExecuted: number;
@@ -225,6 +233,7 @@ export interface DefectFilterOptions {
     areas: string[];
     environments: string[];
     targetVersions: string[];
+    suites: string[];
 }
 
 export interface DefectFilters {
@@ -232,6 +241,7 @@ export interface DefectFilters {
     area: string;
     environment: string;
     targetVersion: string;
+    suite: string;
 }
 
 export interface DefectStats {
@@ -241,6 +251,7 @@ export interface DefectStats {
     byPriority: Record<string, number>;
     byComponent: Record<string, number>;
     byTeam: Record<string, number>;
+    byTestSuite: Record<string, number>;
     trend: DefectTrendPoint[];
     mttrDays: number | null;
     agingBuckets: AgingBucket[];

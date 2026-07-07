@@ -25,6 +25,7 @@ import {
     clearDefectCache,
     getStoryCount,
     getStoryPointsByArea,
+    getAllSuiteNames,
     filterRecords,
     getAvailableProjects,
     resolveProject,
@@ -38,6 +39,7 @@ import {
     getAssignedWorkItems,
     getMentionedWorkItems,
     getFollowedWorkItems,
+    getCreatedWorkItems,
 } from "./myWorkItemsData.js";
 import { sendReportEmail } from "./mailer.js";
 import {
@@ -273,11 +275,12 @@ app.get("/api/defects", async (req, res) => {
             req.query.project as string | undefined
         );
 
-        const [records, storyCount, storyPointsByArea] =
+        const [records, storyCount, storyPointsByArea, allSuiteNames] =
             await Promise.all([
                 getDefectData(project),
                 getStoryCount(project),
                 getStoryPointsByArea(project),
+                getAllSuiteNames(project),
             ]);
 
         const filtered = filterRecords(records, {
@@ -291,6 +294,7 @@ app.get("/api/defects", async (req, res) => {
             targetVersion: req.query.targetVersion as
                 | string
                 | undefined,
+            suite: req.query.suite as string | undefined,
         });
 
         res.json({
@@ -298,7 +302,8 @@ app.get("/api/defects", async (req, res) => {
                 filtered,
                 storyCount,
                 storyPointsByArea,
-                records
+                records,
+                allSuiteNames
             ),
             cacheTimestamp: getDefectCacheTimestamp(project),
             availableProjects: getAvailableProjects(),
@@ -341,7 +346,9 @@ app.get("/api/my-work-items", async (req, res) => {
                 ? await getMentionedWorkItems()
                 : mode === "following"
                     ? await getFollowedWorkItems()
-                    : await getAssignedWorkItems();
+                    : mode === "created"
+                        ? await getCreatedWorkItems()
+                        : await getAssignedWorkItems();
 
         res.json(items);
     } catch (error: any) {

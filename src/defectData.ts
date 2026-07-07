@@ -91,10 +91,16 @@ function countReopenings(revisions: any[]): number {
     return count;
 }
 
-async function hasLinkedTestCase(
+// Returns the IDs of Test Cases linked to this bug, read directly off the
+// bug's own relations. This is the bug-centric direction (bug -> test case),
+// as opposed to the dashboard's test-case-centric direction (test case ->
+// bug) used below - keeping both directions independent means a bug that's
+// confirmed linked here won't silently fall back to "no test case" just
+// because the reverse crawl in buildDashboard() didn't happen to surface it.
+async function getLinkedTestCaseIds(
     bugId: number,
     project: string
-): Promise<boolean> {
+): Promise<number[]> {
     const workItem = await getWorkItem(bugId, project);
 
     const linkedIds = extractWorkItemIds(
@@ -107,58 +113,80 @@ async function hasLinkedTestCase(
         project
     );
 
-    return linkedItems.some(
-        (item: any) =>
-            item.fields["System.WorkItemType"] ===
-            "Test Case"
-    );
+    return linkedItems
+        .filter(
+            (item: any) =>
+                item.fields["System.WorkItemType"] ===
+                "Test Case"
+        )
+        .map((item: any) => item.id);
 }
 
 // Bugs are rarely tagged with a real sprint themselves (System.IterationPath
 // mostly defaults to the project/team root), so the sprint shown for a bug
 // is instead borrowed from the Test Plan of the test case it's linked to -
-// that's where this project's actual sprint assignments live. That mapping
-// only exists for the default project's Test Plans, so other projects get
-// no sprint data this way (their bugs fall back to no iteration shown).
-async function getBugIterationMap(
+// that's where this project's actual sprint assignments live. The same
+// borrowing applies to the test suite. That mapping only exists for the
+// default project's Test Plans, so other projects get no sprint/suite data
+// this way (their bugs fall back to no iteration/suite shown).
+//
+// Keyed by test case ID rather than bug ID so lookups can be driven off the
+// bug's own confirmed test case links (see getLinkedTestCaseIds) instead of
+// requiring the bug to also turn up in the dashboard's own test-case-to-bug
+// crawl.
+async function getTestCaseIterationAndSuiteMaps(
     project: string
-): Promise<Map<number, string>> {
-    const iterationByBug = new Map<number, string>();
+): Promise<{
+    iterationByTestCase: Map<number, string>;
+    suiteByTestCase: Map<number, string>;
+}> {
+    const iterationByTestCase = new Map<number, string>();
+    const suiteByTestCase = new Map<number, string>();
 
     if (project !== process.env.AZDO_PROJECT) {
-        return iterationByBug;
+        return { iterationByTestCase, suiteByTestCase };
     }
 
     const testCases = await getDashboardData();
 
     for (const tc of testCases) {
-        if (!tc.iteration) {
-            continue;
+        if (tc.iteration && !iterationByTestCase.has(tc.testCaseId)) {
+            iterationByTestCase.set(
+                tc.testCaseId,
+                tc.iteration
+            );
         }
 
-        for (const bug of tc.bugs) {
-            if (!iterationByBug.has(bug.id)) {
-                iterationByBug.set(
-                    bug.id,
-                    tc.iteration
-                );
-            }
+        if (tc.suiteName && !suiteByTestCase.has(tc.testCaseId)) {
+            suiteByTestCase.set(
+                tc.testCaseId,
+                tc.suiteName
+            );
         }
     }
 
-    return iterationByBug;
+    return { iterationByTestCase, suiteByTestCase };
 }
 
 async function buildDefectRecord(
     bug: any,
-    iterationByBug: Map<number, string>,
+    iterationByTestCase: Map<number, string>,
+    suiteByTestCase: Map<number, string>,
     project: string
 ): Promise<DefectRecord> {
-    const [revisions, linkedToTestCase] =
+    const [revisions, linkedTestCaseIds] =
         await Promise.all([
             getWorkItemRevisions(bug.id, project),
-            hasLinkedTestCase(bug.id, project),
+            getLinkedTestCaseIds(bug.id, project),
         ]);
+
+    let iterationPath: string | undefined;
+    let suiteName: string | undefined;
+
+    for (const tcId of linkedTestCaseIds) {
+        iterationPath ??= iterationByTestCase.get(tcId);
+        suiteName ??= suiteByTestCase.get(tcId);
+    }
 
     return {
         id: bug.id,
@@ -174,7 +202,8 @@ async function buildDefectRecord(
             "Microsoft.VSTS.Common.Priority"
             ],
         areaPath: bug.fields["System.AreaPath"],
-        iterationPath: iterationByBug.get(bug.id),
+        iterationPath,
+        suiteName,
         environment:
             bug.fields["Microsoft.VSTS.Build.FoundIn"],
         createdDate:
@@ -186,7 +215,7 @@ async function buildDefectRecord(
         changedDate:
             bug.fields["System.ChangedDate"],
         reopenedCount: countReopenings(revisions),
-        hasLinkedTestCase: linkedToTestCase,
+        hasLinkedTestCase: linkedTestCaseIds.length > 0,
         url: buildWorkItemUrl(bug.id, project),
         creator: bug.fields["System.CreatedBy"]?.displayName,
     };
@@ -195,14 +224,14 @@ async function buildDefectRecord(
 export async function buildDefectRecords(
     project: string = process.env.AZDO_PROJECT!
 ): Promise<DefectRecord[]> {
-    const [bugs, iterationByBug] = await Promise.all([
+    const [bugs, { iterationByTestCase, suiteByTestCase }] = await Promise.all([
         getAllBugFields(project),
-        getBugIterationMap(project),
+        getTestCaseIterationAndSuiteMaps(project),
     ]);
 
     return Promise.all(
         bugs.map((bug) =>
-            buildDefectRecord(bug, iterationByBug, project)
+            buildDefectRecord(bug, iterationByTestCase, suiteByTestCase, project)
         )
     );
 }
@@ -230,6 +259,7 @@ export async function getDefectData(
 export function clearDefectCache(): void {
     defectCacheByProject.clear();
     storyPointsCacheByProject.clear();
+    suiteNamesCacheByProject.clear();
 }
 
 function groupCount(
@@ -240,6 +270,27 @@ function groupCount(
 
     for (const record of records) {
         const key = keyFn(record) ?? "Unspecified";
+
+        result[key] = (result[key] ?? 0) + 1;
+    }
+
+    return result;
+}
+
+// Like groupCount, but seeded with every known suite name at 0 first, so
+// suites with no bugs still show up in the chart instead of being omitted.
+function computeByTestSuite(
+    records: DefectRecord[],
+    allSuiteNames: string[]
+): Record<string, number> {
+    const result: Record<string, number> = {};
+
+    for (const suite of allSuiteNames) {
+        result[suite] = 0;
+    }
+
+    for (const record of records) {
+        const key = record.suiteName ?? "Unspecified";
 
         result[key] = (result[key] ?? 0) + 1;
     }
@@ -613,16 +664,25 @@ export function filterRecords(
             return false;
         }
 
+        if (
+            params.suite &&
+            r.suiteName !== params.suite
+        ) {
+            return false;
+        }
+
         return true;
     });
 }
 
 function computeAvailableFilters(
-    records: DefectRecord[]
+    records: DefectRecord[],
+    allSuiteNames: string[] = []
 ): DefectFilterOptions {
     const iterations = new Set<string>();
     const areas = new Set<string>();
     const environments = new Set<string>();
+    const suites = new Set<string>();
 
     for (const r of records) {
         if (r.iterationPath) {
@@ -636,6 +696,10 @@ function computeAvailableFilters(
         if (r.environment) {
             environments.add(r.environment);
         }
+
+        if (r.suiteName) {
+            suites.add(r.suiteName);
+        }
     }
 
     return {
@@ -643,6 +707,7 @@ function computeAvailableFilters(
         areas: [...areas].sort(),
         environments: [...environments].sort(),
         targetVersions: [],
+        suites: [...suites].sort(),
     };
 }
 
@@ -672,11 +737,53 @@ export async function getStoryPointsByArea(
     return data;
 }
 
+const suiteNamesCacheByProject = new Map<
+    string,
+    { data: string[]; timestamp: number }
+>();
+
+// Full set of test suite names for the project, independent of whether any
+// bug is currently linked to them - needed so suites with zero bugs still
+// render as a zero bar instead of disappearing from the chart. Same
+// default-project-only limitation as the iteration/suite mapping above.
+export async function getAllSuiteNames(
+    project: string = process.env.AZDO_PROJECT!
+): Promise<string[]> {
+    const now = Date.now();
+    const cached = suiteNamesCacheByProject.get(project);
+
+    if (cached && now - cached.timestamp < CACHE_DURATION_MS) {
+        return cached.data;
+    }
+
+    const suites = new Set<string>();
+
+    if (project === process.env.AZDO_PROJECT) {
+        const testCases = await getDashboardData();
+
+        for (const tc of testCases) {
+            if (tc.suiteName) {
+                suites.add(tc.suiteName);
+            }
+        }
+    }
+
+    const data = [...suites].sort();
+
+    suiteNamesCacheByProject.set(project, {
+        data,
+        timestamp: now,
+    });
+
+    return data;
+}
+
 export function computeDefectStats(
     records: DefectRecord[],
     storyCount: number,
     storyPointsByArea: Record<string, number> = {},
-    allRecordsForFilterOptions: DefectRecord[] = records
+    allRecordsForFilterOptions: DefectRecord[] = records,
+    allSuiteNames: string[] = []
 ): DefectStats {
     const totalClosed = records.filter(
         (r) => r.state === "Closed"
@@ -738,6 +845,10 @@ export function computeDefectStats(
             records,
             (r) => r.areaPath
         ),
+        byTestSuite: computeByTestSuite(
+            records,
+            allSuiteNames
+        ),
         trend,
         mttrDays: computeMttrDays(records),
         agingBuckets: computeAgingBuckets(records),
@@ -766,7 +877,8 @@ export function computeDefectStats(
         backlogDirection: computeBacklogDirection(backlogTrend),
         slaBreaches: computeSlaBreaches(records),
         availableFilters: computeAvailableFilters(
-            allRecordsForFilterOptions
+            allRecordsForFilterOptions,
+            allSuiteNames
         ),
     };
 }

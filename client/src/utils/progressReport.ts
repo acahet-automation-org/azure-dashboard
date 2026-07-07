@@ -100,7 +100,9 @@ export function runPercent(counts: TestPlanProgressCounts): number {
     }
 
     return Math.round(
-        ((counts.total - counts.notExecuted) / counts.total) * 100
+        ((counts.total - counts.notExecuted - counts.notApplicable) /
+            counts.total) *
+            100
     );
 }
 

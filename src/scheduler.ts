@@ -24,25 +24,42 @@ function isToday(dateString: string, timeZone: string): boolean {
 // persist this.
 let knownBugIds: Set<number> | null = null;
 
-async function pollForNewBugs(): Promise<void> {
-    const records = await getDefectData();
-    const currentIds = new Set(
-        records.map((record) => record.id)
-    );
+// Guards against overlapping runs: a rebuild can take longer than the poll
+// interval (cache TTL matches the default cron interval, so most ticks
+// trigger a full Azure DevOps refetch), and without this a slow run and the
+// next tick would both diff against the same stale knownBugIds and both
+// alert on the same bug.
+let isPolling = false;
 
-    if (knownBugIds === null) {
-        knownBugIds = currentIds;
+async function pollForNewBugs(): Promise<void> {
+    if (isPolling) {
         return;
     }
 
-    const newBugs = records.filter(
-        (record) => !knownBugIds!.has(record.id)
-    );
+    isPolling = true;
 
-    knownBugIds = currentIds;
+    try {
+        const records = await getDefectData();
+        const currentIds = new Set(
+            records.map((record) => record.id)
+        );
 
-    for (const bug of newBugs) {
-        await sendTeamsMessage(buildBugCreatedCard(bug));
+        if (knownBugIds === null) {
+            knownBugIds = currentIds;
+            return;
+        }
+
+        const newBugs = records.filter(
+            (record) => !knownBugIds!.has(record.id)
+        );
+
+        knownBugIds = currentIds;
+
+        for (const bug of newBugs) {
+            await sendTeamsMessage(buildBugCreatedCard(bug));
+        }
+    } finally {
+        isPolling = false;
     }
 }
 
