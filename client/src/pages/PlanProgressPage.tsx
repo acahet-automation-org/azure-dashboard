@@ -152,6 +152,7 @@ export function PlanProgressPage() {
         passed: t("outcome.Passed"),
         failed: t("outcome.Failed"),
         blocked: t("outcome.Blocked"),
+        notApplicable: t("outcome.NotApplicable"),
         passRate: t("planProgressPage.summary.passRate"),
         bugsTitle: t("planProgressPage.bugsSection.title"),
         bugsEmpty: t("planProgressPage.bugsSection.empty"),
@@ -202,7 +203,10 @@ export function PlanProgressPage() {
     const handleSendEmail = async () => {
         const charts = await captureCharts();
 
-        const executed = summaryCounts.total - summaryCounts.notExecuted;
+        const executed =
+            summaryCounts.total -
+            summaryCounts.notExecuted -
+            summaryCounts.notApplicable;
 
         const pdfBase64 = buildPlanProgressPdfBase64(
             planTitle,
@@ -228,6 +232,10 @@ export function PlanProgressPage() {
                     [t("outcome.Passed"), summaryCounts.passed],
                     [t("outcome.Failed"), summaryCounts.failed],
                     [t("outcome.Blocked"), summaryCounts.blocked],
+                    [
+                        t("outcome.NotApplicable"),
+                        summaryCounts.notApplicable,
+                    ],
                     [
                         t("planProgressPage.summary.runChart"),
                         `${runPercent(summaryCounts)}%`,

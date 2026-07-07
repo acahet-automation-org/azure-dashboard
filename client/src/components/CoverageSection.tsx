@@ -20,6 +20,14 @@ const useStyles = makeStyles({
         flexDirection: "column",
         gap: tokens.spacingVerticalS,
     },
+    nameCell: {
+        width: "40%",
+        whiteSpace: "normal",
+        wordBreak: "break-word",
+    },
+    statCell: {
+        width: "15%",
+    },
 });
 
 const coverageTabs = ["requirements", "userStory", "feature"] as const;
@@ -49,6 +57,8 @@ function SuiteCoverageTable({
 }) {
     const { t } = useTranslation();
 
+    const styles = useStyles();
+
     const entries = Object.entries(suites).sort(([a], [b]) =>
         a.localeCompare(b)
     );
@@ -57,19 +67,19 @@ function SuiteCoverageTable({
         <Table aria-label={t("testExecutionPage.coverage.tableLabel")}>
             <TableHeader>
                 <TableRow>
-                    <TableHeaderCell>
+                    <TableHeaderCell className={styles.nameCell}>
                         {t("testExecutionPage.coverage.columns.name")}
                     </TableHeaderCell>
-                    <TableHeaderCell>
+                    <TableHeaderCell className={styles.statCell}>
                         {t("testExecutionPage.coverage.columns.total")}
                     </TableHeaderCell>
-                    <TableHeaderCell>
+                    <TableHeaderCell className={styles.statCell}>
                         {t("testExecutionPage.coverage.columns.executed")}
                     </TableHeaderCell>
-                    <TableHeaderCell>
+                    <TableHeaderCell className={styles.statCell}>
                         {t("testExecutionPage.coverage.columns.coverage")}
                     </TableHeaderCell>
-                    <TableHeaderCell>
+                    <TableHeaderCell className={styles.statCell}>
                         {t("testExecutionPage.coverage.columns.passRate")}
                     </TableHeaderCell>
                 </TableRow>
@@ -77,7 +87,9 @@ function SuiteCoverageTable({
             <TableBody>
                 {entries.map(([name, stat]) => (
                     <TableRow key={name}>
-                        <TableCell>{name}</TableCell>
+                        <TableCell className={styles.nameCell}>
+                            {name}
+                        </TableCell>
                         <TableCell>{stat.total}</TableCell>
                         <TableCell>{suiteExecuted(stat)}</TableCell>
                         <TableCell>{suiteCoveragePct(stat)}%</TableCell>

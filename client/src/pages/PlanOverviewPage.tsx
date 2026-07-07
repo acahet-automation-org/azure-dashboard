@@ -49,6 +49,7 @@ import {
     exportPlanOverviewToPdf,
 } from "../utils/export";
 import type { ChartImage } from "../utils/export";
+import { categoryAxisWidth } from "../utils/chartAxis";
 import type { Outcome } from "../types";
 
 const emailReportEnabled =
@@ -91,6 +92,7 @@ const OUTCOME_COLORS: Record<Outcome, string> = {
     Passed: "#107c10",
     Failed: "#d13438",
     Blocked: "#8764b8",
+    NotApplicable: "#0078d4",
     NotRun: "#605e5c",
 };
 
@@ -151,7 +153,9 @@ export function PlanOverviewPage() {
     const executionRate =
         data && data.totalTestCases
             ? Math.round(
-                  ((data.totalTestCases - data.outcomeCounts.NotRun) /
+                  ((data.totalTestCases -
+                      data.outcomeCounts.NotRun -
+                      data.outcomeCounts.NotApplicable) /
                       data.totalTestCases) *
                       1000
               ) / 10
@@ -174,7 +178,8 @@ export function PlanOverviewPage() {
         selectedSuite && selectedSuite.totalTestCases
             ? Math.round(
                   ((selectedSuite.totalTestCases -
-                      selectedSuite.outcomeCounts.NotRun) /
+                      selectedSuite.outcomeCounts.NotRun -
+                      selectedSuite.outcomeCounts.NotApplicable) /
                       selectedSuite.totalTestCases) *
                       1000
               ) / 10
@@ -278,6 +283,10 @@ export function PlanOverviewPage() {
                             selectedSuite.outcomeCounts.NotRun,
                         ],
                         [
+                            t("outcome.NotApplicable"),
+                            selectedSuite.outcomeCounts.NotApplicable,
+                        ],
+                        [
                             t("planOverviewPage.stats.passRate"),
                             `${suitePassRate}%`,
                         ],
@@ -339,6 +348,10 @@ export function PlanOverviewPage() {
                     [t("outcome.Failed"), data.outcomeCounts.Failed],
                     [t("outcome.Blocked"), data.outcomeCounts.Blocked],
                     [t("outcome.NotRun"), data.outcomeCounts.NotRun],
+                    [
+                        t("outcome.NotApplicable"),
+                        data.outcomeCounts.NotApplicable,
+                    ],
                     [t("planOverviewPage.stats.passRate"), `${passRate}%`],
                     [
                         t("planOverviewPage.stats.executionRate"),
@@ -506,6 +519,10 @@ export function PlanOverviewPage() {
                                 value={data.outcomeCounts.NotRun}
                             />
                             <StatCard
+                                label={t("outcome.NotApplicable")}
+                                value={data.outcomeCounts.NotApplicable}
+                            />
+                            <StatCard
                                 label={t(
                                     "planOverviewPage.stats.totalBugs"
                                 )}
@@ -591,7 +608,11 @@ export function PlanOverviewPage() {
                                     <YAxis
                                         type="category"
                                         dataKey="suiteName"
-                                        width={160}
+                                        width={categoryAxisWidth(
+                                            data.testsBySuite.map(
+                                                (s) => s.suiteName
+                                            )
+                                        )}
                                         tick={{ fontSize: 12 }}
                                     />
                                     <Tooltip />
@@ -620,7 +641,11 @@ export function PlanOverviewPage() {
                                         <YAxis
                                             type="category"
                                             dataKey="state"
-                                            width={160}
+                                            width={categoryAxisWidth(
+                                                data.bugsByState.map(
+                                                    (s) => s.state
+                                                )
+                                            )}
                                             tick={{ fontSize: 12 }}
                                         />
                                         <Tooltip />
@@ -689,6 +714,13 @@ export function PlanOverviewPage() {
                                 <StatCard
                                     label={t("outcome.NotRun")}
                                     value={selectedSuite.outcomeCounts.NotRun}
+                                />
+                                <StatCard
+                                    label={t("outcome.NotApplicable")}
+                                    value={
+                                        selectedSuite.outcomeCounts
+                                            .NotApplicable
+                                    }
                                 />
                                 <StatCard
                                     label={t(

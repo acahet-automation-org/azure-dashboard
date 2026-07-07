@@ -12,6 +12,7 @@ import { StatCard } from "./StatCard";
 import { CardGrid } from "./CardGrid";
 import { ChartCard } from "./ChartCard";
 import { EmptyState } from "./EmptyState";
+import { categoryAxisWidth } from "../utils/chartAxis";
 import type { DefectStats } from "../types";
 
 function toChartData(
@@ -64,7 +65,9 @@ export function DefectQualityTab({ stats }: { stats: DefectStats }) {
                             <YAxis
                                 type="category"
                                 dataKey="name"
-                                width={160}
+                                width={categoryAxisWidth(
+                                    rejectionReasonsData.map((d) => d.name)
+                                )}
                                 tick={{ fontSize: 12 }}
                             />
                             <Tooltip />

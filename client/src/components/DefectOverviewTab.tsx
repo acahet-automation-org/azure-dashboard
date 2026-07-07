@@ -21,6 +21,7 @@ import { EmptyState } from "./EmptyState";
 import { BugsTable } from "./BugsTable";
 import { Pagination } from "./Pagination";
 import { compareByState } from "../utils/bugState";
+import { categoryAxisWidth } from "../utils/chartAxis";
 import type { DefectStats } from "../types";
 
 const useStyles = makeStyles({
@@ -219,7 +220,9 @@ export function DefectOverviewTab({ stats }: { stats: DefectStats }) {
                             <YAxis
                                 type="category"
                                 dataKey="name"
-                                width={160}
+                                width={categoryAxisWidth(
+                                    Object.keys(stats.byComponent)
+                                )}
                                 tick={{ fontSize: 12 }}
                             />
                             <Tooltip />
@@ -240,7 +243,9 @@ export function DefectOverviewTab({ stats }: { stats: DefectStats }) {
                             <YAxis
                                 type="category"
                                 dataKey="name"
-                                width={160}
+                                width={categoryAxisWidth(
+                                    Object.keys(stats.byTeam)
+                                )}
                                 tick={{ fontSize: 12 }}
                             />
                             <Tooltip />
@@ -261,7 +266,9 @@ export function DefectOverviewTab({ stats }: { stats: DefectStats }) {
                             <YAxis
                                 type="category"
                                 dataKey="name"
-                                width={160}
+                                width={categoryAxisWidth(
+                                    Object.keys(stats.byTestSuite)
+                                )}
                                 tick={{ fontSize: 12 }}
                             />
                             <Tooltip />

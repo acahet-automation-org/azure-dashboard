@@ -2,6 +2,7 @@ export type Outcome =
     | "Passed"
     | "Failed"
     | "Blocked"
+    | "NotApplicable"
     | "NotRun";
 
 export interface BugInfo {
@@ -17,7 +18,7 @@ export interface BugInfo {
     };
 }
 
-export type MyWorkItemsMode = "assigned" | "mentioned" | "following";
+export type MyWorkItemsMode = "assigned" | "mentioned" | "following" | "created";
 
 export interface WorkItemSummary {
     id: number;
@@ -28,6 +29,10 @@ export interface WorkItemSummary {
     changedDate?: string;
     url?: string;
     assignee?: {
+        displayName: string;
+        uniqueName: string;
+    };
+    creator?: {
         displayName: string;
         uniqueName: string;
     };
@@ -54,6 +59,7 @@ export interface SuiteStat {
     passed: number;
     failed: number;
     blocked: number;
+    notApplicable: number;
     notRun: number;
     openBugs: number;
 }
@@ -151,6 +157,7 @@ export interface DashboardStats {
     passedCount: number;
     failedCount: number;
     blockedCount: number;
+    notApplicableCount: number;
     notRunCount: number;
     executedCount: number;
     passRate: number;
@@ -168,6 +175,7 @@ export interface TrendPoint {
     passed: number;
     failed: number;
     blocked: number;
+    notApplicable: number;
     notRun: number;
     passRate: number;
     cumulativeExecuted: number;

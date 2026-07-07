@@ -14,8 +14,6 @@
     "build:client": "npm run build --prefix client",
     "build": "npm run build:client",
     "start": "tsx src/server.ts",
-    "kill:vite": "node scripts/kill-vite.js",
-    "kill:server": "node scripts/kill-server.js",
     "kill:dev": "node scripts/kill-dev.js"
   },
   "dependencies": {

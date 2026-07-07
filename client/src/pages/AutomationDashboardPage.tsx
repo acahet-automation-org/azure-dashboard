@@ -29,6 +29,7 @@ import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { fetchAutomationDashboard, fetchPlans } from "../api/client";
+import { categoryAxisWidth } from "../utils/chartAxis";
 
 const useStyles = makeStyles({
     section: {
@@ -206,7 +207,11 @@ export function AutomationDashboardPage() {
                                             <YAxis
                                                 type="category"
                                                 dataKey="testName"
-                                                width={160}
+                                                width={categoryAxisWidth(
+                                                    data.charts.flakyTestRanking.map(
+                                                        (item) => item.testName
+                                                    )
+                                                )}
                                                 tick={{ fontSize: 12 }}
                                             />
                                             <Tooltip />

@@ -421,6 +421,34 @@ export async function getActiveWorkItemIds(): Promise<
     );
 }
 
+// Same @Me caveat as getActiveWorkItemIds above: only narrowed server-side in
+// SKIP_AUTH dev mode, where the PAT genuinely belongs to the one developer.
+// Otherwise callers must filter by the real user's identity themselves once
+// System.CreatedBy is returned.
+export async function getCreatedWorkItemIds(): Promise<number[]> {
+    const createdByMe =
+        process.env.SKIP_AUTH === "true"
+            ? "AND [System.CreatedBy] = @Me\n          "
+            : "";
+
+    const response = await azdo.post(
+        "/wit/wiql?api-version=7.1",
+        {
+            query: `
+        SELECT [System.Id]
+        FROM WorkItems
+        WHERE [System.State] <> 'Removed'
+          ${createdByMe}
+        ORDER BY [System.CreatedDate] DESC
+      `,
+        }
+    );
+
+    return response.data.workItems.map(
+        (w: { id: number }) => w.id
+    );
+}
+
 // Bounds the candidate set for comment-mention scanning, since each candidate
 // requires its own /comments request and scanning every work item in the
 // project would be far too slow.

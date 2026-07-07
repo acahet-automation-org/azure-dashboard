@@ -30,6 +30,7 @@ export interface SuiteHeaderStats {
     passed: number;
     failed: number;
     blocked: number;
+    notApplicable: number;
     notRun: number;
     openBugs: number;
     closedBugs: number;
@@ -42,6 +43,7 @@ export function buildSuiteHeaderStats(
     let passed = 0;
     let failed = 0;
     let blocked = 0;
+    let notApplicable = 0;
     let notRun = 0;
 
     for (const row of rows) {
@@ -51,6 +53,8 @@ export function buildSuiteHeaderStats(
             failed++;
         } else if (row.outcome === "Blocked") {
             blocked++;
+        } else if (row.outcome === "NotApplicable") {
+            notApplicable++;
         } else {
             notRun++;
         }
@@ -77,6 +81,7 @@ export function buildSuiteHeaderStats(
         passed,
         failed,
         blocked,
+        notApplicable,
         notRun,
         openBugs,
         closedBugs,
@@ -335,6 +340,7 @@ function buildPdfDocument(
                     "Failed",
                     "Not Run",
                     "Blocked",
+                    "Not Applicable",
                     "Bugs Open",
                     "Bugs Closed",
                 ],
@@ -346,6 +352,7 @@ function buildPdfDocument(
                     String(suiteHeader.failed),
                     String(suiteHeader.notRun),
                     String(suiteHeader.blocked),
+                    String(suiteHeader.notApplicable),
                     String(suiteHeader.openBugs),
                     String(suiteHeader.closedBugs),
                 ],
@@ -512,7 +519,9 @@ function buildPlanOverviewPdfDocument(
 
     const executionRate = data.totalTestCases
         ? Math.round(
-            ((data.totalTestCases - data.outcomeCounts.NotRun) /
+            ((data.totalTestCases -
+                data.outcomeCounts.NotRun -
+                data.outcomeCounts.NotApplicable) /
                 data.totalTestCases) *
                 1000
         ) / 10
@@ -530,6 +539,7 @@ function buildPlanOverviewPdfDocument(
                 "Total Test Cases",
                 "Blocked",
                 "Not Run",
+                "Not Applicable",
                 "Total Bugs",
                 "Pass Rate",
                 "Execution Rate",
@@ -540,6 +550,7 @@ function buildPlanOverviewPdfDocument(
                 String(data.totalTestCases),
                 String(data.outcomeCounts.Blocked),
                 String(data.outcomeCounts.NotRun),
+                String(data.outcomeCounts.NotApplicable),
                 String(data.totalBugs),
                 `${passRate}%`,
                 `${executionRate}%`,
@@ -597,7 +608,9 @@ function buildPlanOverviewPdfDocument(
 
         const suiteExecutionRate = suite.totalTestCases
             ? Math.round(
-                ((suite.totalTestCases - suite.outcomeCounts.NotRun) /
+                ((suite.totalTestCases -
+                    suite.outcomeCounts.NotRun -
+                    suite.outcomeCounts.NotApplicable) /
                     suite.totalTestCases) *
                     1000
             ) / 10
@@ -612,6 +625,7 @@ function buildPlanOverviewPdfDocument(
                     "Failed",
                     "Blocked",
                     "Not Run",
+                    "Not Applicable",
                     "Pass Rate",
                     "Execution Rate",
                 ],
@@ -623,6 +637,7 @@ function buildPlanOverviewPdfDocument(
                     String(suite.outcomeCounts.Failed),
                     String(suite.outcomeCounts.Blocked),
                     String(suite.outcomeCounts.NotRun),
+                    String(suite.outcomeCounts.NotApplicable),
                     `${suitePassRate}%`,
                     `${suiteExecutionRate}%`,
                 ],
@@ -696,7 +711,16 @@ export function buildPlanOverviewSuitePdfBase64(
 
     autoTable(doc, {
         startY: 22,
-        head: [["Total Test Cases", "Passed", "Failed", "Blocked", "Not Run"]],
+        head: [
+            [
+                "Total Test Cases",
+                "Passed",
+                "Failed",
+                "Blocked",
+                "Not Run",
+                "Not Applicable",
+            ],
+        ],
         body: [
             [
                 String(suite.totalTestCases),
@@ -704,6 +728,7 @@ export function buildPlanOverviewSuitePdfBase64(
                 String(suite.outcomeCounts.Failed),
                 String(suite.outcomeCounts.Blocked),
                 String(suite.outcomeCounts.NotRun),
+                String(suite.outcomeCounts.NotApplicable),
             ],
         ],
         styles: { fontSize: 8 },
@@ -753,6 +778,7 @@ export interface PlanProgressPdfLabels {
     passed: string;
     failed: string;
     blocked: string;
+    notApplicable: string;
     passRate: string;
     bugsTitle: string;
     bugsEmpty: string;
@@ -772,7 +798,8 @@ function buildPlanProgressPdfDocument(
     labels: PlanProgressPdfLabels,
     charts: ChartImage[] = []
 ): jsPDF {
-    const executed = counts.total - counts.notExecuted;
+    const executed =
+        counts.total - counts.notExecuted - counts.notApplicable;
 
     const doc = new jsPDF();
 
@@ -788,6 +815,7 @@ function buildPlanProgressPdfDocument(
                 labels.passed,
                 labels.failed,
                 labels.blocked,
+                labels.notApplicable,
                 labels.passRate,
             ],
         ],
@@ -798,6 +826,7 @@ function buildPlanProgressPdfDocument(
                 String(counts.passed),
                 String(counts.failed),
                 String(counts.blocked),
+                String(counts.notApplicable),
                 `${passedPercent(counts)}%`,
             ],
         ],

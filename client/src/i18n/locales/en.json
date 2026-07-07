@@ -33,6 +33,7 @@
         "Passed": "Passed",
         "Failed": "Failed",
         "Blocked": "Blocked",
+        "NotApplicable": "Not Applicable",
         "NotRun": "Not Run",
         "ariaLabel": "Outcome: {{outcome}}"
     },
@@ -56,6 +57,7 @@
             "passed": "Passed",
             "failed": "Failed",
             "blocked": "Blocked",
+            "notApplicable": "Not Applicable",
             "notRun": "Not Run",
             "passRate": "Pass Rate"
         }
@@ -186,6 +188,7 @@
             "passed": "Passed",
             "failed": "Failed",
             "blocked": "Blocked",
+            "notApplicable": "Not Applicable",
             "notRun": "Not Run"
         },
         "trends": {
@@ -307,8 +310,10 @@
         "emptyAssigned": "Nothing assigned to you right now - enjoy the calm!",
         "emptyMentioned": "No one's mentioned you lately.",
         "emptyFollowing": "You're not following anything yet.",
+        "emptyCreated": "You haven't created any work items yet.",
         "filters": {
             "assignedToMe": "Assigned to me",
+            "createdByMe": "Created by me",
             "mentioned": "Mentioned",
             "following": "Following",
             "bugsOnly": "Bugs only"
@@ -337,7 +342,7 @@
     },
     "suiteCard": {
         "total": "Total: {{count}}",
-        "summary": "Passed {{passed}} · Failed {{failed}} · Blocked {{blocked}} · Not Run {{notRun}}",
+        "summary": "Passed {{passed}} · Failed {{failed}} · Blocked {{blocked}} · Not Applicable {{notApplicable}} · Not Run {{notRun}}",
         "openBugs": "Open bugs: {{count}}",
         "passRate": "Pass rate: {{rate}}%"
     },
@@ -346,7 +351,7 @@
         "completed": "Completed: {{date}}",
         "completedNA": "N/A",
         "total": "Total: {{count}}",
-        "summary": "Passed {{passed}} · Failed {{failed}} · Blocked {{blocked}} · Not Run {{notRun}}",
+        "summary": "Passed {{passed}} · Failed {{failed}} · Blocked {{blocked}} · Not Applicable {{notApplicable}} · Not Run {{notRun}}",
         "passRate": "Pass rate: {{rate}}%"
     },
     "planCard": {

@@ -29,6 +29,10 @@ export function ExecutionMetrics({ stats }: { stats: DashboardStats }) {
                 value={stats.blockedCount}
             />
             <StatCard
+                label={t("testExecutionPage.metrics.notApplicable")}
+                value={stats.notApplicableCount}
+            />
+            <StatCard
                 label={t("testExecutionPage.metrics.notRun")}
                 value={stats.notRunCount}
             />

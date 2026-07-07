@@ -39,6 +39,7 @@ import {
     getAssignedWorkItems,
     getMentionedWorkItems,
     getFollowedWorkItems,
+    getCreatedWorkItems,
 } from "./myWorkItemsData.js";
 import { sendReportEmail } from "./mailer.js";
 import {
@@ -345,7 +346,9 @@ app.get("/api/my-work-items", async (req, res) => {
                 ? await getMentionedWorkItems()
                 : mode === "following"
                     ? await getFollowedWorkItems()
-                    : await getAssignedWorkItems();
+                    : mode === "created"
+                        ? await getCreatedWorkItems()
+                        : await getAssignedWorkItems();
 
         res.json(items);
     } catch (error: any) {
