@@ -25,12 +25,11 @@ const EMPTY_FILTERS: DefectFilters = {
 export function DefectManagementPage() {
     const { t } = useTranslation();
     const [filters, setFilters] = useState<DefectFilters>(EMPTY_FILTERS);
-    const [project, setProject] = useState("");
     const [tab, setTab] = useState<DefectTab>("overview");
 
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["defects", filters, project],
-        queryFn: () => fetchDefects(filters, project || undefined),
+        queryKey: ["defects", filters],
+        queryFn: () => fetchDefects(filters),
     });
 
     return (
@@ -47,12 +46,6 @@ export function DefectManagementPage() {
                         availableFilters={data.stats.availableFilters}
                         filters={filters}
                         onChange={setFilters}
-                        project={project || data.project}
-                        availableProjects={data.availableProjects}
-                        onProjectChange={(next) => {
-                            setProject(next);
-                            setFilters(EMPTY_FILTERS);
-                        }}
                     />
 
                     <TabList

@@ -113,7 +113,9 @@
         "charts": {
             "outcomeBreakdown": "Suddivisione Risultati Test",
             "testsBySuite": "Test per Suite",
-            "bugsByState": "Bug per Stato"
+            "bugsByState": "Bug per Stato",
+            "bugsBySuite": "Bug per Suite di Test",
+            "otherSuites": "Altro"
         },
         "bugsSection": {
             "title": "Bug",
@@ -208,7 +210,9 @@
                 "total": "Totale",
                 "executed": "Eseguiti",
                 "coverage": "Copertura %",
-                "passRate": "Percentuale di Successo"
+                "passRate": "Percentuale di Successo",
+                "passRateExclNA": "Percentuale di Successo (escl. N/A)",
+                "passRateNADelta": "Impatto N/A (Δ)"
             }
         },
         "risk": {
@@ -330,7 +334,6 @@
         "searchPlaceholder": "Cerca per titolo del test case..."
     },
     "defectFilterBar": {
-        "project": "Progetto",
         "iteration": "Sprint/Iterazione",
         "allIterations": "Tutti gli Sprint",
         "environment": "Ambiente",

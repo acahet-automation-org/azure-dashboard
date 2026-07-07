@@ -98,6 +98,22 @@ const OUTCOME_COLORS: Record<Outcome, string> = {
 
 const FALLBACK_STATE_COLOR = "8a8886";
 
+// Fixed-order categorical palette (validated for CVD-safe adjacent contrast).
+// Suites beyond this count are folded into a single "Other" slice rather
+// than generating additional hues.
+const SUITE_BUG_COLORS = [
+    "#2a78d6",
+    "#1baf7a",
+    "#eda100",
+    "#008300",
+    "#4a3aa7",
+    "#e34948",
+    "#e87ba4",
+    "#eb6834",
+];
+
+const OTHER_SUITE_COLOR = "#898781";
+
 export function PlanOverviewPage() {
     const styles = useStyles();
     const { t } = useTranslation();
@@ -113,6 +129,7 @@ export function PlanOverviewPage() {
     const outcomeChartRef = useRef<HTMLDivElement>(null);
     const suiteChartRef = useRef<HTMLDivElement>(null);
     const bugStateChartRef = useRef<HTMLDivElement>(null);
+    const bugsBySuiteChartRef = useRef<HTMLDivElement>(null);
     const selectedSuiteOutcomeChartRef = useRef<HTMLDivElement>(null);
 
     const emailReportMutation = useMutation({
@@ -141,6 +158,44 @@ export function PlanOverviewPage() {
                   count: data.outcomeCounts[outcome],
               })
           )
+        : [];
+
+    const bugsBySuiteData = data
+        ? (() => {
+              const withBugs = data.suites
+                  .filter((suite) => suite.bugs.length > 0)
+                  .map((suite) => ({
+                      suiteName: suite.suiteName,
+                      count: suite.bugs.length,
+                  }))
+                  .sort((a, b) => b.count - a.count);
+
+              if (withBugs.length <= SUITE_BUG_COLORS.length) {
+                  return withBugs.map((suite, index) => ({
+                      ...suite,
+                      color: SUITE_BUG_COLORS[index],
+                  }));
+              }
+
+              const top = withBugs
+                  .slice(0, SUITE_BUG_COLORS.length - 1)
+                  .map((suite, index) => ({
+                      ...suite,
+                      color: SUITE_BUG_COLORS[index],
+                  }));
+              const otherCount = withBugs
+                  .slice(SUITE_BUG_COLORS.length - 1)
+                  .reduce((sum, suite) => sum + suite.count, 0);
+
+              return [
+                  ...top,
+                  {
+                      suiteName: t("planOverviewPage.charts.otherSuites"),
+                      count: otherCount,
+                      color: OTHER_SUITE_COLOR,
+                  },
+              ];
+          })()
         : [];
 
     const passRate =
@@ -215,6 +270,12 @@ export function PlanOverviewPage() {
                     ? captureChartImage(
                           bugStateChartRef.current,
                           t("planOverviewPage.charts.bugsByState")
+                      )
+                    : Promise.resolve(null),
+                bugsBySuiteData.length > 0
+                    ? captureChartImage(
+                          bugsBySuiteChartRef.current,
+                          t("planOverviewPage.charts.bugsBySuite")
                       )
                     : Promise.resolve(null),
             ]);
@@ -325,6 +386,12 @@ export function PlanOverviewPage() {
                 ? captureChartImage(
                       bugStateChartRef.current,
                       t("planOverviewPage.charts.bugsByState")
+                  )
+                : Promise.resolve(null),
+            bugsBySuiteData.length > 0
+                ? captureChartImage(
+                      bugsBySuiteChartRef.current,
+                      t("planOverviewPage.charts.bugsBySuite")
                   )
                 : Promise.resolve(null),
         ]);
@@ -661,6 +728,42 @@ export function PlanOverviewPage() {
                                             ))}
                                         </Bar>
                                     </BarChart>
+                                </ResponsiveContainer>
+                                </div>
+                            ) : (
+                                <EmptyState
+                                    message={t(
+                                        "planOverviewPage.bugsSection.empty"
+                                    )}
+                                />
+                            )}
+                        </ChartCard>
+
+                        <ChartCard
+                            title={t("planOverviewPage.charts.bugsBySuite")}
+                        >
+                            {bugsBySuiteData.length > 0 ? (
+                                <div ref={bugsBySuiteChartRef}>
+                                <ResponsiveContainer width="100%" height={280}>
+                                    <PieChart>
+                                        <Pie
+                                            data={bugsBySuiteData}
+                                            dataKey="count"
+                                            nameKey="suiteName"
+                                            innerRadius={60}
+                                            outerRadius={100}
+                                            paddingAngle={2}
+                                        >
+                                            {bugsBySuiteData.map((entry) => (
+                                                <Cell
+                                                    key={entry.suiteName}
+                                                    fill={entry.color}
+                                                />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip />
+                                        <Legend />
+                                    </PieChart>
                                 </ResponsiveContainer>
                                 </div>
                             ) : (
