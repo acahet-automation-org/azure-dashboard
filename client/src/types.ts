@@ -27,6 +27,9 @@ export interface WorkItemSummary {
     state: string;
     priority?: number;
     changedDate?: string;
+
+    createdDate?: string;
+    closedDate?: string;
     url?: string;
     assignee?: {
         displayName: string;

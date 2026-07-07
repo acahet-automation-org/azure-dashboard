@@ -16,6 +16,8 @@ const MY_WORK_ITEM_FIELDS = [
     "System.State",
     "Microsoft.VSTS.Common.Priority",
     "System.ChangedDate",
+    "System.CreatedDate",
+    "Microsoft.VSTS.Common.ClosedDate",
     "System.AssignedTo",
     "System.CreatedBy",
 ];
@@ -30,6 +32,8 @@ function toWorkItemSummary(wi: any): WorkItemSummary {
         state: wi.fields["System.State"],
         priority: wi.fields["Microsoft.VSTS.Common.Priority"],
         changedDate: wi.fields["System.ChangedDate"],
+        createdDate: wi.fields["System.CreatedDate"],
+        closedDate: wi.fields["Microsoft.VSTS.Common.ClosedDate"],
         url: buildWorkItemUrl(wi.id),
         assignee: wi.fields["System.AssignedTo"]
             ? {

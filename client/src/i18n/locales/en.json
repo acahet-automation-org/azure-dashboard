@@ -385,7 +385,17 @@
             "title": "Title",
             "type": "Type",
             "state": "State",
-            "assignee": "Assignee"
+            "assignee": "Assignee",
+            "createdDate": "Opened",
+            "createdTime": "Opened (time)",
+            "closedDate": "Closed",
+            "closedTime": "Closed (time)"
+        },
+        "filter": {
+            "label": "Filter",
+            "search": "Search...",
+            "selectAll": "(Select all)",
+            "blank": "(Blanks)"
         }
     },
     "pagination": {

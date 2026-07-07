@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useMsal } from "@azure/msal-react";
-import { TabList, Tab, Switch } from "@fluentui/react-components";
+import { TabList, Tab } from "@fluentui/react-components";
 import { WeatherSunnyRegular } from "@fluentui/react-icons";
 import { PageLayout } from "../components/PageLayout";
 import { LoadingCardGrid } from "../components/LoadingState";
@@ -22,7 +22,6 @@ const EMPTY_MESSAGE_KEY: Record<MyWorkItemsMode, string> = {
 export function MyWorkItemsPage() {
     const { t } = useTranslation();
     const [mode, setMode] = useState<MyWorkItemsMode>("assigned");
-    const [bugsOnly, setBugsOnly] = useState(false);
     const { instance, accounts } = useMsal();
     const activeAccount = instance.getActiveAccount() ?? accounts[0];
 
@@ -97,10 +96,8 @@ export function MyWorkItemsPage() {
             }
         }
 
-        return bugsOnly
-            ? items.filter((item) => item.type === "Bug")
-            : items;
-    }, [data, activeAccount, skipAuth, mode, bugsOnly]);
+        return items;
+    }, [data, activeAccount, skipAuth, mode]);
 
     return (
         <PageLayout title={t("myWorkItemsPage.title")}>
@@ -123,12 +120,6 @@ export function MyWorkItemsPage() {
                     {t("myWorkItemsPage.filters.following")}
                 </Tab>
             </TabList>
-
-            <Switch
-                checked={bugsOnly}
-                onChange={(_, data) => setBugsOnly(data.checked)}
-                label={t("myWorkItemsPage.filters.bugsOnly")}
-            />
 
             {isLoading && <LoadingCardGrid />}
 
