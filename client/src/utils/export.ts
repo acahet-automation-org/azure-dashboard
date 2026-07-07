@@ -137,6 +137,13 @@ export interface ChartImage {
     height: number;
 }
 
+// The exported chart image is always placed on a white PDF/email background,
+// regardless of the app's current theme. In dark mode, chart text (legend
+// labels, etc.) renders in a light color that's invisible once pasted onto
+// that white page, so force a fixed dark color on the cloned DOM html2canvas
+// captures rather than on the live (theme-aware) page.
+const EXPORT_TEXT_COLOR = "#242424";
+
 export async function captureChartImage(
     element: HTMLElement | null,
     title: string
@@ -148,6 +155,16 @@ export async function captureChartImage(
     const canvas = await html2canvas(element, {
         backgroundColor: "#ffffff",
         scale: 2,
+        onclone: (_document, clonedElement) => {
+            clonedElement.style.backgroundColor = "#ffffff";
+            clonedElement.style.color = EXPORT_TEXT_COLOR;
+
+            clonedElement
+                .querySelectorAll<HTMLElement>("*")
+                .forEach((node) => {
+                    node.style.color = EXPORT_TEXT_COLOR;
+                });
+        },
     });
 
     return {
