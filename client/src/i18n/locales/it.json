@@ -385,8 +385,10 @@
             "title": "Titolo",
             "type": "Tipo",
             "state": "Stato",
-            "assignee": "Assegnatario"
-        }
+            "assignee": "Assegnatario",
+            "tags": "Tag"
+        },
+        "noTags": "Nessun tag"
     },
     "pagination": {
         "previous": "Pagina precedente",
