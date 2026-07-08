@@ -16,9 +16,11 @@ const CLOSED_STATES = ["Closed", "Resolved", "Removed", "Done"];
 export function WorkItemsTable({
     items,
     ariaLabel,
+    showTags = false,
 }: {
     items: WorkItemSummary[];
     ariaLabel: string;
+    showTags?: boolean;
 }) {
     const { t } = useTranslation();
     const showPriority = items.some((item) => item.priority != null);
@@ -47,6 +49,11 @@ export function WorkItemsTable({
                     <TableHeaderCell>
                         {t("workItemsTable.columns.assignee")}
                     </TableHeaderCell>
+                    {showTags && (
+                        <TableHeaderCell>
+                            {t("workItemsTable.columns.tags")}
+                        </TableHeaderCell>
+                    )}
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -88,6 +95,15 @@ export function WorkItemsTable({
                             <TableCell>
                                 {item.assignee?.displayName ?? ""}
                             </TableCell>
+                            {showTags && (
+                                <TableCell>
+                                    {item.type === "Bug"
+                                        ? item.tags?.length
+                                            ? item.tags.join(", ")
+                                            : t("workItemsTable.noTags")
+                                        : ""}
+                                </TableCell>
+                            )}
                         </TableRow>
                     );
                 })}

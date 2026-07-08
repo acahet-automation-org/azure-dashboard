@@ -385,8 +385,10 @@
             "title": "Title",
             "type": "Type",
             "state": "State",
-            "assignee": "Assignee"
-        }
+            "assignee": "Assignee",
+            "tags": "Tags"
+        },
+        "noTags": "No tags"
     },
     "pagination": {
         "previous": "Previous page",
