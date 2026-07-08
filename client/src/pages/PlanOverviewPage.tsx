@@ -28,8 +28,8 @@ import {
     YAxis,
     CartesianGrid,
     Tooltip,
-    Legend,
 } from "recharts";
+import type { PieLabelRenderProps } from "recharts";
 import { PageLayout } from "../components/PageLayout";
 import { StatCard } from "../components/StatCard";
 import { CardGrid } from "../components/CardGrid";
@@ -86,6 +86,25 @@ const useStyles = makeStyles({
         backgroundColor: "rgba(0, 0, 0, 0.45)",
         zIndex: 1000,
     },
+    pieLegend: {
+        display: "flex",
+        flexWrap: "wrap",
+        justifyContent: "center",
+        columnGap: tokens.spacingHorizontalM,
+        rowGap: tokens.spacingVerticalXS,
+        paddingTop: tokens.spacingVerticalS,
+    },
+    pieLegendItem: {
+        display: "flex",
+        alignItems: "center",
+        gap: tokens.spacingHorizontalXS,
+    },
+    pieLegendSwatch: {
+        width: "10px",
+        height: "10px",
+        borderRadius: tokens.borderRadiusSmall,
+        flexShrink: 0,
+    },
 });
 
 const OUTCOME_COLORS: Record<Outcome, string> = {
@@ -113,6 +132,69 @@ const SUITE_BUG_COLORS = [
 ];
 
 const OTHER_SUITE_COLOR = "#898781";
+
+// Draws the slice's value + percentage inside the ring instead of relying on
+// hover tooltips, which aren't visible in the static images captured for
+// PDF/email export.
+function renderPieValueLabel(props: PieLabelRenderProps) {
+    const cx = Number(props.cx);
+    const cy = Number(props.cy);
+    const midAngle = Number(props.midAngle);
+    const innerRadius = Number(props.innerRadius);
+    const outerRadius = Number(props.outerRadius);
+    const value = Number(props.value);
+    const percent = Number(props.percent);
+
+    if (!value || percent < 0.05) {
+        return null;
+    }
+
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) / 2;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    return (
+        <text
+            x={x}
+            y={y}
+            fill="#fff"
+            textAnchor="middle"
+            dominantBaseline="central"
+            fontSize={11}
+            fontWeight={600}
+        >
+            {`${value} (${Math.round(percent * 100)}%)`}
+        </text>
+    );
+}
+
+interface PieLegendItem {
+    key: string;
+    label: string;
+    color: string;
+}
+
+// Rendered in normal document flow below the chart (rather than Recharts'
+// own <Legend>, which absolutely-positions itself and can overlap the pie
+// when wrapped, longer-language labels push it past its reserved height).
+function PieColorLegend({ items }: { items: PieLegendItem[] }) {
+    const styles = useStyles();
+
+    return (
+        <div className={styles.pieLegend}>
+            {items.map((item) => (
+                <div key={item.key} className={styles.pieLegendItem}>
+                    <span
+                        className={styles.pieLegendSwatch}
+                        style={{ backgroundColor: item.color }}
+                    />
+                    <Text size={200}>{item.label}</Text>
+                </div>
+            ))}
+        </div>
+    );
+}
 
 export function PlanOverviewPage() {
     const styles = useStyles();
@@ -623,9 +705,13 @@ export function PlanOverviewPage() {
                                         data={outcomeChartData}
                                         dataKey="count"
                                         nameKey="outcome"
-                                        innerRadius={60}
-                                        outerRadius={100}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={55}
+                                        outerRadius={95}
                                         paddingAngle={2}
+                                        label={renderPieValueLabel}
+                                        labelLine={false}
                                     >
                                         {outcomeChartData.map((entry) => (
                                             <Cell
@@ -650,13 +736,15 @@ export function PlanOverviewPage() {
                                             ),
                                         ]}
                                     />
-                                    <Legend
-                                        formatter={(value) =>
-                                            t(`outcome.${value}`)
-                                        }
-                                    />
                                 </PieChart>
                             </ResponsiveContainer>
+                            <PieColorLegend
+                                items={outcomeChartData.map((entry) => ({
+                                    key: entry.outcome,
+                                    label: t(`outcome.${entry.outcome}`),
+                                    color: OUTCOME_COLORS[entry.outcome],
+                                }))}
+                            />
                             </div>
                         </ChartCard>
 
@@ -750,9 +838,13 @@ export function PlanOverviewPage() {
                                             data={bugsBySuiteData}
                                             dataKey="count"
                                             nameKey="suiteName"
-                                            innerRadius={60}
-                                            outerRadius={100}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={55}
+                                            outerRadius={95}
                                             paddingAngle={2}
+                                            label={renderPieValueLabel}
+                                            labelLine={false}
                                         >
                                             {bugsBySuiteData.map((entry) => (
                                                 <Cell
@@ -762,9 +854,15 @@ export function PlanOverviewPage() {
                                             ))}
                                         </Pie>
                                         <Tooltip />
-                                        <Legend />
                                     </PieChart>
                                 </ResponsiveContainer>
+                                <PieColorLegend
+                                    items={bugsBySuiteData.map((entry) => ({
+                                        key: entry.suiteName,
+                                        label: entry.suiteName,
+                                        color: entry.color,
+                                    }))}
+                                />
                                 </div>
                             ) : (
                                 <EmptyState
@@ -857,9 +955,13 @@ export function PlanOverviewPage() {
                                             data={selectedSuiteOutcomeChartData}
                                             dataKey="count"
                                             nameKey="outcome"
-                                            innerRadius={60}
-                                            outerRadius={100}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={55}
+                                            outerRadius={95}
                                             paddingAngle={2}
+                                            label={renderPieValueLabel}
+                                            labelLine={false}
                                         >
                                             {selectedSuiteOutcomeChartData.map(
                                                 (entry) => (
@@ -886,13 +988,17 @@ export function PlanOverviewPage() {
                                                 ),
                                             ]}
                                         />
-                                        <Legend
-                                            formatter={(value) =>
-                                                t(`outcome.${value}`)
-                                            }
-                                        />
                                     </PieChart>
                                 </ResponsiveContainer>
+                                <PieColorLegend
+                                    items={selectedSuiteOutcomeChartData.map(
+                                        (entry) => ({
+                                            key: entry.outcome,
+                                            label: t(`outcome.${entry.outcome}`),
+                                            color: OUTCOME_COLORS[entry.outcome],
+                                        })
+                                    )}
+                                />
                                 </div>
                             </ChartCard>
 

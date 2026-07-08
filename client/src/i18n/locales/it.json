@@ -389,8 +389,10 @@
             "createdDate": "Data apertura",
             "createdTime": "Ora apertura",
             "closedDate": "Data chiusura",
-            "closedTime": "Ora chiusura"
+            "closedTime": "Ora chiusura",
+            "tags": "Tag"
         },
+        "noTags": "Nessun tag",
         "filter": {
             "label": "Filtra",
             "search": "Cerca...",

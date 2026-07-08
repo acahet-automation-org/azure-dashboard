@@ -38,6 +38,7 @@ export interface WorkItemSummary {
         uniqueName: string;
     };
     mentions?: string[];
+    tags?: string[];
 }
 
 export interface TestCaseRow {

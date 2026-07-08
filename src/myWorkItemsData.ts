@@ -20,6 +20,7 @@ const MY_WORK_ITEM_FIELDS = [
     "Microsoft.VSTS.Common.ClosedDate",
     "System.AssignedTo",
     "System.CreatedBy",
+    "System.Tags",
 ];
 
 const MENTION_SCAN_WINDOW_DAYS = 30;
@@ -46,6 +47,12 @@ function toWorkItemSummary(wi: any): WorkItemSummary {
                   displayName: wi.fields["System.CreatedBy"].displayName,
                   uniqueName: wi.fields["System.CreatedBy"].uniqueName,
               }
+            : undefined,
+        tags: wi.fields["System.Tags"]
+            ? wi.fields["System.Tags"]
+                  .split(";")
+                  .map((tag: string) => tag.trim())
+                  .filter(Boolean)
             : undefined,
     };
 }

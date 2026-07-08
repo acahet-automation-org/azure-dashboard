@@ -132,6 +132,7 @@ export function MyWorkItemsPage() {
                     <WorkItemsTable
                         items={myItems}
                         ariaLabel={t("myWorkItemsPage.title")}
+                        showTags={mode === "created"}
                     />
                 ) : (
                     <EmptyState

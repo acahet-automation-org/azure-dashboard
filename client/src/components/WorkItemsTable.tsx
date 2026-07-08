@@ -130,9 +130,11 @@ function ColumnFilter({
 export function WorkItemsTable({
     items,
     ariaLabel,
+    showTags = false,
 }: {
     items: WorkItemSummary[];
     ariaLabel: string;
+    showTags?: boolean;
 }) {
     const { t } = useTranslation();
     const [filters, setFilters] = useState<FilterState>({});
@@ -149,6 +151,12 @@ export function WorkItemsTable({
         createdTime: (item) => formatTimeOnly(item.createdDate),
         closedDate: (item) => formatDateOnly(item.closedDate),
         closedTime: (item) => formatTimeOnly(item.closedDate),
+        tags: (item) =>
+            item.type === "Bug"
+                ? item.tags?.length
+                    ? item.tags.join(", ")
+                    : t("workItemsTable.noTags")
+                : "",
     };
 
     const distinctValues = (key: string) =>
@@ -226,6 +234,8 @@ export function WorkItemsTable({
                         "closedTime",
                         "workItemsTable.columns.closedTime"
                     )}
+                    {showTags &&
+                        headerCell("tags", "workItemsTable.columns.tags")}
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -279,6 +289,15 @@ export function WorkItemsTable({
                             <TableCell>
                                 {formatTimeOnly(item.closedDate)}
                             </TableCell>
+                            {showTags && (
+                                <TableCell>
+                                    {item.type === "Bug"
+                                        ? item.tags?.length
+                                            ? item.tags.join(", ")
+                                            : t("workItemsTable.noTags")
+                                        : ""}
+                                </TableCell>
+                            )}
                         </TableRow>
                     );
                 })}

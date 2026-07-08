@@ -389,8 +389,10 @@
             "createdDate": "Opened",
             "createdTime": "Opened (time)",
             "closedDate": "Closed",
-            "closedTime": "Closed (time)"
+            "closedTime": "Closed (time)",
+            "tags": "Tags"
         },
+        "noTags": "No tags",
         "filter": {
             "label": "Filter",
             "search": "Search...",
