@@ -19,7 +19,7 @@ export async function sendTeamsMessage(
 
 // MessageCard "sections"/"facts" fields render as a flat text stream in some
 // Teams flows (e.g. Power Automate webhook triggers), losing their visual
-// grouping. Both cards below instead render each bug as a markdown text
+// grouping. The card below instead renders each bug as a markdown text
 // block, which is the format that's known to render reliably.
 function formatBugBlock(
     bug: DefectRecord,
@@ -53,19 +53,6 @@ function formatBugBlock(
         .join("  \n");
 }
 
-export function buildBugCreatedCard(bug: DefectRecord) {
-    const title = `New bug #${bug.id}`;
-
-    return {
-        "@type": "MessageCard",
-        "@context": "http://schema.org/extensions",
-        themeColor: "D13438",
-        summary: `${title}: ${bug.title}`,
-        title,
-        text: formatBugBlock(bug, { includeArea: true }),
-    };
-}
-
 export function buildBugsReportedTodayCard(
     bugs: DefectRecord[]
 ) {
@@ -74,7 +61,7 @@ export function buildBugsReportedTodayCard(
     const greeting = `Hey ${recipient}, ${bugs.length} bug(s) were created today`;
 
     const bugBlocks = bugs.map((bug) =>
-        formatBugBlock(bug)
+        formatBugBlock(bug, { includeArea: true })
     );
 
     const text = [

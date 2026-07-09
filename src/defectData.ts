@@ -889,8 +889,10 @@ export async function getAllSuiteNames(): Promise<string[]> {
     const testCases = await getDashboardData();
 
     for (const tc of testCases) {
-        if (tc.suiteName) {
-            suites.add(tc.suiteName);
+        const normalized = normalizeSuiteName(tc.suiteName);
+
+        if (normalized) {
+            suites.add(normalized);
         }
     }
 

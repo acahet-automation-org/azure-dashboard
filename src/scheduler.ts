@@ -3,7 +3,6 @@ import "dotenv/config";
 import { getDefectData } from "./defectData.js";
 import {
     sendTeamsMessage,
-    buildBugCreatedCard,
     buildBugsReportedTodayCard,
 } from "./teamsNotifier.js";
 
@@ -16,69 +15,6 @@ function isToday(dateString: string, timeZone: string): boolean {
     });
 
     return fmt.format(new Date(dateString)) === fmt.format(new Date());
-}
-
-// Tracks bug IDs already seen so a server restart doesn't re-alert on bugs
-// that existed before startup, and each bug is only alerted on once. Reset
-// on restart - acceptable for a dashboard POC; a real deployment would
-// persist this.
-let knownBugIds: Set<number> | null = null;
-
-// Guards against overlapping runs: a rebuild can take longer than the poll
-// interval (cache TTL matches the default cron interval, so most ticks
-// trigger a full Azure DevOps refetch), and without this a slow run and the
-// next tick would both diff against the same stale knownBugIds and both
-// alert on the same bug.
-let isPolling = false;
-
-async function pollForNewBugs(): Promise<void> {
-    if (isPolling) {
-        return;
-    }
-
-    isPolling = true;
-
-    try {
-        const records = await getDefectData();
-        const currentIds = new Set(
-            records.map((record) => record.id)
-        );
-
-        if (knownBugIds === null) {
-            knownBugIds = currentIds;
-            return;
-        }
-
-        const newBugs = records.filter(
-            (record) => !knownBugIds!.has(record.id)
-        );
-
-        knownBugIds = currentIds;
-
-        for (const bug of newBugs) {
-            await sendTeamsMessage(buildBugCreatedCard(bug));
-        }
-    } finally {
-        isPolling = false;
-    }
-}
-
-export function startNewBugPoller(): void {
-    if (process.env.ENABLE_TEAMS_NOTIFICATIONS !== "true") {
-        return;
-    }
-
-    const schedule =
-        process.env.NEW_BUG_POLL_CRON ?? "*/5 * * * *";
-
-    cron.schedule(schedule, () => {
-        pollForNewBugs().catch((error) => {
-            console.error(
-                "Failed to poll for new bugs",
-                error
-            );
-        });
-    });
 }
 
 export function startBugSummaryScheduler(): void {
