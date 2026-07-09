@@ -224,6 +224,16 @@ export interface AgingBucket {
 
 export type BacklogDirection = "growing" | "stable" | "shrinking";
 
+export interface SprintDefectReport {
+    total: number;
+    effectiveCount: number;
+    outOfScopeCount: number;
+    byOrigin: Record<string, number>;
+    byStatus: Record<string, number>;
+    bySeverity: Record<string, number>;
+    effectiveDefects: DefectSummary[];
+}
+
 export interface DefectSummary extends BugInfo {
     severity?: string;
     ageDays?: number;
@@ -260,9 +270,14 @@ export interface DefectStats {
     duplicateRate: number;
     bugsPerStory: number | null;
     defectsWithoutLinkedTestCase: BugInfo[];
+    defectsWithoutSuite: BugInfo[];
     defectLeakageRate: number | null;
     defectRejectionRate: number;
     rejectionReasons: Record<string, number>;
+    closureReasonBreakdown: Record<string, number>;
+    outOfScopeRate: number;
+    outOfScopeBySuite: Record<string, number>;
+    sprintDefectReport: SprintDefectReport;
     firstTimeFixRate: number | null;
     densityByComponent: Record<string, number | null>;
     backlogTrend: BacklogTrendPoint[];

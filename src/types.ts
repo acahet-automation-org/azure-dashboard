@@ -217,6 +217,12 @@ export interface CommonErrorsResponse {
     cacheTimestamp: number;
 }
 
+export type ClosureReason =
+    | "Valid Defect"
+    | "OutOfScope"
+    | "Duplicate"
+    | "Not Reproducible";
+
 export interface DefectRecord {
     id: number;
     title: string;
@@ -233,6 +239,8 @@ export interface DefectRecord {
     changedDate: string;
     reopenedCount: number;
     hasLinkedTestCase: boolean;
+    tags: string[];
+    closureReason?: ClosureReason;
     url?: string;
     creator?: string;
 }
@@ -268,6 +276,16 @@ export interface AgingBucket {
 
 export type BacklogDirection = "growing" | "stable" | "shrinking";
 
+export interface SprintDefectReport {
+    total: number;
+    effectiveCount: number;
+    outOfScopeCount: number;
+    byOrigin: Record<string, number>;
+    byStatus: Record<string, number>;
+    bySeverity: Record<string, number>;
+    effectiveDefects: DefectSummary[];
+}
+
 export interface DefectFilterOptions {
     iterations: string[];
     areas: string[];
@@ -299,9 +317,14 @@ export interface DefectStats {
     duplicateRate: number;
     bugsPerStory: number | null;
     defectsWithoutLinkedTestCase: DefectWithoutTestCase[];
+    defectsWithoutSuite: DefectSummary[];
     defectLeakageRate: number | null;
     defectRejectionRate: number;
     rejectionReasons: Record<string, number>;
+    closureReasonBreakdown: Record<string, number>;
+    outOfScopeRate: number;
+    outOfScopeBySuite: Record<string, number>;
+    sprintDefectReport: SprintDefectReport;
     firstTimeFixRate: number | null;
     densityByComponent: Record<string, number | null>;
     backlogTrend: BacklogTrendPoint[];

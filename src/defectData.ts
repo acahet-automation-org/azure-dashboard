@@ -19,6 +19,8 @@ import type {
     BacklogDirection,
     DefectFilterParams,
     DefectFilterOptions,
+    ClosureReason,
+    SprintDefectReport,
 } from "./types.js";
 
 let defectCache: { data: DefectRecord[]; timestamp: number } | null = null;
@@ -40,6 +42,39 @@ const REJECTED_REASONS = new Set([
     "Won't Fix",
     "Invalid",
 ]);
+
+// Tag applied to bugs raised against a test case that was wrongly scoped for
+// the sprint it was tested in - i.e. not a real defect, so it shouldn't count
+// against the team's defect rate. See bug-closure-reporting-context.md.
+const OUT_OF_SCOPE_TAG = "OutOfScope";
+
+// Custom.Suite value used for the new DSI test suite; every other suite
+// (populated or not) is reported as "Test Factory" in the sprint report.
+const DSI_SUITE_NAME = "Test DSI";
+
+// Custom.Suite is manually typed on each bug in Azure DevOps, so the same
+// suite ends up spelled differently across bugs (e.g. "Login & Profilazione"
+// vs "Login e profilazione"), fragmenting the by-suite charts into
+// near-duplicate bars. Maps known variant spellings to the canonical suite
+// name they actually refer to.
+const SUITE_NAME_ALIASES: Record<string, string> = {
+    "HomepageCliente&DettaglioCliente": "Homepage cliente",
+    "Login & Profilazione": "Login e profilazione",
+};
+
+function normalizeSuiteName(
+    rawSuiteName: string | undefined
+): string | undefined {
+    if (!rawSuiteName) {
+        return rawSuiteName;
+    }
+
+    return SUITE_NAME_ALIASES[rawSuiteName] ?? rawSuiteName;
+}
+
+// Closed/Duplicate states considered terminal for closure-reason reporting.
+// Anything still in an active state has no closure reason yet.
+const TERMINAL_STATES = new Set(["Closed", "Duplicate"]);
 
 // Days a bug may stay open before it's flagged in the High Attention list.
 // Keyed by the exact Microsoft.VSTS.Common.Severity label used in this
@@ -82,6 +117,54 @@ function countReopenings(revisions: any[]): number {
     return count;
 }
 
+function parseTags(tagsField?: string): string[] {
+    return tagsField
+        ? tagsField
+              .split(";")
+              .map((tag) => tag.trim())
+              .filter(Boolean)
+        : [];
+}
+
+// Unlike computeClosureReason (which only classifies terminal-state bugs, so
+// closure-reason reporting stays about *how something was closed*), the
+// sprint report needs to pull every OutOfScope-tagged bug - open or closed -
+// out of the "effective defects" pool before computing status/severity/origin
+// breakdowns for that pool.
+function isOutOfScope(record: DefectRecord): boolean {
+    return record.tags.includes(OUT_OF_SCOPE_TAG);
+}
+
+// "OutOfScope" (from the tag) takes priority over every other signal, since
+// it's a manual call by whoever triaged the bug and should override whatever
+// the workflow-driven System.Reason/State would otherwise imply. There's no
+// custom ClosureReason field yet (see bug-closure-reporting-context.md), so
+// "Environment Issue" isn't derivable and is intentionally left out until
+// that's decided.
+function computeClosureReason(
+    state: string,
+    reason: string | undefined,
+    tags: string[]
+): ClosureReason | undefined {
+    if (!TERMINAL_STATES.has(state)) {
+        return undefined;
+    }
+
+    if (tags.includes(OUT_OF_SCOPE_TAG)) {
+        return "OutOfScope";
+    }
+
+    if (state === "Duplicate") {
+        return "Duplicate";
+    }
+
+    if (reason === "Cannot Reproduce") {
+        return "Not Reproducible";
+    }
+
+    return "Valid Defect";
+}
+
 // Returns the IDs of Test Cases linked to this bug, read directly off the
 // bug's own relations. This is the bug-centric direction (bug -> test case),
 // as opposed to the dashboard's test-case-centric direction (test case ->
@@ -111,19 +194,14 @@ async function getLinkedTestCaseIds(
 // Bugs are rarely tagged with a real sprint themselves (System.IterationPath
 // mostly defaults to the project/team root), so the sprint shown for a bug
 // is instead borrowed from the Test Plan of the test case it's linked to -
-// that's where this project's actual sprint assignments live. The same
-// borrowing applies to the test suite.
+// that's where this project's actual sprint assignments live.
 //
 // Keyed by test case ID rather than bug ID so lookups can be driven off the
 // bug's own confirmed test case links (see getLinkedTestCaseIds) instead of
 // requiring the bug to also turn up in the dashboard's own test-case-to-bug
 // crawl.
-async function getTestCaseIterationAndSuiteMaps(): Promise<{
-    iterationByTestCase: Map<number, string>;
-    suiteByTestCase: Map<number, string>;
-}> {
+async function getTestCaseIterationMap(): Promise<Map<number, string>> {
     const iterationByTestCase = new Map<number, string>();
-    const suiteByTestCase = new Map<number, string>();
 
     const testCases = await getDashboardData();
 
@@ -134,22 +212,14 @@ async function getTestCaseIterationAndSuiteMaps(): Promise<{
                 tc.iteration
             );
         }
-
-        if (tc.suiteName && !suiteByTestCase.has(tc.testCaseId)) {
-            suiteByTestCase.set(
-                tc.testCaseId,
-                tc.suiteName
-            );
-        }
     }
 
-    return { iterationByTestCase, suiteByTestCase };
+    return iterationByTestCase;
 }
 
 async function buildDefectRecord(
     bug: any,
-    iterationByTestCase: Map<number, string>,
-    suiteByTestCase: Map<number, string>
+    iterationByTestCase: Map<number, string>
 ): Promise<DefectRecord> {
     const [revisions, linkedTestCaseIds] =
         await Promise.all([
@@ -158,18 +228,32 @@ async function buildDefectRecord(
         ]);
 
     let iterationPath: string | undefined;
-    let suiteName: string | undefined;
+
+    // Custom.Suite is the sole source for a bug's suite - no more borrowing
+    // from a linked test case's suite, since that fallback used a different
+    // suite-naming convention and produced duplicate/fragmented bars in the
+    // by-suite charts. Also normalized here since Custom.Suite itself is
+    // manually typed and inconsistently spelled across bugs (see
+    // SUITE_NAME_ALIASES).
+    const suiteName: string | undefined = normalizeSuiteName(
+        bug.fields["Custom.Suite"]
+    );
 
     for (const tcId of linkedTestCaseIds) {
         iterationPath ??= iterationByTestCase.get(tcId);
-        suiteName ??= suiteByTestCase.get(tcId);
     }
+
+    const state = bug.fields["System.State"];
+    const reason = bug.fields["System.Reason"];
+    const tags = parseTags(bug.fields["System.Tags"]);
 
     return {
         id: bug.id,
         title: bug.fields["System.Title"],
-        state: bug.fields["System.State"],
-        reason: bug.fields["System.Reason"],
+        state,
+        reason,
+        tags,
+        closureReason: computeClosureReason(state, reason, tags),
         severity:
             bug.fields[
             "Microsoft.VSTS.Common.Severity"
@@ -199,14 +283,14 @@ async function buildDefectRecord(
 }
 
 export async function buildDefectRecords(): Promise<DefectRecord[]> {
-    const [bugs, { iterationByTestCase, suiteByTestCase }] = await Promise.all([
+    const [bugs, iterationByTestCase] = await Promise.all([
         getAllBugFields(),
-        getTestCaseIterationAndSuiteMaps(),
+        getTestCaseIterationMap(),
     ]);
 
     return Promise.all(
         bugs.map((bug) =>
-            buildDefectRecord(bug, iterationByTestCase, suiteByTestCase)
+            buildDefectRecord(bug, iterationByTestCase)
         )
     );
 }
@@ -443,6 +527,86 @@ function computeRejectionReasons(
         ),
         (r) => r.reason
     );
+}
+
+function computeClosureReasonBreakdown(
+    records: DefectRecord[]
+): Record<string, number> {
+    return groupCount(
+        records.filter((r) => r.closureReason),
+        (r) => r.closureReason
+    );
+}
+
+function computeOutOfScopeRate(
+    records: DefectRecord[]
+): number {
+    if (records.length === 0) {
+        return 0;
+    }
+
+    const outOfScopeCount = records.filter(
+        (r) => r.closureReason === "OutOfScope"
+    ).length;
+
+    return (
+        Math.round(
+            (outOfScopeCount / records.length) * 1000
+        ) / 10
+    );
+}
+
+function computeOutOfScopeBySuite(
+    records: DefectRecord[]
+): Record<string, number> {
+    return groupCount(
+        records.filter((r) => r.closureReason === "OutOfScope"),
+        (r) => r.suiteName
+    );
+}
+
+// Bugs not yet in a terminal state are neither "New" nor "Closed" in this
+// report - they're grouped as "In Progress" regardless of the exact
+// workflow state (Active, Committed, Resolved, ...).
+function statusBucket(state: string): "New" | "Closed" | "In Progress" {
+    if (state === "New") {
+        return "New";
+    }
+
+    if (state === "Closed") {
+        return "Closed";
+    }
+
+    return "In Progress";
+}
+
+function computeSprintDefectReport(
+    records: DefectRecord[]
+): SprintDefectReport {
+    const outOfScope = records.filter(isOutOfScope);
+    const effective = records.filter((r) => !isOutOfScope(r));
+
+    return {
+        total: records.length,
+        effectiveCount: effective.length,
+        outOfScopeCount: outOfScope.length,
+        byOrigin: groupCount(effective, (r) =>
+            r.suiteName === DSI_SUITE_NAME ? "DSI" : "Test Factory"
+        ),
+        byStatus: groupCount(effective, (r) => statusBucket(r.state)),
+        bySeverity: groupCount(effective, (r) => r.severity),
+        // Carried through so the UI can drill down from a status/severity bar
+        // to the underlying bug list without a second round trip.
+        effectiveDefects: effective.map((r) => ({
+            id: r.id,
+            title: r.title,
+            state: r.state,
+            priority: r.priority,
+            severity: r.severity,
+            url: r.url,
+            creator: r.creator,
+        })),
+    };
 }
 
 function computeFirstTimeFixRate(
@@ -781,6 +945,32 @@ export function computeDefectStats(
                 return a.priority - b.priority;
             });
 
+    // Bugs missing Custom.Suite (and with no linked test case to borrow a
+    // suite from) are the ones that surface as "Unspecified" in the by-suite
+    // charts - surfaced here so they can be triaged and the field backfilled.
+    const defectsWithoutSuite: DefectSummary[] =
+        records
+            .filter((r) => !r.suiteName)
+            .map((r) => ({
+                id: r.id,
+                title: r.title,
+                state: r.state,
+                priority: r.priority,
+                url: r.url,
+                creator: r.creator,
+            }))
+            .sort((a, b) => {
+                if (a.priority == null) {
+                    return b.priority == null ? 0 : 1;
+                }
+
+                if (b.priority == null) {
+                    return -1;
+                }
+
+                return a.priority - b.priority;
+            });
+
     const trend = computeTrend(records);
     const backlogTrend = computeBacklogTrend(trend);
 
@@ -824,9 +1014,14 @@ export function computeDefectStats(
             ) / 100
             : null,
         defectsWithoutLinkedTestCase,
+        defectsWithoutSuite,
         defectLeakageRate: computeLeakageRate(records),
         defectRejectionRate: computeRejectionRate(records),
         rejectionReasons: computeRejectionReasons(records),
+        closureReasonBreakdown: computeClosureReasonBreakdown(records),
+        outOfScopeRate: computeOutOfScopeRate(records),
+        outOfScopeBySuite: computeOutOfScopeBySuite(records),
+        sprintDefectReport: computeSprintDefectReport(records),
         firstTimeFixRate: computeFirstTimeFixRate(records),
         densityByComponent: computeDensityByComponent(
             records,
