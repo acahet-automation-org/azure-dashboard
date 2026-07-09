@@ -432,9 +432,19 @@
             "type": "Type",
             "state": "State",
             "assignee": "Assignee",
+            "createdDate": "Opened",
+            "createdTime": "Opened (time)",
+            "closedDate": "Closed",
+            "closedTime": "Closed (time)",
             "tags": "Tags"
         },
-        "noTags": "No tags"
+        "noTags": "No tags",
+        "filter": {
+            "label": "Filter",
+            "search": "Search...",
+            "selectAll": "(Select all)",
+            "blank": "(Blanks)"
+        }
     },
     "pagination": {
         "previous": "Previous page",

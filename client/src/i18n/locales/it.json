@@ -432,9 +432,19 @@
             "type": "Tipo",
             "state": "Stato",
             "assignee": "Assegnatario",
+            "createdDate": "Data apertura",
+            "createdTime": "Ora apertura",
+            "closedDate": "Data chiusura",
+            "closedTime": "Ora chiusura",
             "tags": "Tag"
         },
-        "noTags": "Nessun tag"
+        "noTags": "Nessun tag",
+        "filter": {
+            "label": "Filtra",
+            "search": "Cerca...",
+            "selectAll": "(Seleziona tutto)",
+            "blank": "(Vuoti)"
+        }
     },
     "pagination": {
         "previous": "Pagina precedente",
