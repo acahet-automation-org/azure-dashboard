@@ -6,6 +6,7 @@ import type {
     BugInfo,
     PlanOverviewResponse,
     PlanOverviewSuiteDetail,
+    SprintDefectReport,
     TestCaseRow,
     TestPlanProgressCounts,
 } from "../types";
@@ -891,6 +892,124 @@ function buildPlanProgressPdfDocument(
     }
 
     return doc;
+}
+
+export interface SprintDefectReportPdfLabels {
+    title: string;
+    total: string;
+    effective: string;
+    outOfScope: string;
+    byOrigin: string;
+    byStatus: string;
+    bySeverity: string;
+    countColumn: string;
+}
+
+function breakdownTable(
+    doc: jsPDF,
+    heading: string,
+    countColumnLabel: string,
+    breakdown: Record<string, number>,
+    startY: number
+): number {
+    let y = ensurePdfSpace(doc, startY, 20);
+
+    doc.setFontSize(12);
+    doc.text(heading, PDF_MARGIN, y);
+    y += 4;
+
+    autoTable(doc, {
+        startY: y,
+        head: [[heading, countColumnLabel]],
+        body: Object.entries(breakdown).map(([name, count]) => [
+            name,
+            String(count),
+        ]),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [0, 90, 158] },
+    });
+
+    return (
+        (doc as unknown as { lastAutoTable: { finalY: number } })
+            .lastAutoTable.finalY + 10
+    );
+}
+
+function buildSprintDefectReportPdfDocument(
+    report: SprintDefectReport,
+    labels: SprintDefectReportPdfLabels,
+    charts: ChartImage[] = []
+): jsPDF {
+    const doc = new jsPDF();
+
+    doc.setFontSize(14);
+    doc.text(labels.title, PDF_MARGIN, 15);
+
+    autoTable(doc, {
+        startY: 22,
+        head: [[labels.total, labels.effective, labels.outOfScope]],
+        body: [
+            [
+                String(report.total),
+                String(report.effectiveCount),
+                String(report.outOfScopeCount),
+            ],
+        ],
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [0, 90, 158] },
+    });
+
+    let nextY =
+        (doc as unknown as { lastAutoTable: { finalY: number } })
+            .lastAutoTable.finalY + 10;
+
+    // Rendered at most 2-up (rather than all 3 in one row) so each chart -
+    // and in particular its legend text - keeps a legible physical size on
+    // the printed page; cramming all 3 into one row shrank everything to
+    // the point the legend labels became unreadably small.
+    const CHARTS_PER_ROW = 2;
+
+    for (let i = 0; i < charts.length; i += CHARTS_PER_ROW) {
+        nextY = addChartImagesRow(
+            doc,
+            charts.slice(i, i + CHARTS_PER_ROW),
+            nextY
+        );
+    }
+
+    nextY = breakdownTable(
+        doc,
+        labels.byOrigin,
+        labels.countColumn,
+        report.byOrigin,
+        nextY
+    );
+    nextY = breakdownTable(
+        doc,
+        labels.byStatus,
+        labels.countColumn,
+        report.byStatus,
+        nextY
+    );
+    breakdownTable(
+        doc,
+        labels.bySeverity,
+        labels.countColumn,
+        report.bySeverity,
+        nextY
+    );
+
+    return doc;
+}
+
+export function exportSprintDefectReportToPdf(
+    filename: string,
+    report: SprintDefectReport,
+    labels: SprintDefectReportPdfLabels,
+    charts: ChartImage[] = []
+): void {
+    const doc = buildSprintDefectReportPdfDocument(report, labels, charts);
+    doc.save(`${filename}.pdf`);
 }
 
 export function exportPlanProgressToPdf(

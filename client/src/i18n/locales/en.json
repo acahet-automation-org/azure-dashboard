@@ -245,7 +245,8 @@
         "tabs": {
             "overview": "Overview",
             "quality": "Quality & Process Health",
-            "resource": "Resource & Focus"
+            "resource": "Resource & Focus",
+            "sprintReport": "Sprint Report"
         },
         "stats": {
             "totalOpen": "Open Bugs",
@@ -258,9 +259,11 @@
             "notAvailable": "N/A",
             "notConfigured": "Not configured",
             "withoutLinkedTestCase": "Defects Without Linked Test Cases",
+            "withoutSuite": "Defects Without a Suite",
             "leakageRate": "Defect Leakage Rate",
             "rejectionRate": "Defect Rejection Rate",
             "firstTimeFixRate": "First-Time Fix Rate",
+            "outOfScopeRate": "Out-of-Scope Rate",
             "backlogDirection": "Backlog Trend",
             "backlogDirection_growing": "Growing",
             "backlogDirection_stable": "Stable",
@@ -282,15 +285,58 @@
             "density": "Defect Density (Bugs per Story Point)",
             "noDensity": "No components with story points to compute density against.",
             "backlogTrend": "Backlog Growth Rate (Arrival vs. Resolution)",
-            "backlogDelta": "Opened - Closed"
+            "backlogDelta": "Opened - Closed",
+            "realVsOutOfScope": "Real Defects vs. Out-of-Scope (Closed Only)",
+            "realVsOutOfScopeAll": "Real Defects vs. Out-of-Scope (All Bugs)",
+            "realDefects": "Real Defects",
+            "outOfScope": "Out of Scope",
+            "noClosedDefects": "No closed defects with a determined closure reason yet.",
+            "noDefectsAllBugs": "No bugs in the current data.",
+            "outOfScopeBySuite": "Out-of-Scope Bugs by Test Suite",
+            "noOutOfScope": "No bugs tagged Out of Scope in the current data."
         },
         "sections": {
             "withoutLinkedTestCase": "Defects Without Linked Test Cases",
             "excludeClosed": "Exclude closed defects",
             "noGaps": "No defects without a linked test case.",
+            "withoutSuite": "Defects Without a Suite",
+            "noSuiteGaps": "No defects missing a suite.",
             "highAttention": "High Attention (SLA Breaches)",
             "noBreaches": "No defects currently breach their SLA age threshold.",
             "openInAdo": "Open in Azure DevOps →"
+        },
+        "sprintReport": {
+            "title": "Sprint Defect Report",
+            "stats": {
+                "total": "Bugs Detected",
+                "effective": "Effective Defects",
+                "outOfScope": "Out of Scope",
+                "outOfScopeNote": "Out of Scope: bugs raised against functionality or test cases that are not part of the current sprint."
+            },
+            "origin": {
+                "dsi": "DSI",
+                "testFactory": "Test Factory"
+            },
+            "status": {
+                "closed": "Closed",
+                "inProgress": "In Progress",
+                "new": "New"
+            },
+            "charts": {
+                "byOrigin": "Effective Defects by Origin",
+                "byStatus": "Effective Defects by Status",
+                "bySeverity": "Effective Defects by Severity",
+                "noEffectiveDefects": "No effective defects in the current data."
+            },
+            "list": {
+                "title": "Bugs: {{filter}}",
+                "clear": "Clear filter",
+                "empty": "No bugs match this filter."
+            },
+            "pdf": {
+                "filename": "sprint_defect_report",
+                "countColumn": "Count"
+            }
         }
     },
     "commonErrorsPage": {
@@ -393,7 +439,8 @@
     "pagination": {
         "previous": "Previous page",
         "next": "Next page",
-        "pageOf": "Page {{page}} of {{pageCount}}"
+        "pageOf": "Page {{page}} of {{pageCount}}",
+        "itemsPerPage": "Items per page"
     },
     "errorState": {
         "title": "Something went wrong",

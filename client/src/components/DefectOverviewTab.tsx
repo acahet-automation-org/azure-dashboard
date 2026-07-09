@@ -48,6 +48,7 @@ export function DefectOverviewTab({ stats }: { stats: DefectStats }) {
     const [excludeClosed, setExcludeClosed] = useState(true);
     const [gapsPage, setGapsPage] = useState(1);
     const [breachesPage, setBreachesPage] = useState(1);
+    const [suiteGapsPage, setSuiteGapsPage] = useState(1);
 
     const filteredGaps = stats.defectsWithoutLinkedTestCase
         .filter((b) => !excludeClosed || b.state !== "Closed")
@@ -61,6 +62,23 @@ export function DefectOverviewTab({ stats }: { stats: DefectStats }) {
     const paginatedGaps = filteredGaps.slice(
         (currentGapsPage - 1) * GAPS_PAGE_SIZE,
         currentGapsPage * GAPS_PAGE_SIZE
+    );
+
+    const sortedSuiteGaps = [...stats.defectsWithoutSuite].sort(
+        compareByState
+    );
+
+    const suiteGapsPageCount = Math.max(
+        1,
+        Math.ceil(sortedSuiteGaps.length / GAPS_PAGE_SIZE)
+    );
+    const currentSuiteGapsPage = Math.min(
+        suiteGapsPage,
+        suiteGapsPageCount
+    );
+    const paginatedSuiteGaps = sortedSuiteGaps.slice(
+        (currentSuiteGapsPage - 1) * GAPS_PAGE_SIZE,
+        currentSuiteGapsPage * GAPS_PAGE_SIZE
     );
 
     const breachesPageCount = Math.max(
@@ -141,6 +159,10 @@ export function DefectOverviewTab({ stats }: { stats: DefectStats }) {
                     <StatCard
                         label={t("defectManagementPage.stats.withoutLinkedTestCase")}
                         value={filteredGaps.length}
+                    />
+                    <StatCard
+                        label={t("defectManagementPage.stats.withoutSuite")}
+                        value={stats.defectsWithoutSuite.length}
                     />
                 </CardGrid>
             </div>
@@ -323,6 +345,35 @@ export function DefectOverviewTab({ stats }: { stats: DefectStats }) {
                     ) : (
                         <EmptyState
                             message={t("defectManagementPage.sections.noGaps")}
+                        />
+                    )}
+                </ChartCard>
+            </div>
+
+            <div className={styles.section}>
+                <ChartCard
+                    title={t("defectManagementPage.sections.withoutSuite")}
+                >
+                    {paginatedSuiteGaps.length > 0 ? (
+                        <>
+                            <BugsTable
+                                bugs={paginatedSuiteGaps}
+                                ariaLabel={t(
+                                    "defectManagementPage.sections.withoutSuite"
+                                )}
+                                quickActionLabel={t(
+                                    "defectManagementPage.sections.openInAdo"
+                                )}
+                            />
+                            <Pagination
+                                page={currentSuiteGapsPage}
+                                pageCount={suiteGapsPageCount}
+                                onPageChange={setSuiteGapsPage}
+                            />
+                        </>
+                    ) : (
+                        <EmptyState
+                            message={t("defectManagementPage.sections.noSuiteGaps")}
                         />
                     )}
                 </ChartCard>
