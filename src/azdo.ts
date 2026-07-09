@@ -271,6 +271,8 @@ const BUG_FIELDS = [
     "Microsoft.VSTS.Common.Severity",
     "Microsoft.VSTS.Common.ClosedDate",
     "Microsoft.VSTS.Build.FoundIn",
+    "System.Tags",
+    "Custom.Suite",
 ];
 
 export async function getAllBugFields(): Promise<any[]> {

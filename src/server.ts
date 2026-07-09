@@ -50,10 +50,7 @@ import {
     computeTestPlanProgressBugs,
     clearTestPlanProgressBugsCache,
 } from "./testPlanProgressData.js";
-import {
-    startBugSummaryScheduler,
-    startNewBugPoller,
-} from "./scheduler.js";
+import { startBugSummaryScheduler } from "./scheduler.js";
 
 const app = express();
 
@@ -416,7 +413,6 @@ app.post("/api/refresh", (_, res) => {
 });
 
 
-startNewBugPoller();
 startBugSummaryScheduler();
 
 const port = Number(process.env.PORT) || 3000;

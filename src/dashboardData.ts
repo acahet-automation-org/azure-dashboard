@@ -30,6 +30,10 @@ let cacheTimestamp = 0;
 
 const CACHE_DURATION_MS = 5 * 60 * 1000;
 
+// Sprint 1 test execution kicked off on this date; runs before it are
+// leftover data from prior activity and excluded from the execution trend.
+const SPRINT_1_START_DATE = "2026-07-07";
+
 export function getCacheTimestamp(): number {
     return cacheTimestamp;
 }
@@ -692,6 +696,10 @@ export async function computeExecutionTrend(): Promise<
         const date = new Date(rawDate)
             .toISOString()
             .slice(0, 10);
+
+        if (date < SPRINT_1_START_DATE) {
+            continue;
+        }
 
         const bucket = byDate.get(date) ?? {
             passed: 0,

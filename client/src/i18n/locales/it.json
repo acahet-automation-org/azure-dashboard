@@ -245,7 +245,8 @@
         "tabs": {
             "overview": "Panoramica",
             "quality": "Qualità e Salute del Processo",
-            "resource": "Risorse e Focus"
+            "resource": "Risorse e Focus",
+            "sprintReport": "Report di Sprint"
         },
         "stats": {
             "totalOpen": "Bug Aperti",
@@ -258,9 +259,11 @@
             "notAvailable": "N/D",
             "notConfigured": "Non configurato",
             "withoutLinkedTestCase": "Difetti Senza Test Case Collegati",
+            "withoutSuite": "Difetti Senza una Suite",
             "leakageRate": "Tasso di Fuga dei Difetti",
             "rejectionRate": "Tasso di Rigetto dei Difetti",
             "firstTimeFixRate": "Tasso di Risoluzione al Primo Tentativo",
+            "outOfScopeRate": "Tasso Fuori Ambito",
             "backlogDirection": "Andamento del Backlog",
             "backlogDirection_growing": "In Crescita",
             "backlogDirection_stable": "Stabile",
@@ -282,15 +285,58 @@
             "density": "Densità dei Difetti (Bug per Story Point)",
             "noDensity": "Nessun componente con story point su cui calcolare la densità.",
             "backlogTrend": "Tasso di Crescita del Backlog (Apertura vs. Risoluzione)",
-            "backlogDelta": "Aperti - Chiusi"
+            "backlogDelta": "Aperti - Chiusi",
+            "realVsOutOfScope": "Difetti Reali vs. Fuori Ambito (Solo Chiusi)",
+            "realVsOutOfScopeAll": "Difetti Reali vs. Fuori Ambito (Tutti i Bug)",
+            "realDefects": "Difetti Reali",
+            "outOfScope": "Fuori Ambito",
+            "noClosedDefects": "Nessun difetto chiuso con un motivo di chiusura determinato.",
+            "noDefectsAllBugs": "Nessun bug nei dati correnti.",
+            "outOfScopeBySuite": "Bug Fuori Ambito per Test Suite",
+            "noOutOfScope": "Nessun bug con tag Fuori Ambito nei dati correnti."
         },
         "sections": {
             "withoutLinkedTestCase": "Difetti Senza Test Case Collegati",
             "excludeClosed": "Escludi difetti chiusi",
             "noGaps": "Nessun difetto senza un test case collegato.",
+            "withoutSuite": "Difetti Senza una Suite",
+            "noSuiteGaps": "Nessun difetto privo di suite.",
             "highAttention": "Massima Attenzione (SLA Superati)",
             "noBreaches": "Nessun difetto supera attualmente la soglia SLA di anzianità.",
             "openInAdo": "Apri in Azure DevOps →"
+        },
+        "sprintReport": {
+            "title": "Report Difetti di Sprint",
+            "stats": {
+                "total": "Bug Rilevati",
+                "effective": "Difetti Effettivi",
+                "outOfScope": "Fuori Ambito",
+                "outOfScopeNote": "Fuori Ambito: bug creati su funzionalità o test case non previsti nello sprint corrente."
+            },
+            "origin": {
+                "dsi": "DSI",
+                "testFactory": "Test Factory"
+            },
+            "status": {
+                "closed": "Chiusi",
+                "inProgress": "In Lavorazione",
+                "new": "Nuovi"
+            },
+            "charts": {
+                "byOrigin": "Difetti Effettivi per Origine",
+                "byStatus": "Difetti Effettivi per Stato",
+                "bySeverity": "Difetti Effettivi per Gravità",
+                "noEffectiveDefects": "Nessun difetto effettivo nei dati correnti."
+            },
+            "list": {
+                "title": "Bug: {{filter}}",
+                "clear": "Rimuovi filtro",
+                "empty": "Nessun bug corrisponde a questo filtro."
+            },
+            "pdf": {
+                "filename": "report_difetti_sprint",
+                "countColumn": "Conteggio"
+            }
         }
     },
     "commonErrorsPage": {
@@ -403,7 +449,8 @@
     "pagination": {
         "previous": "Pagina precedente",
         "next": "Pagina successiva",
-        "pageOf": "Pagina {{page}} di {{pageCount}}"
+        "pageOf": "Pagina {{page}} di {{pageCount}}",
+        "itemsPerPage": "Elementi per pagina"
     },
     "errorState": {
         "title": "Si è verificato un errore",
