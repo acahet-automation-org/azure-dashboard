@@ -8,6 +8,24 @@ This plan identifies KPI gaps in the current dashboard and defines new metrics t
 
 ---
 
+## Implementation Status (updated 2026-07-10)
+
+**P1 is done and shipped**, as a single new `/release-readiness` page rather than four separate additions to existing pages. Everything in P1 lives behind one feature flag so it can be hidden until it's ready for stakeholders:
+
+- `ENABLE_RELEASE_READINESS` (backend, `.env`) + `VITE_ENABLE_RELEASE_READINESS` (frontend, `client/.env`) — both `false` by default in `.env.example`, both `true` in the local dev `.env` files.
+
+**Key files:**
+- `src/releaseReadinessData.ts` — all computation (gate criteria, completion, pass-rate delta, blocking defects)
+- `src/sprints.ts` — hand-maintained real sprint calendar (see 1.2/1.3 below)
+- `client/src/pages/ReleaseReadinessPage.tsx` — the page UI
+- Wired through `src/server.ts` (`GET /api/release-readiness`), `src/types.ts` / `client/src/types.ts`, `client/src/api/client.ts`, `client/src/App.tsx`, `client/src/components/NavBar.tsx`, and both `en.json`/`it.json` locales
+
+**The single biggest deviation from this doc:** 1.1's originally-planned weighted 0–100 score was scrapped mid-build in favor of implementing the org's actual formal exit-criteria checklist (`code_coverage.md`, "Criteri di Accettazione - Test Funzionali Manuali") as a literal BLOCK/WARN gate. See 1.1 below for the full criteria list and the field-mapping caveats (Severity used instead of Priority, requirements coverage not yet trackable). If you're about to re-derive scoring logic for this area, read 1.1 first — it's already been through two design iterations.
+
+**Not started:** the "Recommended New Page: Executive Summary" section further down is still just a proposal — nothing built there yet.
+
+---
+
 ## Current State — What We Already Have
 
 | Category | KPIs Present |
@@ -21,8 +39,34 @@ This plan identifies KPI gaps in the current dashboard and defines new metrics t
 
 ## Priority 1 — High Value, Low-to-Medium Effort
 
-### 1.1 Quality Health Score & RAG Status
+### 1.1 Quality Health Score & RAG Status — ✅ Implemented (redesigned)
 **Stakeholders:** Product Owners, Release Managers, C-Level
+
+**What actually shipped is not the composite score originally planned below.** Partway through, the org's real formal exit-criteria doc (`code_coverage.md`, "Criteri di Accettazione - Test Funzionali Manuali") surfaced, and the implementation was redone to reproduce that checklist literally instead of a made-up weighted formula. Do not reintroduce the 0–100 score — it was deliberately replaced.
+
+**Actual model — BLOCK/WARN gate**, computed in `src/releaseReadinessData.ts` (`buildGateCriteria` / `computeReleaseGate`):
+
+| Criterion | Target | Action | Notes |
+|---|---|---|---|
+| Test Cases Executed | 100% | BLOCK | `executedCount / plannedCount`, scoped (see 1.2) |
+| Test Superati (passed) | 95% | BLOCK | `passedCount / executedCount` — **not** `passed/total`, that was a bug caught and fixed mid-build |
+| Requirements Coverage | 95% | BLOCK | **Not tracked** — `tracked: false`, excluded from pass/fail. Blocked on 3.1 (Requirements Traceability); implement 3.1 first, then wire its output in here |
+| Critical Defects Open | 0 | BLOCK | Severity `"1 - Critical"`, open only |
+| High Defects Open | 0 | BLOCK | Severity `"2 - High"`, open only |
+| Medium Defects Open | tracked | WARN | Severity `"3 - Medium"`, open only |
+| Low Defects Open | tracked | WARN | Severity `"4 - Low"`, open only |
+
+RAG = **Red** if any tracked BLOCK criterion fails, **Amber** if only a WARN criterion fails, **Green** otherwise. Untracked criteria never affect RAG.
+
+**Important field-mapping decision:** `code_coverage.md` gates defects by *Priority* (P1–P4), but this project's Azure DevOps data barely populates Priority (nearly every bug is "Priority 2") — *Severity* is the field the team actually maintains, so the P1/P2 BLOCK / P3/P4 WARN rows are mapped onto Severity instead. If a future project has real Priority data, this mapping should switch back.
+
+**Defect scoping:** intentionally **not** filtered by suite or plan — all open bugs project-wide count toward these criteria (explicit decision: bugs aren't reliably linked to a single test plan, unlike test cases).
+
+Thresholds are configurable: `RELEASE_GATE_TESTS_EXECUTED_TARGET_PCT` (100), `RELEASE_GATE_TESTS_PASSED_TARGET_PCT` (95), `RELEASE_GATE_REQUIREMENTS_COVERAGE_TARGET_PCT` (95, display-only until 3.1 lands).
+
+Lives on the new `/release-readiness` page (not `/plan-progress`), gated by `ENABLE_RELEASE_READINESS`.
+
+<details><summary>Original plan (superseded, kept for history)</summary>
 
 A single composite score (0–100) that weights pass rate, critical open defects, and not-executed % against configurable exit criteria thresholds. Derived RAG (Red / Amber / Green) status per plan/sprint.
 
@@ -33,48 +77,46 @@ A single composite score (0–100) that weights pass rate, critical open defects
 
 **Exit Criteria Met %:** how many of the defined quality gates have been satisfied (e.g., "7/10 criteria met").
 
-**Implementation:**
-- New backend endpoint in `src/` reads configurable thresholds from `.env` or a JSON config file
-- Aggregates pass rate + open Sev1/Sev2 bug count + not-run % into a computed score
-- New component on `/plan-progress` or a new `/release-readiness` page
-- Effort: Medium
+</details>
 
 ---
 
-### 1.2 Sprint Test Completion Rate & Carry-Over
+### 1.2 Sprint Test Completion Rate & Carry-Over — ✅ Implemented
 **Stakeholders:** QA Manager, Scrum Master, PMO
 
 - **Sprint Test Completion Rate** — % of planned test cases actually executed by sprint end
 - **Carry-Over Test Cases** — test cases not executed that slipped to the next sprint (direct measure of under-capacity or late dev delivery)
 
-**Implementation:**
+**As built (deviates from the plan below):**
+- No snapshot storage, no Azure DevOps Iterations API integration. Instead `src/sprints.ts` hand-maintains the org's **real sprint calendar** (13 sprints, obtained from an export, not from a live API) — each sprint's start/end dates literally overlap by several months (roughly 6-month spans staggered ~monthly), which is unusual but confirmed correct by the team. `getCurrentSprint()` resolves overlaps by array order (lowest-numbered/earliest-starting match wins), which naturally walks Sprint 1 → 2 → 3... forward as time passes without extra logic.
+- Completion/pass-rate numbers are **scoped to specific test plans**: only plans whose name matches `/\b(test funzionali|uat)\b/i` count (`isFunctionalTestPlan` in `src/releaseReadinessData.ts`). This excludes the "Test DSI" plan, which `code_coverage.md` attributes to a different owner ("Test Factory Esterna" only). If new plan names are added later, check this regex still matches them.
+- "Carry-over" only activates once the sprint's real end date has passed (`sprint.hasEnded`) — before that, not-yet-executed test cases are just in-flight work, not carry-over.
+- Pre-2026-07-07 activity (Azure DevOps capability trials, not real testing) is already excluded via the existing `SPRINT_1_START_DATE` cutoff in `dashboardData.ts` — didn't need duplicating in `sprints.ts`.
+
+<details><summary>Original plan (superseded, kept for history)</summary>
+
 - Already in `TestPlanProgressCounts` — compare planned count at sprint start vs actual executed at sprint end
 - Requires either snapshot storage (persist a JSON per sprint) or use Azure DevOps iteration dates to filter the OData history
-- Effort: Low
+
+</details>
 
 ---
 
-### 1.3 Sprint-over-Sprint Pass Rate Delta
+### 1.3 Sprint-over-Sprint Pass Rate Delta — ✅ Implemented
 **Stakeholders:** QA Manager, Engineering Leadership, Scrum Master
 
 Did quality improve or regress vs the previous sprint? Surface as a delta indicator (arrow + % change).
 
-**Implementation:**
-- `TrendPoint` data already exists — compute `current.passRate - previous.passRate` per sprint
-- Add a delta column/indicator to the existing trend view
-- Effort: Low
+**As built:** `sprintPassRateFromTrend()` in `src/releaseReadinessData.ts` buckets the existing daily `computeExecutionTrend()` series into each sprint's `[startDate, endDate]` window (using the real calendar from 1.2) and computes `passed / (passed+failed+blocked)` per window, then diffs current vs previous. Currently always shows "no prior sprint" since Sprint 1 is first in the calendar and has no predecessor — this is expected, not a bug, until Sprint 2's window has trend data. Lives on the `/release-readiness` page as a stat card, not a delta column on the existing trend view.
 
 ---
 
-### 1.4 Blocking Defects at Release
+### 1.4 Blocking Defects at Release — ✅ Implemented
 **Stakeholders:** Product Owners, Release Managers
 
 Count of open Severity 1 and Severity 2 bugs still unresolved at sprint close, tracked over time as a trend.
 
-**Implementation:**
-- Filter existing defect data by severity + state + iteration close date
-- Already have severity breakdown in `DefectStats` — add a sprint-boundary snapshot
-- Effort: Low
+**As built:** `blockingDefects` in `src/releaseReadinessData.ts` — open bugs with Severity `"1 - Critical"` or `"2 - High"`, project-wide (not scoped to a plan or sprint-boundary snapshot; see the defect-scoping note under 1.1). Shown as a stat card + full table (reusing the existing `BugsTable` component) on `/release-readiness`. No historical trend was built for this specific metric — the existing `DefectStats.backlogTrend`/`backlogDirection` on the Defects page already covers backlog trend generally and wasn't worth duplicating.
 
 ---
 
@@ -212,19 +254,19 @@ This page makes the dashboard usable in a stakeholder review meeting without req
 
 ## Priority & Effort Summary
 
-| # | KPI | Stakeholder | Effort | Priority |
-|---|---|---|---|---|
-| 1.1 | Quality Health Score / RAG | C-Level, PO, RM | Medium | **P1** |
-| 1.2 | Sprint Test Completion Rate + Carry-Over | QA Mgr, Scrum | Low | **P1** |
-| 1.3 | Sprint-over-Sprint Pass Rate Delta | QA Mgr, Engineering | Low | **P1** |
-| 1.4 | Blocking Defects at Release | PO, RM | Low | **P1** |
-| 2.1 | QA Team Productivity per Tester | QA Mgr, HR | Medium | **P2** |
-| 2.2 | Detection Phase Breakdown | Engineering, Audit | Medium | **P2** |
-| 2.3 | Defect Escape Rate | Engineering, PO | Medium | **P2** |
-| 2.4 | Bug Fix Validation Cycle Time | QA Mgr, Scrum | Medium | **P2** |
-| 3.1 | Requirements Traceability Coverage | PO, BA, Audit | High | **P3** |
-| 3.2 | Test Case Effectiveness Rate | QA Team | Low | **P3** |
-| 3.3 | Defect Injection Rate | Engineering, Scrum | Medium-High | **P3** |
+| # | KPI | Stakeholder | Effort | Priority | Status |
+|---|---|---|---|---|---|
+| 1.1 | Quality Health Score / RAG | C-Level, PO, RM | Medium | **P1** | ✅ Done (as BLOCK/WARN gate, not a score) |
+| 1.2 | Sprint Test Completion Rate + Carry-Over | QA Mgr, Scrum | Low | **P1** | ✅ Done |
+| 1.3 | Sprint-over-Sprint Pass Rate Delta | QA Mgr, Engineering | Low | **P1** | ✅ Done |
+| 1.4 | Blocking Defects at Release | PO, RM | Low | **P1** | ✅ Done |
+| 2.1 | QA Team Productivity per Tester | QA Mgr, HR | Medium | **P2** | Not started |
+| 2.2 | Detection Phase Breakdown | Engineering, Audit | Medium | **P2** | Not started |
+| 2.3 | Defect Escape Rate | Engineering, PO | Medium | **P2** | Not started |
+| 2.4 | Bug Fix Validation Cycle Time | QA Mgr, Scrum | Medium | **P2** | Not started |
+| 3.1 | Requirements Traceability Coverage | PO, BA, Audit | High | **P3** | Not started — now also unblocks 1.1's requirements-coverage gate |
+| 3.2 | Test Case Effectiveness Rate | QA Team | Low | **P3** | Not started |
+| 3.3 | Defect Injection Rate | Engineering, Scrum | Medium-High | **P3** | Not started |
 
 ---
 
@@ -233,10 +275,10 @@ This page makes the dashboard usable in a stakeholder review meeting without req
 Before starting P2 items, confirm the following in Azure DevOps:
 
 - [ ] Is there a "Found In" / "Environment" field on bug work items? (Unlocks 2.2 and 2.3)
-- [ ] Are exit criteria thresholds defined for pass rate, critical bugs, not-run %? (Unlocks 1.1)
-- [ ] Are test cases linked to user stories via "Related Work" links? (Unlocks 3.1)
+- [x] Are exit criteria thresholds defined for pass rate, critical bugs, not-run %? (Unlocks 1.1) — resolved via `code_coverage.md`, the org's real exit-criteria doc; see 1.1 above
+- [ ] Are test cases linked to user stories via "Related Work" links? (Unlocks 3.1, and now also the requirements-coverage gate in 1.1)
 - [ ] Is "Story Points" field populated on sprint stories? (Unlocks 3.3)
-- [ ] Is iteration / sprint start-end date data reliable in AZDO? (Unlocks 1.2 snapshot approach)
+- [x] Is iteration / sprint start-end date data reliable in AZDO? (Unlocks 1.2 snapshot approach) — resolved without AZDO Iterations API: real sprint calendar hand-maintained in `src/sprints.ts` instead
 
 ---
 
@@ -245,4 +287,5 @@ Before starting P2 items, confirm the following in Azure DevOps:
 - All P1 items can be built from data already available via existing Azure DevOps OData and REST API calls — no new data sources required.
 - P2 items require either a new custom field in Azure DevOps ("Found In") or additional API calls to work item revisions.
 - P3 items require structural prerequisites in Azure DevOps (linked work items, story points) that the QA/dev team must align on first.
-- The Executive Summary page should be built alongside or immediately after P1 items, as it is the primary stakeholder-facing output.
+- The Executive Summary page should be built alongside or immediately after P1 items, as it is the primary stakeholder-facing output. **Still not started** as of 2026-07-10, despite P1 itself being done — pick this up next if stakeholder-facing reporting is the priority, or move to P2 if internal QA process metrics matter more right now.
+- When picking up 3.1 (Requirements Traceability): its output should also be wired into 1.1's "Requirements Coverage" gate criterion (`src/releaseReadinessData.ts`, currently hardcoded `tracked: false`) — don't build it as a fully separate feature without closing that loop.
