@@ -1,10 +1,11 @@
 import cron from "node-cron";
 import "dotenv/config";
-import { getDefectData } from "./defectData.js";
+import { getDefectData, computeSprintDefectReport } from "./defectData.js";
 import {
     sendTeamsMessage,
     buildBugsReportedTodayCard,
 } from "./teamsNotifier.js";
+import { writeSprintDefectReportFile } from "./sprintReportFileExport.js";
 
 function isToday(dateString: string, timeZone: string): boolean {
     const fmt = new Intl.DateTimeFormat("en-CA", {
@@ -47,6 +48,44 @@ export function startBugSummaryScheduler(): void {
             } catch (error) {
                 console.error(
                     "Failed to send daily bug report to Teams",
+                    error
+                );
+            }
+        },
+        { timezone }
+    );
+}
+
+export function startSprintReportFileExportScheduler(): void {
+    const destinationFolder = process.env.SPRINT_REPORT_EXPORT_PATH;
+
+    if (
+        process.env.ENABLE_SPRINT_REPORT_EXPORT !== "true" ||
+        !destinationFolder
+    ) {
+        return;
+    }
+
+    const schedule =
+        process.env.SPRINT_REPORT_EXPORT_CRON ?? "0 18 * * *";
+    const timezone =
+        process.env.SPRINT_REPORT_EXPORT_TIMEZONE ?? "Europe/Rome";
+
+    cron.schedule(
+        schedule,
+        async () => {
+            try {
+                const records = await getDefectData();
+                const report = computeSprintDefectReport(records);
+                const filePath = writeSprintDefectReportFile(
+                    report,
+                    destinationFolder
+                );
+
+                console.log(`Sprint Defect Report written to ${filePath}`);
+            } catch (error) {
+                console.error(
+                    "Failed to write daily Sprint Defect Report file",
                     error
                 );
             }

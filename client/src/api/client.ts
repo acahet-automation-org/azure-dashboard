@@ -19,6 +19,7 @@ import type {
 } from "../types";
 import { loginRequest } from "../authConfig";
 import { msalInstance } from "../msalInstance";
+import i18n from "../i18n";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 const skipAuth = import.meta.env.VITE_SKIP_AUTH === "true";
@@ -70,17 +71,34 @@ async function authorizedFetch(
     });
 }
 
+async function throwForErrorResponse(
+    res: Response,
+    fallbackMessage: string
+): Promise<never> {
+    const body = await res.json().catch(() => null);
+
+    if (body?.message) {
+        throw new Error(body.message);
+    }
+
+    // 502/503 without a JSON body means something in front of our API (the
+    // host, a proxy) is down or restarting rather than our own route code
+    // having thrown - the backend normally translates an expired/invalid
+    // AZDO_PAT into a 502 with an explicit message handled above.
+    if (res.status === 502 || res.status === 503) {
+        throw new Error(i18n.t("errorState.serviceUnavailable"));
+    }
+
+    throw new Error(fallbackMessage);
+}
+
 async function getJson<T>(url: string): Promise<T> {
     const res = await authorizedFetch(url);
 
     if (!res.ok) {
-        const body = await res
-            .json()
-            .catch(() => null);
-
-        throw new Error(
-            body?.message ??
-                `Request to ${url} failed (${res.status})`
+        await throwForErrorResponse(
+            res,
+            `Request to ${url} failed (${res.status})`
         );
     }
 
@@ -184,12 +202,9 @@ export async function sendEmailReport(payload: {
     });
 
     if (!res.ok) {
-        const body = await res
-            .json()
-            .catch(() => null);
-
-        throw new Error(
-            body?.message ?? `Email report failed (${res.status})`
+        await throwForErrorResponse(
+            res,
+            `Email report failed (${res.status})`
         );
     }
 }
@@ -204,12 +219,9 @@ export async function deleteTestCases(
     });
 
     if (!res.ok) {
-        const body = await res
-            .json()
-            .catch(() => null);
-
-        throw new Error(
-            body?.message ?? `Delete failed (${res.status})`
+        await throwForErrorResponse(
+            res,
+            `Delete failed (${res.status})`
         );
     }
 
@@ -222,7 +234,8 @@ export async function postRefresh(): Promise<void> {
     });
 
     if (!res.ok) {
-        throw new Error(
+        await throwForErrorResponse(
+            res,
             `Refresh failed (${res.status})`
         );
     }

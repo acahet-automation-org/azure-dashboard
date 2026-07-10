@@ -454,7 +454,8 @@
     },
     "errorState": {
         "title": "Something went wrong",
-        "retry": "Retry"
+        "retry": "Retry",
+        "serviceUnavailable": "The dashboard backend is unavailable right now. This can happen when the server's Azure DevOps access token (AZDO_PAT) has expired, or the service is restarting. Please ask an administrator to check it, then retry in a minute."
     },
     "loadingState": {
         "label": "Loading"

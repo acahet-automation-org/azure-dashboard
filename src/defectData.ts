@@ -27,8 +27,10 @@ let defectCache: { data: DefectRecord[]; timestamp: number } | null = null;
 
 const CACHE_DURATION_MS = 5 * 60 * 1000;
 
-const REOPENED_FROM_STATES = ["Resolved", "Closed"];
-const REOPENED_TO_STATES = ["Active", "New"];
+// This project's Bug workflow has a dedicated "Riaperto" (reopened) state
+// rather than a generic Resolved/Closed -> Active/New transition, so a
+// reopening is any transition into that state, regardless of prior state.
+const REOPENED_TO_STATES = ["Riaperto"];
 
 // Seeded with the canonical VSTS/Agile rejection reasons. Whether these
 // actually appear depends on the project's process template - some
@@ -105,9 +107,7 @@ function countReopenings(revisions: any[]): number {
             ];
 
         if (
-            REOPENED_FROM_STATES.includes(
-                prevState
-            ) &&
+            currState !== prevState &&
             REOPENED_TO_STATES.includes(currState)
         ) {
             count++;
@@ -580,7 +580,7 @@ function statusBucket(state: string): "New" | "Closed" | "In Progress" {
     return "In Progress";
 }
 
-function computeSprintDefectReport(
+export function computeSprintDefectReport(
     records: DefectRecord[]
 ): SprintDefectReport {
     const outOfScope = records.filter(isOutOfScope);

@@ -909,7 +909,7 @@ function breakdownTable(
     doc: jsPDF,
     heading: string,
     countColumnLabel: string,
-    breakdown: Record<string, number>,
+    entries: [string, number][],
     startY: number
 ): number {
     let y = ensurePdfSpace(doc, startY, 20);
@@ -921,10 +921,7 @@ function breakdownTable(
     autoTable(doc, {
         startY: y,
         head: [[heading, countColumnLabel]],
-        body: Object.entries(breakdown).map(([name, count]) => [
-            name,
-            String(count),
-        ]),
+        body: entries.map(([name, count]) => [name, String(count)]),
         styles: { fontSize: 8 },
         headStyles: { fillColor: [0, 90, 158] },
     });
@@ -932,6 +929,34 @@ function breakdownTable(
     return (
         (doc as unknown as { lastAutoTable: { finalY: number } })
             .lastAutoTable.finalY + 10
+    );
+}
+
+// Mirrors the ordering used for the on-screen charts in
+// SprintDefectReportTab so the exported PDF tables read in the same order:
+// New, In Progress, Closed rather than whatever order bugs were encountered.
+const STATUS_ORDER = ["New", "In Progress", "Closed"];
+
+function sortByStatusOrder(
+    breakdown: Record<string, number>
+): [string, number][] {
+    return Object.entries(breakdown).sort(
+        ([a], [b]) => STATUS_ORDER.indexOf(a) - STATUS_ORDER.indexOf(b)
+    );
+}
+
+// Severity is stored as e.g. "1 - Critical", so sorting by the leading rank
+// number naturally orders Critical, High, Medium, ... to match the chart.
+function severityRank(raw: string): number {
+    const match = /^(\d+)\s*-/.exec(raw);
+    return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
+}
+
+function sortBySeverityOrder(
+    breakdown: Record<string, number>
+): [string, number][] {
+    return Object.entries(breakdown).sort(
+        ([a], [b]) => severityRank(a) - severityRank(b)
     );
 }
 
@@ -981,25 +1006,32 @@ function buildSprintDefectReportPdfDocument(
         doc,
         labels.byOrigin,
         labels.countColumn,
-        report.byOrigin,
+        Object.entries(report.byOrigin),
         nextY
     );
     nextY = breakdownTable(
         doc,
         labels.byStatus,
         labels.countColumn,
-        report.byStatus,
+        sortByStatusOrder(report.byStatus),
         nextY
     );
     breakdownTable(
         doc,
         labels.bySeverity,
         labels.countColumn,
-        report.bySeverity,
+        sortBySeverityOrder(report.bySeverity),
         nextY
     );
 
     return doc;
+}
+
+function formatDateDDMMYYYY(date: Date): string {
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
 }
 
 export function exportSprintDefectReportToPdf(
@@ -1009,7 +1041,7 @@ export function exportSprintDefectReportToPdf(
     charts: ChartImage[] = []
 ): void {
     const doc = buildSprintDefectReportPdfDocument(report, labels, charts);
-    doc.save(`${filename}.pdf`);
+    doc.save(`${filename}_${formatDateDDMMYYYY(new Date())}.pdf`);
 }
 
 export function exportPlanProgressToPdf(
