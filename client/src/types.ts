@@ -81,6 +81,7 @@ export interface TestPlanSummary {
 export interface TestCaseSummary {
     id: number;
     title: string;
+    suiteId: number;
 }
 
 export interface TestSuiteSummary {
@@ -354,7 +355,94 @@ export interface TestPlanProgressResponse {
     nodes: TestPlanProgressNode[];
 }
 
+export interface DeleteTestCaseItem {
+    planId: number;
+    suiteId: number;
+    testCaseId: number;
+}
+
 export interface DeleteTestCasesResult {
     deleted: number[];
     failed: { id: number; message: string }[];
+}
+
+export interface SprintInfo {
+    id: number;
+    name: string;
+    startDate: string;
+    endDate: string;
+    hasEnded: boolean;
+}
+
+export type RagStatus = "green" | "amber" | "red";
+
+// Mirrors the org's formal release exit-criteria checklist (code_coverage.md,
+// "Criteri di Accettazione - Test Funzionali Manuali"): each row is either a
+// hard BLOCK gate or a WARN (tracked-only, doesn't block release).
+export type GateAction = "block" | "warn";
+
+export type GateCriterionId =
+    | "testsExecuted"
+    | "testsPassed"
+    | "requirementsCoverage"
+    | "criticalDefectsOpen"
+    | "highDefectsOpen"
+    | "mediumDefectsOpen"
+    | "lowDefectsOpen";
+
+export interface ReleaseGateCriterion {
+    id: GateCriterionId;
+    action: GateAction;
+    target: string;
+    actual: string | null;
+    tracked: boolean;
+    passed: boolean;
+}
+
+export interface ReleaseGateSummary {
+    ragStatus: RagStatus;
+    criteria: ReleaseGateCriterion[];
+    trackedCount: number;
+    passingCount: number;
+}
+
+export interface SprintCompletion {
+    plannedCount: number;
+    executedCount: number;
+    notExecutedCount: number;
+    completionRatePct: number;
+    carryOverCount: number;
+}
+
+export interface PassRateDelta {
+    currentSprintPassRate: number | null;
+    previousSprintPassRate: number | null;
+    deltaPct: number | null;
+    previousSprintName: string | null;
+}
+
+export interface BlockingDefect {
+    id: number;
+    title: string;
+    severity?: string;
+    priority?: number;
+    state: string;
+    url?: string;
+    creator?: string;
+}
+
+export interface BlockingDefectsSummary {
+    criticalCount: number;
+    highCount: number;
+    totalCount: number;
+    items: BlockingDefect[];
+}
+
+export interface ReleaseReadinessResponse {
+    sprint: SprintInfo;
+    releaseGate: ReleaseGateSummary;
+    completion: SprintCompletion;
+    passRateDelta: PassRateDelta;
+    blockingDefects: BlockingDefectsSummary;
+    cacheTimestamp: number;
 }

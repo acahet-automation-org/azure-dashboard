@@ -11,6 +11,7 @@ import {
     buildWorkItemUrl,
     buildTestRunUrl,
     deleteTestCase,
+    deleteTestCasesFromSuite,
 } from "./azdo.js";
 import type {
     TestCaseRow,
@@ -22,6 +23,7 @@ import type {
     TestPlanSummary,
     TestSuiteSummary,
     TestCaseSummary,
+    DeleteTestCaseItem,
     DeleteTestCasesResult,
 } from "./types.js";
 
@@ -533,6 +535,7 @@ export async function computePlanSuites(
                         testCases.map((tc: any) => ({
                             id: tc.workItem.id,
                             title: tc.workItem.name,
+                            suiteId: suite.id,
                         })),
                     ];
                 }
@@ -758,27 +761,69 @@ export async function computeExecutionTrend(): Promise<
 }
 
 export async function deleteTestCases(
-    ids: number[]
+    items: DeleteTestCaseItem[]
 ): Promise<DeleteTestCasesResult> {
-    const results = await Promise.allSettled(
-        ids.map((id) => deleteTestCase(id))
+    // Unlinking from the suite is what actually makes the test case
+    // disappear from the suite tree the UI renders (see the comment on
+    // deleteTestCasesFromSuite) - items sharing a (planId, suiteId) are
+    // batched into a single unlink request.
+    const groups = new Map<
+        string,
+        { planId: number; suiteId: number; testCaseIds: number[] }
+    >();
+
+    for (const item of items) {
+        const key = `${item.planId}:${item.suiteId}`;
+        const group = groups.get(key);
+
+        if (group) {
+            group.testCaseIds.push(item.testCaseId);
+        } else {
+            groups.set(key, {
+                planId: item.planId,
+                suiteId: item.suiteId,
+                testCaseIds: [item.testCaseId],
+            });
+        }
+    }
+
+    const groupList = [...groups.values()];
+
+    const unlinkResults = await Promise.allSettled(
+        groupList.map((group) =>
+            deleteTestCasesFromSuite(
+                group.planId,
+                group.suiteId,
+                group.testCaseIds
+            )
+        )
     );
 
     const deleted: number[] = [];
     const failed: { id: number; message: string }[] = [];
 
-    results.forEach((result, index) => {
+    unlinkResults.forEach((result, index) => {
+        const group = groupList[index];
+
         if (result.status === "fulfilled") {
-            deleted.push(ids[index]);
+            deleted.push(...group.testCaseIds);
         } else {
-            failed.push({
-                id: ids[index],
-                message:
-                    result.reason?.message ??
-                    "Unknown error",
-            });
+            const message =
+                result.reason?.message ?? "Unknown error";
+
+            for (const testCaseId of group.testCaseIds) {
+                failed.push({ id: testCaseId, message });
+            }
         }
     });
+
+    // Best-effort permanent delete of the underlying work item now that it's
+    // unlinked from the suite. A failure here doesn't change the outcome
+    // reported to the caller - the test case already no longer appears in
+    // the suite, which is what the UI promised.
+    await Promise.allSettled(
+        deleted.map((id) => deleteTestCase(id))
+    );
 
     if (deleted.length > 0) {
         clearDashboardCache();

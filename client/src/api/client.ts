@@ -15,7 +15,9 @@ import type {
     PlanOverviewResponse,
     TestPlanProgressResponse,
     BugInfo,
+    DeleteTestCaseItem,
     DeleteTestCasesResult,
+    ReleaseReadinessResponse,
 } from "../types";
 import { loginRequest } from "../authConfig";
 import { msalInstance } from "../msalInstance";
@@ -178,6 +180,10 @@ export function fetchDefects(
     return getJson(`/api/defects${qs ? `?${qs}` : ""}`);
 }
 
+export function fetchReleaseReadiness(): Promise<ReleaseReadinessResponse> {
+    return getJson("/api/release-readiness");
+}
+
 export function fetchCommonErrors(): Promise<CommonErrorsResponse> {
     return getJson("/api/common-errors");
 }
@@ -210,12 +216,12 @@ export async function sendEmailReport(payload: {
 }
 
 export async function deleteTestCases(
-    ids: number[]
+    items: DeleteTestCaseItem[]
 ): Promise<DeleteTestCasesResult> {
     const res = await authorizedFetch("/api/test-cases/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids }),
+        body: JSON.stringify({ items }),
     });
 
     if (!res.ok) {

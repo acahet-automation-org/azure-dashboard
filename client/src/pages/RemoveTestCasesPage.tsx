@@ -342,7 +342,11 @@ export function RemoveTestCasesPage() {
                                 disabled={deleteMutation.isPending}
                                 onClick={() =>
                                     deleteMutation.mutate(
-                                        Array.from(selectedIds)
+                                        selectedTestCases.map((tc) => ({
+                                            planId: selectedPlanId!,
+                                            suiteId: tc.suiteId,
+                                            testCaseId: tc.id,
+                                        }))
                                     )
                                 }
                             >

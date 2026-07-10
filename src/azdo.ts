@@ -153,6 +153,22 @@ export async function deleteTestCase(
     );
 }
 
+// Deleting the test case work item (deleteTestCase above) doesn't reliably
+// clear its membership in the suite it was viewed in - Azure DevOps can keep
+// serving the suite/testcase association for a while after the work item
+// itself is gone. Explicitly unlinking from the suite first is what actually
+// makes it disappear from the suite tree the UI renders.
+export async function deleteTestCasesFromSuite(
+    planId: number,
+    suiteId: number,
+    testCaseIds: number[]
+): Promise<void> {
+    await azdo.delete(
+        `/testplan/plans/${planId}/suites/${suiteId}/testcase` +
+        `?testIds=${testCaseIds.join(",")}&api-version=7.1`
+    );
+}
+
 export async function getTestPoints(
     planId: number,
     suiteId: number
