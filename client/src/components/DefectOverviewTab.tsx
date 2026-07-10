@@ -230,52 +230,6 @@ export function DefectOverviewTab({ stats }: { stats: DefectStats }) {
                     </ResponsiveContainer>
                 </ChartCard>
 
-                <ChartCard title={t("defectManagementPage.charts.byComponent")}>
-                    <ResponsiveContainer width="100%" height={280}>
-                        <BarChart
-                            data={toChartData(stats.byComponent)}
-                            layout="vertical"
-                            margin={{ left: 24 }}
-                        >
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis type="number" allowDecimals={false} />
-                            <YAxis
-                                type="category"
-                                dataKey="name"
-                                width={categoryAxisWidth(
-                                    Object.keys(stats.byComponent)
-                                )}
-                                tick={{ fontSize: 12 }}
-                            />
-                            <Tooltip />
-                            <Bar dataKey="count" fill="#8764b8" />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </ChartCard>
-
-                <ChartCard title={t("defectManagementPage.charts.byTeam")}>
-                    <ResponsiveContainer width="100%" height={280}>
-                        <BarChart
-                            data={toChartData(stats.byTeam)}
-                            layout="vertical"
-                            margin={{ left: 24 }}
-                        >
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis type="number" allowDecimals={false} />
-                            <YAxis
-                                type="category"
-                                dataKey="name"
-                                width={categoryAxisWidth(
-                                    Object.keys(stats.byTeam)
-                                )}
-                                tick={{ fontSize: 12 }}
-                            />
-                            <Tooltip />
-                            <Bar dataKey="count" fill="#038387" />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </ChartCard>
-
                 <ChartCard title={t("defectManagementPage.charts.byTestSuite")}>
                     <ResponsiveContainer width="100%" height={280}>
                         <BarChart

@@ -1,7 +1,8 @@
 import "dotenv/config";
-import express from "express";
+import express, { type Response } from "express";
 import cors from "cors";
 import { requireAuth } from "./auth.js";
+import { AzdoAuthError } from "./azdo.js";
 import {
     getDashboardData,
     clearDashboardCache,
@@ -50,7 +51,10 @@ import {
     computeTestPlanProgressBugs,
     clearTestPlanProgressBugsCache,
 } from "./testPlanProgressData.js";
-import { startBugSummaryScheduler } from "./scheduler.js";
+import {
+    startBugSummaryScheduler,
+    startSprintReportFileExportScheduler,
+} from "./scheduler.js";
 
 const app = express();
 
@@ -64,6 +68,20 @@ app.use(express.json({ limit: "15mb" }));
 
 app.use("/api", requireAuth);
 
+// AzdoAuthError means Azure DevOps rejected our AZDO_PAT (usually expired or
+// revoked) - surface it as 502 Bad Gateway so the client can tell it apart
+// from an ordinary server-side bug and show a specific, actionable message.
+function sendApiError(res: Response, error: any): void {
+    console.error(error);
+
+    if (error instanceof AzdoAuthError) {
+        res.status(502).json({ message: error.message });
+        return;
+    }
+
+    res.status(500).json({ message: error.message });
+}
+
 app.get("/api/suites", async (_, res) => {
     try {
         const allTestCases =
@@ -73,11 +91,7 @@ app.get("/api/suites", async (_, res) => {
             computeSuiteStats(allTestCases)
         );
     } catch (error: any) {
-        console.error(error);
-
-        res.status(500).json({
-            message: error.message,
-        });
+        sendApiError(res, error);
     }
 });
 
@@ -93,11 +107,7 @@ app.get("/api/dashboard", async (_, res) => {
             cacheTimestamp: getCacheTimestamp(),
         });
     } catch (error: any) {
-        console.error(error);
-
-        res.status(500).json({
-            message: error.message,
-        });
+        sendApiError(res, error);
     }
 });
 
@@ -105,11 +115,7 @@ app.get("/api/runs", async (_, res) => {
     try {
         res.json(await computeRunCards());
     } catch (error: any) {
-        console.error(error);
-
-        res.status(500).json({
-            message: error.message,
-        });
+        sendApiError(res, error);
     }
 });
 
@@ -126,11 +132,7 @@ app.get("/api/execution-trend", async (_, res) => {
             totalTestCases: allTestCases.length,
         });
     } catch (error: any) {
-        console.error(error);
-
-        res.status(500).json({
-            message: error.message,
-        });
+        sendApiError(res, error);
     }
 });
 
@@ -138,11 +140,7 @@ app.get("/api/plans", async (_, res) => {
     try {
         res.json(await computeTestPlans());
     } catch (error: any) {
-        console.error(error);
-
-        res.status(500).json({
-            message: error.message,
-        });
+        sendApiError(res, error);
     }
 });
 
@@ -152,11 +150,7 @@ app.get("/api/plans/:planId/suites", async (req, res) => {
 
         res.json(await computePlanSuites(planId));
     } catch (error: any) {
-        console.error(error);
-
-        res.status(500).json({
-            message: error.message,
-        });
+        sendApiError(res, error);
     }
 });
 
@@ -166,11 +160,7 @@ app.get("/api/plans/:planId/overview", async (req, res) => {
 
         res.json(await computePlanOverview(planId));
     } catch (error: any) {
-        console.error(error);
-
-        res.status(500).json({
-            message: error.message,
-        });
+        sendApiError(res, error);
     }
 });
 
@@ -180,11 +170,7 @@ app.get("/api/plans/:planId/progress", async (req, res) => {
 
         res.json(await computeTestPlanProgress(planId));
     } catch (error: any) {
-        console.error(error);
-
-        res.status(500).json({
-            message: error.message,
-        });
+        sendApiError(res, error);
     }
 });
 
@@ -201,11 +187,7 @@ app.get("/api/plans/:planId/progress/bugs", async (req, res) => {
 
         res.json(await computeTestPlanProgressBugs(planId, suiteIds));
     } catch (error: any) {
-        console.error(error);
-
-        res.status(500).json({
-            message: error.message,
-        });
+        sendApiError(res, error);
     }
 });
 
@@ -236,11 +218,7 @@ app.post("/api/test-cases/delete", async (req, res) => {
 
         res.json(result);
     } catch (error: any) {
-        console.error(error);
-
-        res.status(500).json({
-            message: error.message,
-        });
+        sendApiError(res, error);
     }
 });
 
@@ -256,11 +234,7 @@ app.get("/api/automation", async (req, res) => {
             )
         );
     } catch (error: any) {
-        console.error(error);
-
-        res.status(500).json({
-            message: error.message,
-        });
+        sendApiError(res, error);
     }
 });
 
@@ -299,11 +273,7 @@ app.get("/api/defects", async (req, res) => {
             cacheTimestamp: getDefectCacheTimestamp(),
         });
     } catch (error: any) {
-        console.error(error);
-
-        res.status(500).json({
-            message: error.message,
-        });
+        sendApiError(res, error);
     }
 });
 
@@ -319,11 +289,7 @@ app.get("/api/common-errors", async (_, res) => {
                 getCommonErrorsCacheTimestamp(),
         });
     } catch (error: any) {
-        console.error(error);
-
-        res.status(500).json({
-            message: error.message,
-        });
+        sendApiError(res, error);
     }
 });
 app.get("/api/my-work-items", async (req, res) => {
@@ -341,11 +307,7 @@ app.get("/api/my-work-items", async (req, res) => {
 
         res.json(items);
     } catch (error: any) {
-        console.error(error);
-
-        res.status(500).json({
-            message: error.message,
-        });
+        sendApiError(res, error);
     }
 });
 
@@ -392,11 +354,7 @@ app.post("/api/email-report", async (req, res) => {
 
         res.status(204).end();
     } catch (error: any) {
-        console.error(error);
-
-        res.status(500).json({
-            message: error.message,
-        });
+        sendApiError(res, error);
     }
 });
 
@@ -414,6 +372,7 @@ app.post("/api/refresh", (_, res) => {
 
 
 startBugSummaryScheduler();
+startSprintReportFileExportScheduler();
 
 const port = Number(process.env.PORT) || 3000;
 

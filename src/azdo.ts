@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { type AxiosInstance } from "axios";
 import "dotenv/config";
 
 const auth = Buffer.from(
@@ -37,6 +37,52 @@ export const azdoOdata = axios.create({
         Authorization: `Basic ${auth}`,
     },
 });
+
+// When AZDO_PAT is expired/revoked (or lacks the scope/conditional-access
+// needed for a given API), Azure DevOps doesn't reliably answer with a clean
+// 401 - it can instead serve its interactive HTML sign-in page while tagging
+// the response with an unrelated status such as 503. Detect that shape here
+// so callers get one specific, actionable error instead of a generic
+// "Request failed with status code 503".
+export class AzdoAuthError extends Error {
+    constructor(originalStatus: number) {
+        super(
+            `Azure DevOps returned its sign-in page instead of data (HTTP ${originalStatus}). ` +
+                "The shared AZDO_PAT access token has likely expired, been revoked, or lost the " +
+                "required permissions. Ask an administrator to generate a new PAT and update the " +
+                "server's AZDO_PAT configuration."
+        );
+        this.name = "AzdoAuthError";
+    }
+}
+
+function isHtmlSignInResponse(error: unknown): error is {
+    response: { status: number; headers: Record<string, unknown> };
+} {
+    return (
+        axios.isAxiosError(error) &&
+        !!error.response &&
+        String(error.response.headers?.["content-type"] ?? "").includes(
+            "text/html"
+        )
+    );
+}
+
+function attachAuthErrorInterceptor(instance: AxiosInstance): void {
+    instance.interceptors.response.use(undefined, (error: unknown) => {
+        if (isHtmlSignInResponse(error)) {
+            return Promise.reject(
+                new AzdoAuthError(error.response.status)
+            );
+        }
+
+        return Promise.reject(error);
+    });
+}
+
+for (const instance of [azdo, azdoOrg, azdoOdata]) {
+    attachAuthErrorInterceptor(instance);
+}
 
 export async function getTestSuiteHierarchy(planId: number) {
     const apply =

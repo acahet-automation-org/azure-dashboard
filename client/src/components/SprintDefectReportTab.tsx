@@ -318,8 +318,8 @@ export function SprintDefectReportTab({
                             <ResponsiveContainer width="100%" height={220}>
                                 <BarChart data={statusData}>
                                     <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                                    <YAxis allowDecimals={false} />
+                                    <XAxis dataKey="name" tick={{ fontSize: 13 }} />
+                                    <YAxis allowDecimals={false} tick={{ fontSize: 13 }} />
                                     <Tooltip />
                                     <Bar
                                         dataKey="count"
@@ -376,8 +376,8 @@ export function SprintDefectReportTab({
                         <ResponsiveContainer width="100%" height={280}>
                             <BarChart data={severityData}>
                                 <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                                <YAxis allowDecimals={false} />
+                                <XAxis dataKey="name" tick={{ fontSize: 13 }} />
+                                <YAxis allowDecimals={false} tick={{ fontSize: 13 }} />
                                 <Tooltip />
                                 <Bar
                                     dataKey="count"

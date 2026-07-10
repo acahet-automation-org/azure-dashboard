@@ -306,7 +306,7 @@
             "openInAdo": "Apri in Azure DevOps →"
         },
         "sprintReport": {
-            "title": "Report Difetti di Sprint",
+            "title": "Report Difetti di Sprint 1",
             "stats": {
                 "total": "Bug Rilevati",
                 "effective": "Difetti Effettivi",
@@ -454,7 +454,8 @@
     },
     "errorState": {
         "title": "Si è verificato un errore",
-        "retry": "Riprova"
+        "retry": "Riprova",
+        "serviceUnavailable": "Il backend del dashboard non è al momento disponibile. Questo può accadere quando il token di accesso ad Azure DevOps del server (AZDO_PAT) è scaduto, oppure il servizio si sta riavviando. Chiedi a un amministratore di verificarlo, poi riprova tra un minuto."
     },
     "loadingState": {
         "label": "Caricamento"
