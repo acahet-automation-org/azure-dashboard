@@ -29,6 +29,9 @@ const MyWorkItemsPage = lazy(() => import("./pages/MyWorkItemsPage").then((m) =>
 const RemoveTestCasesPage = lazy(() =>
     import("./pages/RemoveTestCasesPage").then((m) => ({ default: m.RemoveTestCasesPage }))
 );
+const ReleaseReadinessPage = lazy(() =>
+    import("./pages/ReleaseReadinessPage").then((m) => ({ default: m.ReleaseReadinessPage }))
+);
 
 function PageFallback() {
     return (
@@ -39,6 +42,8 @@ function PageFallback() {
 }
 
 const skipAuth = import.meta.env.VITE_SKIP_AUTH === "true";
+const releaseReadinessEnabled =
+    import.meta.env.VITE_ENABLE_RELEASE_READINESS === "true";
 
 function AppRoutes() {
     return (
@@ -57,6 +62,12 @@ function AppRoutes() {
                 <Route path="/common-errors" element={<CommonErrorsPage />} />
                 <Route path="/my-work-items" element={<MyWorkItemsPage />} />
                 <Route path="/remove-test-cases" element={<RemoveTestCasesPage />} />
+                {releaseReadinessEnabled && (
+                    <Route
+                        path="/release-readiness"
+                        element={<ReleaseReadinessPage />}
+                    />
+                )}
             </Routes>
         </Suspense>
     );

@@ -153,6 +153,22 @@ export async function deleteTestCase(
     );
 }
 
+// Deleting the test case work item (deleteTestCase above) doesn't reliably
+// clear its membership in the suite it was viewed in - Azure DevOps can keep
+// serving the suite/testcase association for a while after the work item
+// itself is gone. Explicitly unlinking from the suite first is what actually
+// makes it disappear from the suite tree the UI renders.
+export async function deleteTestCasesFromSuite(
+    planId: number,
+    suiteId: number,
+    testCaseIds: number[]
+): Promise<void> {
+    await azdo.delete(
+        `/testplan/plans/${planId}/suites/${suiteId}/testcase` +
+        `?testIds=${testCaseIds.join(",")}&api-version=7.1`
+    );
+}
+
 export async function getTestPoints(
     planId: number,
     suiteId: number
@@ -164,13 +180,34 @@ export async function getTestPoints(
     return response.data.value;
 }
 
+// The runs list endpoint returns runs in ascending creation order with no
+// $orderby support, so a single capped page (e.g. $top=50) only ever returns
+// the oldest runs project-wide - newer runs past that page silently never
+// show up. Paging with $skip until a short page comes back is what actually
+// gets the full (and therefore most recent) set.
+const TEST_RUNS_PAGE_SIZE = 200;
+
 export async function getTestRuns() {
     try {
-        const response = await azdo.get(
-            "/test/runs?api-version=7.1&$top=50&includeRunDetails=true"
-        );
+        const runs: any[] = [];
+        let skip = 0;
 
-        return response.data.value;
+        while (true) {
+            const response = await azdo.get(
+                `/test/runs?api-version=7.1&$top=${TEST_RUNS_PAGE_SIZE}&$skip=${skip}&includeRunDetails=true`
+            );
+
+            const page = response.data.value;
+            runs.push(...page);
+
+            if (page.length < TEST_RUNS_PAGE_SIZE) {
+                break;
+            }
+
+            skip += TEST_RUNS_PAGE_SIZE;
+        }
+
+        return runs;
     } catch (error) {
         if (axios.isAxiosError(error) && error.response?.status === 404) {
             return [];

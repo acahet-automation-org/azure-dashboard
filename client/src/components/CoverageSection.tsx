@@ -9,6 +9,7 @@ import {
     TableHeaderCell,
     TableBody,
     TableCell,
+    Text,
     makeStyles,
     tokens,
 } from "@fluentui/react-components";
@@ -28,14 +29,20 @@ const useStyles = makeStyles({
     statCell: {
         width: "12%",
     },
+    footnote: {
+        color: tokens.colorNeutralForeground3,
+    },
 });
 
 const coverageTabs = ["requirements", "userStory", "feature"] as const;
 
 type CoverageTab = (typeof coverageTabs)[number];
 
+// Not Applicable test cases were still executed/assessed (they're tagged
+// "OutOfScope" in Azure DevOps, not skipped), so they count toward
+// "executed" and coverage - only the pass-rate math below excludes them.
 function suiteExecuted(stat: SuiteStat): number {
-    return stat.passed + stat.failed + stat.blocked;
+    return stat.passed + stat.failed + stat.blocked + stat.notApplicable;
 }
 
 function suitePassRate(stat: SuiteStat): number {
@@ -83,61 +90,68 @@ function SuiteCoverageTable({
     );
 
     return (
-        <Table aria-label={t("testExecutionPage.coverage.tableLabel")}>
-            <TableHeader>
-                <TableRow>
-                    <TableHeaderCell className={styles.nameCell}>
-                        {t("testExecutionPage.coverage.columns.name")}
-                    </TableHeaderCell>
-                    <TableHeaderCell className={styles.statCell}>
-                        {t("testExecutionPage.coverage.columns.total")}
-                    </TableHeaderCell>
-                    <TableHeaderCell className={styles.statCell}>
-                        {t("testExecutionPage.coverage.columns.executed")}
-                    </TableHeaderCell>
-                    <TableHeaderCell className={styles.statCell}>
-                        {t("testExecutionPage.coverage.columns.coverage")}
-                    </TableHeaderCell>
-                    <TableHeaderCell className={styles.statCell}>
-                        {t("testExecutionPage.coverage.columns.passRate")}
-                    </TableHeaderCell>
-                    <TableHeaderCell className={styles.statCell}>
-                        {t(
-                            "testExecutionPage.coverage.columns.passRateExclNA"
-                        )}
-                    </TableHeaderCell>
-                    <TableHeaderCell className={styles.statCell}>
-                        {t(
-                            "testExecutionPage.coverage.columns.passRateNADelta"
-                        )}
-                    </TableHeaderCell>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {entries.map(([name, stat]) => {
-                    const delta = suitePassRateNADelta(stat);
+        <>
+            <Table aria-label={t("testExecutionPage.coverage.tableLabel")}>
+                <TableHeader>
+                    <TableRow>
+                        <TableHeaderCell className={styles.nameCell}>
+                            {t("testExecutionPage.coverage.columns.name")}
+                        </TableHeaderCell>
+                        <TableHeaderCell className={styles.statCell}>
+                            {t("testExecutionPage.coverage.columns.total")}
+                        </TableHeaderCell>
+                        <TableHeaderCell className={styles.statCell}>
+                            {t("testExecutionPage.coverage.columns.executed")}
+                        </TableHeaderCell>
+                        <TableHeaderCell className={styles.statCell}>
+                            {t("testExecutionPage.coverage.columns.coverage")}
+                        </TableHeaderCell>
+                        <TableHeaderCell className={styles.statCell}>
+                            {t("testExecutionPage.coverage.columns.passRate")}
+                        </TableHeaderCell>
+                        <TableHeaderCell className={styles.statCell}>
+                            {t(
+                                "testExecutionPage.coverage.columns.passRateExclNA"
+                            )}
+                        </TableHeaderCell>
+                        <TableHeaderCell className={styles.statCell}>
+                            {t(
+                                "testExecutionPage.coverage.columns.passRateNADelta"
+                            )}
+                        </TableHeaderCell>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {entries.map(([name, stat]) => {
+                        const delta = suitePassRateNADelta(stat);
 
-                    return (
-                        <TableRow key={name}>
-                            <TableCell className={styles.nameCell}>
-                                {name}
-                            </TableCell>
-                            <TableCell>{stat.total}</TableCell>
-                            <TableCell>{suiteExecuted(stat)}</TableCell>
-                            <TableCell>{suiteCoveragePct(stat)}%</TableCell>
-                            <TableCell>{suitePassRate(stat)}%</TableCell>
-                            <TableCell>
-                                {suitePassRateExcludingNA(stat)}%
-                            </TableCell>
-                            <TableCell>
-                                {delta > 0 ? "+" : ""}
-                                {delta}%
-                            </TableCell>
-                        </TableRow>
-                    );
-                })}
-            </TableBody>
-        </Table>
+                        return (
+                            <TableRow key={name}>
+                                <TableCell className={styles.nameCell}>
+                                    {name}
+                                </TableCell>
+                                <TableCell>{stat.total}</TableCell>
+                                <TableCell>{suiteExecuted(stat)}</TableCell>
+                                <TableCell>
+                                    {suiteCoveragePct(stat)}%
+                                </TableCell>
+                                <TableCell>{suitePassRate(stat)}%</TableCell>
+                                <TableCell>
+                                    {suitePassRateExcludingNA(stat)}%
+                                </TableCell>
+                                <TableCell>
+                                    {delta > 0 ? "+" : ""}
+                                    {delta}%
+                                </TableCell>
+                            </TableRow>
+                        );
+                    })}
+                </TableBody>
+            </Table>
+            <Text size={200} className={styles.footnote}>
+                {t("testExecutionPage.coverage.footnote")}
+            </Text>
+        </>
     );
 }
 
