@@ -18,6 +18,7 @@
         "commonErrors": "Common Errors",
         "myWorkItems": "My Work Items",
         "removeTestCases": "Remove Test Cases",
+        "releaseReadiness": "Release Readiness",
         "refresh": "Refresh Now",
         "refreshing": "Refreshing...",
         "refreshFailed": "Refresh failed: {{message}}",
@@ -211,9 +212,10 @@
                 "executed": "Executed",
                 "coverage": "Coverage %",
                 "passRate": "Pass Rate",
-                "passRateExclNA": "Pass Rate (excl. N/A)",
+                "passRateExclNA": "Pass Rate (excl. N/A*)",
                 "passRateNADelta": "N/A Impact (Δ)"
-            }
+            },
+            "footnote": "* N/A test cases are tagged \"OutOfScope\" in Azure DevOps. They still count as executed and toward Coverage %, but are excluded from \"Pass Rate (excl. N/A)\"."
         },
         "risk": {
             "title": "Risk Coverage",
@@ -498,6 +500,76 @@
             "successTitle": "{{count}} test case(s) deleted.",
             "failedSummary": "{{count}} test case(s) could not be deleted.",
             "errorTitle": "Delete failed"
+        }
+    },
+    "releaseReadinessPage": {
+        "title": "Release Readiness",
+        "sprintLabel": "{{name}} ({{start}} – {{end}})",
+        "sprintEnded": "sprint ended",
+        "rag": {
+            "green": "Green",
+            "amber": "Amber",
+            "red": "Red"
+        },
+        "gate": {
+            "title": "Release Gate",
+            "passingCount": "{{passing}}/{{total}} tracked criteria passing",
+            "criteriaTitle": "Exit Criteria (Test Funzionali e di Non Regressione)",
+            "actualTarget": "{{actual}} (target: {{target}})",
+            "notTrackedNote": "Not yet tracked (target: {{target}})",
+            "status": {
+                "pass": "PASS",
+                "block": "BLOCK",
+                "warn": "WARN",
+                "notTracked": "N/A"
+            },
+            "criteria": {
+                "testsExecuted": {
+                    "label": "Test Cases Executed",
+                    "description": "Percentage of planned manual test cases that were actually executed."
+                },
+                "testsPassed": {
+                    "label": "Tests Passed *",
+                    "description": "Percentage of executed manual test cases with a passing outcome.",
+                    "note": "* Excludes test cases with a Not Applicable outcome — these were out of scope for the current sprint and were added in error."
+                },
+                "requirementsCoverage": {
+                    "label": "Functional Requirements Coverage",
+                    "description": "Percentage of functional requirements covered by at least one test case."
+                },
+                "criticalDefectsOpen": {
+                    "label": "Critical Defects Open",
+                    "description": "Critical severity defects still open at the end of the test cycle."
+                },
+                "highDefectsOpen": {
+                    "label": "High Defects Open",
+                    "description": "High severity defects still open at the end of the test cycle."
+                },
+                "mediumDefectsOpen": {
+                    "label": "Medium Defects Open",
+                    "description": "Medium severity defects still open at the end of the test cycle (tracked only, does not block release)."
+                },
+                "lowDefectsOpen": {
+                    "label": "Low Defects Open",
+                    "description": "Low severity defects still open at the end of the test cycle (tracked only, does not block release)."
+                }
+            }
+        },
+        "stats": {
+            "title": "Sprint Metrics",
+            "completionRate": "Sprint Test Completion Rate",
+            "executedOfPlanned": "Executed / Planned",
+            "carryOver": "Carry-Over Test Cases",
+            "notYetExecuted": "Not Yet Executed",
+            "passRateDelta": "Pass Rate vs. Previous Sprint",
+            "blockingDefects": "Blocking Defects (Critical/High)"
+        },
+        "passRateDelta": {
+            "noPriorSprint": "No prior sprint yet"
+        },
+        "blockingDefects": {
+            "title": "Blocking Defects at Release",
+            "empty": "No open Critical or High severity bugs."
         }
     }
 }

@@ -18,6 +18,7 @@
         "commonErrors": "Errori Comuni",
         "myWorkItems": "I Miei Elementi",
         "removeTestCases": "Rimuovi Test Case",
+        "releaseReadiness": "Prontezza al Rilascio",
         "refresh": "Aggiorna Ora",
         "refreshing": "Aggiornamento...",
         "refreshFailed": "Aggiornamento non riuscito: {{message}}",
@@ -211,9 +212,10 @@
                 "executed": "Eseguiti",
                 "coverage": "Copertura %",
                 "passRate": "Percentuale di Successo",
-                "passRateExclNA": "Percentuale di Successo (escl. N/A)",
+                "passRateExclNA": "Percentuale di Successo (escl. N/A*)",
                 "passRateNADelta": "Impatto N/A (Δ)"
-            }
+            },
+            "footnote": "* I test case N/A sono taggati \"OutOfScope\" in Azure DevOps. Contano comunque come eseguiti e ai fini della Copertura %, ma sono esclusi dalla \"Percentuale di Successo (escl. N/A)\"."
         },
         "risk": {
             "title": "Copertura del Rischio",
@@ -498,6 +500,76 @@
             "successTitle": "{{count}} test case eliminati.",
             "failedSummary": "{{count}} test case non è stato possibile eliminare.",
             "errorTitle": "Eliminazione non riuscita"
+        }
+    },
+    "releaseReadinessPage": {
+        "title": "Prontezza al Rilascio",
+        "sprintLabel": "{{name}} ({{start}} – {{end}})",
+        "sprintEnded": "sprint terminato",
+        "rag": {
+            "green": "Verde",
+            "amber": "Giallo",
+            "red": "Rosso"
+        },
+        "gate": {
+            "title": "Release Gate",
+            "passingCount": "{{passing}}/{{total}} criteri tracciati soddisfatti",
+            "criteriaTitle": "Criteri di Accettazione (Test Funzionali e di Non Regressione)",
+            "actualTarget": "{{actual}} (soglia: {{target}})",
+            "notTrackedNote": "Non ancora tracciato (soglia: {{target}})",
+            "status": {
+                "pass": "OK",
+                "block": "BLOCK",
+                "warn": "WARN",
+                "notTracked": "N/D"
+            },
+            "criteria": {
+                "testsExecuted": {
+                    "label": "Test Case Eseguiti",
+                    "description": "Percentuale dei test case manuali pianificati che sono stati effettivamente eseguiti rispetto a quanto previsto nel piano di test."
+                },
+                "testsPassed": {
+                    "label": "Test Superati *",
+                    "description": "Percentuale dei test case manuali eseguiti con esito positivo.",
+                    "note": "* Esclude i test case con esito Non Applicabile: non erano nello scope dello sprint corrente e sono stati aggiunti per errore."
+                },
+                "requirementsCoverage": {
+                    "label": "Copertura dei Requisiti Funzionali",
+                    "description": "Percentuale dei requisiti funzionali coperti da almeno un test case."
+                },
+                "criticalDefectsOpen": {
+                    "label": "Defect Critici Aperti",
+                    "description": "Numero di defect di severità Critica ancora aperti alla fine del ciclo di test."
+                },
+                "highDefectsOpen": {
+                    "label": "Defect Alti Aperti",
+                    "description": "Numero di defect di severità Alta ancora aperti alla fine del ciclo di test."
+                },
+                "mediumDefectsOpen": {
+                    "label": "Defect Medi Aperti",
+                    "description": "Numero di defect di severità Media ancora aperti alla fine del ciclo di test (solo tracciati, non bloccano il rilascio)."
+                },
+                "lowDefectsOpen": {
+                    "label": "Defect Bassi Aperti",
+                    "description": "Numero di defect di severità Bassa ancora aperti alla fine del ciclo di test (solo tracciati, non bloccano il rilascio)."
+                }
+            }
+        },
+        "stats": {
+            "title": "Metriche dello Sprint",
+            "completionRate": "Tasso di Completamento Test dello Sprint",
+            "executedOfPlanned": "Eseguiti / Pianificati",
+            "carryOver": "Test Case Riportati allo Sprint Successivo",
+            "notYetExecuted": "Non Ancora Eseguiti",
+            "passRateDelta": "Tasso di Successo vs. Sprint Precedente",
+            "blockingDefects": "Difetti Bloccanti (Critici/Alti)"
+        },
+        "passRateDelta": {
+            "noPriorSprint": "Nessuno sprint precedente"
+        },
+        "blockingDefects": {
+            "title": "Difetti Bloccanti al Rilascio",
+            "empty": "Nessun bug aperto di severità Critica o Alta."
         }
     }
 }

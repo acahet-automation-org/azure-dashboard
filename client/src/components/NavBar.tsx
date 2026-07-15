@@ -76,6 +76,9 @@ const useStyles = makeStyles({
     },
 });
 
+const releaseReadinessEnabled =
+    import.meta.env.VITE_ENABLE_RELEASE_READINESS === "true";
+
 const routeForValue: Record<string, string> = {
     suites: "/",
     dashboard: "/dashboard",
@@ -87,6 +90,7 @@ const routeForValue: Record<string, string> = {
     defects: "/defects",
     "my-work-items": "/my-work-items",
     "remove-test-cases": "/remove-test-cases",
+    "release-readiness": "/release-readiness",
 };
 
 const AUTOMATION_SECTION_PATHS = [
@@ -129,6 +133,10 @@ function valueForPath(pathname: string): string {
 
     if (pathname === "/remove-test-cases") {
         return "remove-test-cases";
+    }
+
+    if (pathname === "/release-readiness") {
+        return "release-readiness";
     }
 
     return "suites";
@@ -174,6 +182,11 @@ export function NavBar() {
                     <Tab value="defects">{t("nav.defects")}</Tab>
                     <Tab value="my-work-items">{t("nav.myWorkItems")}</Tab>
                     <Tab value="remove-test-cases">{t("nav.removeTestCases")}</Tab>
+                    {releaseReadinessEnabled && (
+                        <Tab value="release-readiness">
+                            {t("nav.releaseReadiness")}
+                        </Tab>
+                    )}
                 </TabList>
 
                 <Menu>

@@ -52,6 +52,10 @@ import {
     clearTestPlanProgressBugsCache,
 } from "./testPlanProgressData.js";
 import {
+    computeReleaseReadiness,
+    clearReleaseReadinessCache,
+} from "./releaseReadinessData.js";
+import {
     startBugSummaryScheduler,
     startSprintReportFileExportScheduler,
 } from "./scheduler.js";
@@ -191,23 +195,56 @@ app.get("/api/plans/:planId/progress/bugs", async (req, res) => {
     }
 });
 
-app.post("/api/test-cases/delete", async (req, res) => {
-    const ids = Array.isArray(req.body?.ids)
-        ? req.body.ids
-              .map(Number)
-              .filter(Number.isInteger)
-        : [];
-
-    if (ids.length === 0) {
-        res.status(400).json({
-            message: "ids is required",
+app.get("/api/release-readiness", async (_, res) => {
+    if (process.env.ENABLE_RELEASE_READINESS !== "true") {
+        res.status(403).json({
+            message: "Release readiness is disabled.",
         });
 
         return;
     }
 
     try {
-        const result = await deleteTestCases(ids);
+        res.json(await computeReleaseReadiness());
+    } catch (error: any) {
+        console.error(error);
+
+        res.status(500).json({
+            message: error.message,
+        });
+    }
+});
+
+app.post("/api/test-cases/delete", async (req, res) => {
+    const items = Array.isArray(req.body?.items)
+        ? req.body.items
+              .map((item: any) => ({
+                  planId: Number(item?.planId),
+                  suiteId: Number(item?.suiteId),
+                  testCaseId: Number(item?.testCaseId),
+              }))
+              .filter(
+                  (item: {
+                      planId: number;
+                      suiteId: number;
+                      testCaseId: number;
+                  }) =>
+                      Number.isInteger(item.planId) &&
+                      Number.isInteger(item.suiteId) &&
+                      Number.isInteger(item.testCaseId)
+              )
+        : [];
+
+    if (items.length === 0) {
+        res.status(400).json({
+            message: "items is required",
+        });
+
+        return;
+    }
+
+    try {
+        const result = await deleteTestCases(items);
 
         if (result.deleted.length > 0) {
             clearAutomationCache();
@@ -366,6 +403,7 @@ app.post("/api/refresh", (_, res) => {
     clearPlanOverviewCache();
     clearTestPlanProgressCache();
     clearTestPlanProgressBugsCache();
+    clearReleaseReadinessCache();
 
     res.status(204).end();
 });
