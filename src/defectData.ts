@@ -176,8 +176,22 @@ async function getLinkedTestCaseIds(
 ): Promise<number[]> {
     const workItem = await getWorkItem(bugId);
 
+    // Only "Tested By" relations (in either direction) represent a genuine
+    // "this bug was found via this test case" link. A bug can also pick up
+    // a Hierarchy (parent/child) relation to a Test Case - e.g. when a test
+    // case was mistakenly set as its parent work item - which isn't a real
+    // test link and would otherwise inflate hasLinkedTestCase/iterationPath
+    // borrowing with an unrelated test case.
+    const testedByRelations = (
+        workItem.relations ?? []
+    ).filter(
+        (r: any) =>
+            typeof r.rel === "string" &&
+            r.rel.startsWith("Microsoft.VSTS.Common.TestedBy")
+    );
+
     const linkedIds = extractWorkItemIds(
-        workItem.relations
+        testedByRelations
     );
 
     const linkedItems = await getWorkItems(linkedIds);
@@ -798,8 +812,9 @@ export function filterRecords(
         }
 
         if (
-            params.suite &&
-            r.suiteName !== params.suite
+            params.suites &&
+            params.suites.length > 0 &&
+            (!r.suiteName || !params.suites.includes(r.suiteName))
         ) {
             return false;
         }

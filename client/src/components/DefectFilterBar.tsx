@@ -112,18 +112,24 @@ export function DefectFilterBar({
             {availableFilters.suites.length > 0 && (
                 <Field label={t("defectFilterBar.suite")} className={styles.field}>
                     <Dropdown
+                        multiselect
                         expandIcon={<ChevronDownRegular className={styles.chevron} />}
                         button={{ className: styles.dropdownButton }}
-                        value={filters.suite || allSuites}
-                        selectedOptions={filters.suite ? [filters.suite] : [""]}
+                        value={
+                            filters.suites.length > 0
+                                ? t("defectFilterBar.selectedSuites", {
+                                      count: filters.suites.length,
+                                  })
+                                : allSuites
+                        }
+                        selectedOptions={filters.suites}
                         onOptionSelect={(_, data) =>
                             onChange({
                                 ...filters,
-                                suite: data.optionValue ?? "",
+                                suites: data.selectedOptions,
                             })
                         }
                     >
-                        <Option value="">{allSuites}</Option>
                         {availableFilters.suites.map((suite) => (
                             <Option key={suite} value={suite}>
                                 {suite}

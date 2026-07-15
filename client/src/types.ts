@@ -255,7 +255,7 @@ export interface DefectFilters {
     area: string;
     environment: string;
     targetVersion: string;
-    suite: string;
+    suites: string[];
 }
 
 export interface DefectStats {
