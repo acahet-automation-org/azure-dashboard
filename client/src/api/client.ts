@@ -173,7 +173,7 @@ export function fetchDefects(
     if (filters?.area) params.set("area", filters.area);
     if (filters?.environment) params.set("environment", filters.environment);
     if (filters?.targetVersion) params.set("targetVersion", filters.targetVersion);
-    if (filters?.suite) params.set("suite", filters.suite);
+    filters?.suites?.forEach((suite) => params.append("suite", suite));
 
     const qs = params.toString();
 

@@ -389,7 +389,8 @@
         "targetVersion": "Versione Target",
         "allTargetVersions": "Tutte le Versioni Target",
         "suite": "Suite di Test",
-        "allSuites": "Tutte le Suite di Test"
+        "allSuites": "Tutte le Suite di Test",
+        "selectedSuites": "{{count}} selezionate"
     },
     "suiteCard": {
         "total": "Totale: {{count}}",

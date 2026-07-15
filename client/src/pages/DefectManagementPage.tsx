@@ -36,7 +36,7 @@ const EMPTY_FILTERS: DefectFilters = {
     area: "",
     environment: "",
     targetVersion: "",
-    suite: "",
+    suites: [],
 };
 
 export function DefectManagementPage() {

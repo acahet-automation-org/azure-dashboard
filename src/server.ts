@@ -296,7 +296,12 @@ app.get("/api/defects", async (req, res) => {
             targetVersion: req.query.targetVersion as
                 | string
                 | undefined,
-            suite: req.query.suite as string | undefined,
+            suites: (Array.isArray(req.query.suite)
+                ? (req.query.suite as string[])
+                : req.query.suite
+                ? [req.query.suite as string]
+                : []
+            ),
         });
 
         res.json({
