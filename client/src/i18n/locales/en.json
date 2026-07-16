@@ -255,6 +255,7 @@
             "totalClosed": "Closed Bugs",
             "mttr": "Mean Time to Resolution",
             "reopenedBugs": "Reopened Bugs",
+            "reopenRate": "Reopen Rate",
             "duplicateRate": "Duplicate Bug Rate",
             "bugsPerStory": "Bugs per Story",
             "days": "{{value}} days",
@@ -266,6 +267,7 @@
             "rejectionRate": "Defect Rejection Rate",
             "firstTimeFixRate": "First-Time Fix Rate",
             "outOfScopeRate": "Out-of-Scope Rate",
+            "regressionRate": "Regression Rate",
             "backlogDirection": "Backlog Trend",
             "backlogDirection_growing": "Growing",
             "backlogDirection_stable": "Stable",
@@ -282,10 +284,13 @@
             "byTeam": "Defects by Team",
             "byTestSuite": "Bugs by Test Suite",
             "aging": "Defect Aging",
+            "reopenDistribution": "Reopen Count Distribution (Times Reopened)",
             "rejectionReasons": "Rejection Reasons",
             "noRejections": "No rejected defects in the current process data.",
             "density": "Defect Density (Bugs per Story Point)",
             "noDensity": "No components with story points to compute density against.",
+            "workload": "Triage Workload (Bugs by Assignee)",
+            "noWorkload": "No bugs currently assigned to anyone.",
             "backlogTrend": "Backlog Growth Rate (Arrival vs. Resolution)",
             "backlogDelta": "Opened - Closed",
             "realVsOutOfScope": "Real Defects vs. Out-of-Scope (Closed Only)",
@@ -321,6 +326,7 @@
             },
             "status": {
                 "closed": "Closed",
+                "resolved": "Resolved",
                 "inProgress": "In Progress",
                 "new": "New"
             },
@@ -338,6 +344,47 @@
             "pdf": {
                 "filename": "sprint_defect_report",
                 "countColumn": "Count"
+            },
+            "statusCard": {
+                "title": "Sprint Status Card",
+                "headerTitleLabel": "Card title",
+                "headerSubtitleLabel": "Card subtitle",
+                "updatedAt": "Updated: {{date}} at {{time}}",
+                "uatDeadlineLabel": "UAT deadline (optional)",
+                "alertTemplate_one": "UAT window closes: {{date}} - {{count}} working day remains. The System Integrator is required to provide a resolution-date plan for open bugs (details below).",
+                "alertTemplate_other": "UAT window closes: {{date}} - {{count}} working days remain. The System Integrator is required to provide a resolution-date plan for open bugs (details below).",
+                "actionsLabel": "Actions required (optional)",
+                "actionsPlaceholder": "One action per paragraph, separated by a blank line",
+                "actionsTitle": "Actions Required",
+                "exportButton": "Export Status Card",
+                "downloadHtmlButton": "Download HTML",
+                "openDashboard": "Open monitoring dashboard",
+                "pdfFilename": "sprint_status_card",
+                "casesCount": "{{count}} cases",
+                "executed": "executed",
+                "passRate": "Pass rate",
+                "suiteProgressTitle": "Test Execution Progress",
+                "suiteGroupsLabel": "Row labels (suites are merged in automatically)",
+                "suiteGroupsWarning": "\"{{group}}\": no test cases matched ({{hint}})",
+                "noPlanSelected": "No suites matched yet - check the plan/suite names configured for this card.",
+                "bugStatusTitle": "Bug Status",
+                "bugStatusSubtitle": "(reported by {{sources}})",
+                "bugsDetected": "{{count}} bugs detected",
+                "bugStatusSummary": "{{effective}} effective, {{outOfScope}} out of scope",
+                "stillOpen": "{{count}} still open",
+                "statusLabels": {
+                    "closed": "Closed",
+                    "resolved": "To verify (DSI retest)",
+                    "inProgress": "In progress",
+                    "new": "New (to be picked up)"
+                },
+                "severityCaption": "Severity distribution of the {{count}} effective bugs",
+                "kpis": {
+                    "totalTestCases": "Total Test Cases",
+                    "passRate": "Pass Rate",
+                    "bugsClosed": "Bugs Closed ({{percent}}%)",
+                    "criticalBugs": "Critical Bugs"
+                }
             }
         }
     },

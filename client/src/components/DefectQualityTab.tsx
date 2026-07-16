@@ -152,6 +152,10 @@ export function DefectQualityTab({ stats }: { stats: DefectStats }) {
                     label={t("defectManagementPage.stats.outOfScopeRate")}
                     value={`${stats.outOfScopeRate}%`}
                 />
+                <StatCard
+                    label={t("defectManagementPage.stats.regressionRate")}
+                    value={`${stats.regressionRate}%`}
+                />
             </CardGrid>
 
             <ChartsGrid>

@@ -78,6 +78,11 @@ const useStyles = makeStyles({
 
 const releaseReadinessEnabled =
     import.meta.env.VITE_ENABLE_RELEASE_READINESS === "true";
+// Mirrors the route restriction in App.tsx - when set, only the tabs for
+// the pages that actually still have a route are shown, so there's nothing
+// in the nav that would land on the "*" -> /defects redirect.
+const showOnlyDefectAndRelease =
+    import.meta.env.VITE_SHOW_ONLY_DEFECT_AND_RELEASE === "true";
 
 const routeForValue: Record<string, string> = {
     suites: "/",
@@ -172,16 +177,22 @@ export function NavBar() {
                         navigate(routeForValue[data.value as string])
                     }
                 >
-                    <Tab value="suites">{t("nav.suites")}</Tab>
-                    <Tab value="dashboard">{t("nav.dashboard")}</Tab>
-                    <Tab value="runs">{t("nav.runs")}</Tab>
-                    <Tab value="plans">{t("nav.plans")}</Tab>
-                    <Tab value="plan-overview">{t("nav.planOverview")}</Tab>
-                    <Tab value="plan-progress">{t("nav.planProgress")}</Tab>
-                    <Tab value="execution">{t("nav.execution")}</Tab>
-                    <Tab value="defects">{t("nav.defects")}</Tab>
-                    <Tab value="my-work-items">{t("nav.myWorkItems")}</Tab>
-                    <Tab value="remove-test-cases">{t("nav.removeTestCases")}</Tab>
+                    {showOnlyDefectAndRelease ? (
+                        <Tab value="defects">{t("nav.defects")}</Tab>
+                    ) : (
+                        <>
+                            <Tab value="suites">{t("nav.suites")}</Tab>
+                            <Tab value="dashboard">{t("nav.dashboard")}</Tab>
+                            <Tab value="runs">{t("nav.runs")}</Tab>
+                            <Tab value="plans">{t("nav.plans")}</Tab>
+                            <Tab value="plan-overview">{t("nav.planOverview")}</Tab>
+                            <Tab value="plan-progress">{t("nav.planProgress")}</Tab>
+                            <Tab value="execution">{t("nav.execution")}</Tab>
+                            <Tab value="defects">{t("nav.defects")}</Tab>
+                            <Tab value="my-work-items">{t("nav.myWorkItems")}</Tab>
+                            <Tab value="remove-test-cases">{t("nav.removeTestCases")}</Tab>
+                        </>
+                    )}
                     {releaseReadinessEnabled && (
                         <Tab value="release-readiness">
                             {t("nav.releaseReadiness")}
@@ -189,32 +200,34 @@ export function NavBar() {
                     )}
                 </TabList>
 
-                <Menu>
-                    <MenuTrigger disableButtonEnhancement>
-                        <Button
-                            appearance="transparent"
-                            icon={<ChevronDownRegular />}
-                            iconPosition="after"
-                            className={mergeClasses(
-                                styles.automationTrigger,
-                                AUTOMATION_SECTION_PATHS.includes(location.pathname) &&
-                                    styles.automationTriggerActive,
-                            )}
-                        >
-                            {t("nav.automation")}
-                        </Button>
-                    </MenuTrigger>
-                    <MenuPopover>
-                        <MenuList>
-                            <MenuItem onClick={() => navigate("/automation-dashboard")}>
-                                {t("nav.automationDashboard")}
-                            </MenuItem>
-                            <MenuItem onClick={() => navigate("/common-errors")}>
-                                {t("nav.commonErrors")}
-                            </MenuItem>
-                        </MenuList>
-                    </MenuPopover>
-                </Menu>
+                {!showOnlyDefectAndRelease && (
+                    <Menu>
+                        <MenuTrigger disableButtonEnhancement>
+                            <Button
+                                appearance="transparent"
+                                icon={<ChevronDownRegular />}
+                                iconPosition="after"
+                                className={mergeClasses(
+                                    styles.automationTrigger,
+                                    AUTOMATION_SECTION_PATHS.includes(location.pathname) &&
+                                        styles.automationTriggerActive,
+                                )}
+                            >
+                                {t("nav.automation")}
+                            </Button>
+                        </MenuTrigger>
+                        <MenuPopover>
+                            <MenuList>
+                                <MenuItem onClick={() => navigate("/automation-dashboard")}>
+                                    {t("nav.automationDashboard")}
+                                </MenuItem>
+                                <MenuItem onClick={() => navigate("/common-errors")}>
+                                    {t("nav.commonErrors")}
+                                </MenuItem>
+                            </MenuList>
+                        </MenuPopover>
+                    </Menu>
+                )}
             </div>
 
             <div className={styles.controls}>

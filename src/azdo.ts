@@ -349,6 +349,7 @@ const BUG_FIELDS = [
     "System.IterationPath",
     "System.CreatedDate",
     "System.CreatedBy",
+    "System.AssignedTo",
     "System.ChangedDate",
     "Microsoft.VSTS.Common.Priority",
     "Microsoft.VSTS.Common.Severity",

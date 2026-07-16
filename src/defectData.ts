@@ -50,6 +50,10 @@ const REJECTED_REASONS = new Set([
 // against the team's defect rate. See bug-closure-reporting-context.md.
 const OUT_OF_SCOPE_TAG = "OutOfScope";
 
+// Tag manually applied when a bug is a regression on functionality that was
+// already tested and passing in an earlier sprint/release.
+const REGRESSION_TAG = "Regression";
+
 // Custom.Suite value used for the new DSI test suite; every other suite
 // (populated or not) is reported as "Test Factory" in the sprint report.
 const DSI_SUITE_NAME = "Test DSI";
@@ -293,6 +297,12 @@ async function buildDefectRecord(
         hasLinkedTestCase: linkedTestCaseIds.length > 0,
         url: buildWorkItemUrl(bug.id),
         creator: bug.fields["System.CreatedBy"]?.displayName,
+        assignedTo: bug.fields["System.AssignedTo"]
+            ? {
+                displayName: bug.fields["System.AssignedTo"].displayName,
+                uniqueName: bug.fields["System.AssignedTo"].uniqueName,
+            }
+            : undefined,
     };
 }
 
@@ -513,6 +523,43 @@ function computeAgingBuckets(
     return counts;
 }
 
+// How many times each bug was reopened - not just whether it was reopened
+// at all (that's reopenedBugCount/reopenRate). Bucketed rather than one bar
+// per exact count since a handful of chronically-reopened bugs would
+// otherwise fragment the chart into a long tail of single-bug bars.
+function computeReopenDistribution(
+    records: DefectRecord[]
+): AgingBucket[] {
+    const bucketDefs = [
+        { bucket: "1", min: 1, max: 1 },
+        { bucket: "2", min: 2, max: 2 },
+        { bucket: "3+", min: 3, max: Infinity },
+    ];
+
+    const counts = bucketDefs.map((def) => ({
+        bucket: def.bucket,
+        count: 0,
+    }));
+
+    for (const record of records) {
+        if (record.reopenedCount < 1) {
+            continue;
+        }
+
+        const index = bucketDefs.findIndex(
+            (def) =>
+                record.reopenedCount >= def.min &&
+                record.reopenedCount <= def.max
+        );
+
+        if (index >= 0) {
+            counts[index].count++;
+        }
+    }
+
+    return counts;
+}
+
 function computeRejectionRate(
     records: DefectRecord[]
 ): number {
@@ -527,6 +574,24 @@ function computeRejectionRate(
     return (
         Math.round(
             (rejectedCount / records.length) * 1000
+        ) / 10
+    );
+}
+
+function computeRegressionRate(
+    records: DefectRecord[]
+): number {
+    if (records.length === 0) {
+        return 0;
+    }
+
+    const regressionCount = records.filter((r) =>
+        r.tags.includes(REGRESSION_TAG)
+    ).length;
+
+    return (
+        Math.round(
+            (regressionCount / records.length) * 1000
         ) / 10
     );
 }
@@ -579,12 +644,19 @@ function computeOutOfScopeBySuite(
     );
 }
 
-// Bugs not yet in a terminal state are neither "New" nor "Closed" in this
-// report - they're grouped as "In Progress" regardless of the exact
-// workflow state (Active, Committed, Resolved, ...).
-function statusBucket(state: string): "New" | "Closed" | "In Progress" {
+// "Resolved" gets its own bucket (fixed by dev, pending QA/DSI retest) since
+// it's a meaningfully different state of work than "New" or actively being
+// worked on; anything else non-terminal (Active, Committed, ...) still
+// collapses into "In Progress".
+function statusBucket(
+    state: string
+): "New" | "Resolved" | "Closed" | "In Progress" {
     if (state === "New") {
         return "New";
+    }
+
+    if (state === "Resolved") {
+        return "Resolved";
     }
 
     if (state === "Closed") {
@@ -608,6 +680,12 @@ export function computeSprintDefectReport(
             r.suiteName === DSI_SUITE_NAME ? "DSI" : "Test Factory"
         ),
         byStatus: groupCount(effective, (r) => statusBucket(r.state)),
+        // Unlike byStatus (scoped to in-scope/effective bugs, for the
+        // defect-rate-facing chart), this covers every detected bug
+        // including out-of-scope ones - out-of-scope bugs still need to be
+        // tracked to closure, so the status card's "still open" count is
+        // measured against all of them, not just the effective subset.
+        byStatusAll: groupCount(records, (r) => statusBucket(r.state)),
         bySeverity: groupCount(effective, (r) => r.severity),
         // Carried through so the UI can drill down from a status/severity bar
         // to the underlying bug list without a second round trip.
@@ -619,6 +697,7 @@ export function computeSprintDefectReport(
             severity: r.severity,
             url: r.url,
             creator: r.creator,
+            assignee: r.assignedTo,
         })),
     };
 }
@@ -727,6 +806,7 @@ function computeSlaBreaches(
             ageDays: Math.round(ageDays),
             url: record.url,
             creator: record.creator,
+            assignee: record.assignedTo,
         }));
 }
 
@@ -949,6 +1029,7 @@ export function computeDefectStats(
                 priority: r.priority,
                 url: r.url,
                 creator: r.creator,
+                assignee: r.assignedTo,
             }))
             .sort((a, b) => {
                 if (a.priority == null) {
@@ -975,6 +1056,7 @@ export function computeDefectStats(
                 priority: r.priority,
                 url: r.url,
                 creator: r.creator,
+                assignee: r.assignedTo,
             }))
             .sort((a, b) => {
                 if (a.priority == null) {
@@ -1015,10 +1097,21 @@ export function computeDefectStats(
             records,
             allSuiteNames
         ),
+        byAssignee: groupCount(
+            records,
+            (r) => r.assignedTo?.displayName
+        ),
         trend,
         mttrDays: computeMttrDays(records),
         agingBuckets: computeAgingBuckets(records),
+        reopenDistribution: computeReopenDistribution(records),
         reopenedBugCount,
+        reopenRate: records.length
+            ? Math.round(
+                (reopenedBugCount / records.length) *
+                1000
+            ) / 10
+            : 0,
         duplicateRate: records.length
             ? Math.round(
                 (duplicateCount / records.length) *
@@ -1034,6 +1127,7 @@ export function computeDefectStats(
         defectsWithoutSuite,
         defectLeakageRate: computeLeakageRate(records),
         defectRejectionRate: computeRejectionRate(records),
+        regressionRate: computeRegressionRate(records),
         rejectionReasons: computeRejectionReasons(records),
         closureReasonBreakdown: computeClosureReasonBreakdown(records),
         outOfScopeRate: computeOutOfScopeRate(records),
