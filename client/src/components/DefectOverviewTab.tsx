@@ -145,6 +145,10 @@ export function DefectOverviewTab({ stats }: { stats: DefectStats }) {
                         value={stats.reopenedBugCount}
                     />
                     <StatCard
+                        label={t("defectManagementPage.stats.reopenRate")}
+                        value={`${stats.reopenRate}%`}
+                    />
+                    <StatCard
                         label={t("defectManagementPage.stats.duplicateRate")}
                         value={`${stats.duplicateRate}%`}
                     />
@@ -261,6 +265,43 @@ export function DefectOverviewTab({ stats }: { stats: DefectStats }) {
                             <YAxis allowDecimals={false} />
                             <Tooltip />
                             <Bar dataKey="count" fill="#c4314b" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </ChartCard>
+
+                <ChartCard title={t("defectManagementPage.charts.byComponent")}>
+                    <ResponsiveContainer width="100%" height={280}>
+                        <BarChart
+                            data={toChartData(stats.byComponent)}
+                            layout="vertical"
+                            margin={{ left: 24 }}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis type="number" allowDecimals={false} />
+                            <YAxis
+                                type="category"
+                                dataKey="name"
+                                width={categoryAxisWidth(
+                                    Object.keys(stats.byComponent)
+                                )}
+                                tick={{ fontSize: 12 }}
+                            />
+                            <Tooltip />
+                            <Bar dataKey="count" fill="#8764b8" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </ChartCard>
+
+                <ChartCard
+                    title={t("defectManagementPage.charts.reopenDistribution")}
+                >
+                    <ResponsiveContainer width="100%" height={280}>
+                        <BarChart data={stats.reopenDistribution}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="bucket" tick={{ fontSize: 11 }} />
+                            <YAxis allowDecimals={false} />
+                            <Tooltip />
+                            <Bar dataKey="count" fill="#d13438" />
                         </BarChart>
                     </ResponsiveContainer>
                 </ChartCard>

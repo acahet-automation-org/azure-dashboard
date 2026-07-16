@@ -246,6 +246,7 @@ export interface DefectRecord {
     closureReason?: ClosureReason;
     url?: string;
     creator?: string;
+    assignedTo?: { displayName: string; uniqueName: string };
 }
 
 export interface DefectSummary {
@@ -257,6 +258,7 @@ export interface DefectSummary {
     ageDays?: number;
     url?: string;
     creator?: string;
+    assignee?: { displayName: string; uniqueName: string };
 }
 
 export type DefectWithoutTestCase = DefectSummary;
@@ -285,6 +287,7 @@ export interface SprintDefectReport {
     outOfScopeCount: number;
     byOrigin: Record<string, number>;
     byStatus: Record<string, number>;
+    byStatusAll: Record<string, number>;
     bySeverity: Record<string, number>;
     effectiveDefects: DefectSummary[];
 }
@@ -313,16 +316,20 @@ export interface DefectStats {
     byComponent: Record<string, number>;
     byTeam: Record<string, number>;
     byTestSuite: Record<string, number>;
+    byAssignee: Record<string, number>;
     trend: DefectTrendPoint[];
     mttrDays: number | null;
     agingBuckets: AgingBucket[];
+    reopenDistribution: AgingBucket[];
     reopenedBugCount: number;
+    reopenRate: number;
     duplicateRate: number;
     bugsPerStory: number | null;
     defectsWithoutLinkedTestCase: DefectWithoutTestCase[];
     defectsWithoutSuite: DefectSummary[];
     defectLeakageRate: number | null;
     defectRejectionRate: number;
+    regressionRate: number;
     rejectionReasons: Record<string, number>;
     closureReasonBreakdown: Record<string, number>;
     outOfScopeRate: number;

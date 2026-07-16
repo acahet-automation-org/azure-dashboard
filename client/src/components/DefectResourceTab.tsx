@@ -27,9 +27,18 @@ function toDensityChartData(
         .sort((a, b) => b.density - a.density);
 }
 
+function toChartData(
+    record: Record<string, number>
+): { name: string; count: number }[] {
+    return Object.entries(record)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count);
+}
+
 export function DefectResourceTab({ stats }: { stats: DefectStats }) {
     const { t } = useTranslation();
     const densityData = toDensityChartData(stats.densityByComponent);
+    const workloadData = toChartData(stats.byAssignee);
 
     return (
         <>
@@ -67,6 +76,35 @@ export function DefectResourceTab({ stats }: { stats: DefectStats }) {
                 ) : (
                     <EmptyState
                         message={t("defectManagementPage.charts.noDensity")}
+                    />
+                )}
+            </ChartCard>
+
+            <ChartCard title={t("defectManagementPage.charts.workload")}>
+                {workloadData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={280}>
+                        <BarChart
+                            data={workloadData}
+                            layout="vertical"
+                            margin={{ left: 24 }}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis type="number" allowDecimals={false} />
+                            <YAxis
+                                type="category"
+                                dataKey="name"
+                                width={categoryAxisWidth(
+                                    workloadData.map((d) => d.name)
+                                )}
+                                tick={{ fontSize: 12 }}
+                            />
+                            <Tooltip />
+                            <Bar dataKey="count" fill="#0078d4" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <EmptyState
+                        message={t("defectManagementPage.charts.noWorkload")}
                     />
                 )}
             </ChartCard>

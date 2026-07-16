@@ -234,6 +234,7 @@ export interface SprintDefectReport {
     outOfScopeCount: number;
     byOrigin: Record<string, number>;
     byStatus: Record<string, number>;
+    byStatusAll: Record<string, number>;
     bySeverity: Record<string, number>;
     effectiveDefects: DefectSummary[];
 }
@@ -267,16 +268,20 @@ export interface DefectStats {
     byComponent: Record<string, number>;
     byTeam: Record<string, number>;
     byTestSuite: Record<string, number>;
+    byAssignee: Record<string, number>;
     trend: DefectTrendPoint[];
     mttrDays: number | null;
     agingBuckets: AgingBucket[];
+    reopenDistribution: AgingBucket[];
     reopenedBugCount: number;
+    reopenRate: number;
     duplicateRate: number;
     bugsPerStory: number | null;
     defectsWithoutLinkedTestCase: BugInfo[];
     defectsWithoutSuite: BugInfo[];
     defectLeakageRate: number | null;
     defectRejectionRate: number;
+    regressionRate: number;
     rejectionReasons: Record<string, number>;
     closureReasonBreakdown: Record<string, number>;
     outOfScopeRate: number;

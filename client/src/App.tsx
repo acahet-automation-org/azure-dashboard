@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthenticatedTemplate, UnauthenticatedTemplate } from "@azure/msal-react";
 import { Spinner } from "@fluentui/react-components";
 import { SignInPage } from "./pages/SignInPage";
@@ -44,29 +44,51 @@ function PageFallback() {
 const skipAuth = import.meta.env.VITE_SKIP_AUTH === "true";
 const releaseReadinessEnabled =
     import.meta.env.VITE_ENABLE_RELEASE_READINESS === "true";
+// Locks the whole app down to just Defect Management (+ Release Readiness,
+// if that's also enabled) - every other route redirects to /defects rather
+// than rendering, so there's no way to reach them via a typed/bookmarked
+// URL either, not just via the nav bar (see NavBar.tsx for the matching tab
+// restriction).
+const showOnlyDefectAndRelease =
+    import.meta.env.VITE_SHOW_ONLY_DEFECT_AND_RELEASE === "true";
 
 function AppRoutes() {
     return (
         <Suspense fallback={<PageFallback />}>
             <Routes>
-                <Route path="/" element={<SuitesPage />} />
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/last-10-runs" element={<RunsPage />} />
-                <Route path="/plans" element={<PlansPage />} />
-                <Route path="/plans/:planId" element={<PlanDetailPage />} />
-                <Route path="/plan-overview" element={<PlanOverviewPage />} />
-                <Route path="/plan-progress" element={<PlanProgressPage />} />
-                <Route path="/automation-dashboard" element={<AutomationDashboardPage />} />
-                <Route path="/test-execution" element={<TestExecutionPage />} />
-                <Route path="/defects" element={<DefectManagementPage />} />
-                <Route path="/common-errors" element={<CommonErrorsPage />} />
-                <Route path="/my-work-items" element={<MyWorkItemsPage />} />
-                <Route path="/remove-test-cases" element={<RemoveTestCasesPage />} />
-                {releaseReadinessEnabled && (
-                    <Route
-                        path="/release-readiness"
-                        element={<ReleaseReadinessPage />}
-                    />
+                {showOnlyDefectAndRelease ? (
+                    <>
+                        <Route path="/defects" element={<DefectManagementPage />} />
+                        {releaseReadinessEnabled && (
+                            <Route
+                                path="/release-readiness"
+                                element={<ReleaseReadinessPage />}
+                            />
+                        )}
+                        <Route path="*" element={<Navigate to="/defects" replace />} />
+                    </>
+                ) : (
+                    <>
+                        <Route path="/" element={<SuitesPage />} />
+                        <Route path="/dashboard" element={<DashboardPage />} />
+                        <Route path="/last-10-runs" element={<RunsPage />} />
+                        <Route path="/plans" element={<PlansPage />} />
+                        <Route path="/plans/:planId" element={<PlanDetailPage />} />
+                        <Route path="/plan-overview" element={<PlanOverviewPage />} />
+                        <Route path="/plan-progress" element={<PlanProgressPage />} />
+                        <Route path="/automation-dashboard" element={<AutomationDashboardPage />} />
+                        <Route path="/test-execution" element={<TestExecutionPage />} />
+                        <Route path="/defects" element={<DefectManagementPage />} />
+                        <Route path="/common-errors" element={<CommonErrorsPage />} />
+                        <Route path="/my-work-items" element={<MyWorkItemsPage />} />
+                        <Route path="/remove-test-cases" element={<RemoveTestCasesPage />} />
+                        {releaseReadinessEnabled && (
+                            <Route
+                                path="/release-readiness"
+                                element={<ReleaseReadinessPage />}
+                            />
+                        )}
+                    </>
                 )}
             </Routes>
         </Suspense>
