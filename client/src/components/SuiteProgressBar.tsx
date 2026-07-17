@@ -11,6 +11,8 @@ const OUTCOME_COLORS: Record<Outcome, string> = {
     Passed: "#3fb950",
     Failed: "#d13438",
     Blocked: "#eda100",
+    Paused: "#b180d7",
+    InProgress: "#3aa0f3",
     NotApplicable: "#8a8886",
     NotRun: "#8a8886",
 };
@@ -19,6 +21,8 @@ const SEGMENT_ORDER: Outcome[] = [
     "Passed",
     "Failed",
     "Blocked",
+    "Paused",
+    "InProgress",
     "NotApplicable",
     "NotRun",
 ];

@@ -35,6 +35,8 @@
         "Failed": "Fallito",
         "Blocked": "Bloccato",
         "NotApplicable": "Non Applicabile",
+        "Paused": "In Pausa",
+        "InProgress": "In Corso",
         "NotRun": "Non Eseguito",
         "ariaLabel": "Risultato: {{outcome}}"
     },
@@ -349,7 +351,7 @@
                 "title": "Scheda Stato Sprint",
                 "headerTitleLabel": "Titolo scheda",
                 "headerSubtitleLabel": "Sottotitolo scheda",
-                "updatedAt": "Aggiornamento: {{date}} ore {{time}}",
+                "updatedAt": "Aggiornato: {{date}}, {{time}}",
                 "uatDeadlineLabel": "Scadenza UAT (opzionale)",
                 "alertTemplate_one": "Chiusura finestra UAT: {{date}} - resta {{count}} giorno lavorativo. È richiesto al System Integrator il piano date di risoluzione dei bug aperti (dettaglio sotto).",
                 "alertTemplate_other": "Chiusura finestra UAT: {{date}} - restano {{count}} giorni lavorativi. È richiesto al System Integrator il piano date di risoluzione dei bug aperti (dettaglio sotto).",
@@ -358,8 +360,12 @@
                 "actionsTitle": "Azioni Richieste",
                 "exportButton": "Esporta Scheda Stato",
                 "downloadHtmlButton": "Scarica HTML",
+                "downloadPptxButton": "Scarica PPTX",
+                "pptxTheme": {
+                    "light": "Tema PPTX: Chiaro",
+                    "dark": "Tema PPTX: Scuro"
+                },
                 "openDashboard": "Apri la dashboard di monitoraggio",
-                "pdfFilename": "scheda_stato_sprint",
                 "casesCount": "{{count}} casi",
                 "executed": "eseguito",
                 "passRate": "Pass rate",

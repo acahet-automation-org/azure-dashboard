@@ -17,6 +17,7 @@ import {
     Button,
     Field,
     Input,
+    Switch,
     Text,
     Textarea,
     makeStyles,
@@ -27,6 +28,7 @@ import {
     CodeTextRegular,
     DismissRegular,
     MailRegular,
+    SlideContentRegular,
 } from "@fluentui/react-icons";
 import { StatCard } from "./StatCard";
 import { CardGrid } from "./CardGrid";
@@ -40,9 +42,12 @@ import type { SuiteProgressGroup } from "./StatusReportCard";
 import { fetchPlanOverview, fetchPlans, sendEmailReport } from "../api/client";
 import {
     buildStatusReportCardEmailPayload,
+    buildStatusReportCardFilename,
     downloadStatusReportCardEmailHtml,
+    downloadStatusReportCardPptx,
     exportStatusReportCardToPdf,
 } from "../utils/export";
+import type { StatusReportCardTheme } from "../utils/export";
 import type { DefectStats, Outcome } from "../types";
 
 const LIST_PAGE_SIZE = 10;
@@ -58,6 +63,8 @@ const ZERO_OUTCOME_COUNTS: Record<Outcome, number> = {
     Failed: 0,
     Blocked: 0,
     NotApplicable: 0,
+    Paused: 0,
+    InProgress: 0,
     NotRun: 0,
 };
 
@@ -69,8 +76,13 @@ interface SuiteGroupDef {
     // plans list.
     planId?: number;
     planName?: string;
-    // Omit to match every suite in the plan (a whole-plan alias); set to
-    // match only specific suites within that plan.
+    // Omit both suiteIds/suiteNames to match every suite in the plan (a
+    // whole-plan alias). When suiteIds is set it takes priority over
+    // suiteNames - matching by ID is what "Test Business"/"Test Agenti" use,
+    // since Azure DevOps has more than one suite named "Test Agenti" in that
+    // plan and name-matching was silently merging them into one row that
+    // didn't match what Azure itself shows for that suite.
+    suiteIds?: number[];
     suiteNames?: string[];
 }
 
@@ -78,7 +90,8 @@ interface SuiteGroupDef {
 // plan rather than picked ad hoc per report. "Test Factory" is just an
 // alias for the whole plan 4715 (every suite in it, summed - same shape of
 // total/outcome breakdown as the other rows). "Test Business"/"Test Agenti"
-// are single named suites living in a different plan ("... - UAT").
+// are single suites (by ID, see SuiteGroupDef) living in a different plan
+// ("... - UAT").
 const AUTO_SUITE_GROUP_DEFS: SuiteGroupDef[] = [
     {
         label: "Test Factory",
@@ -87,12 +100,12 @@ const AUTO_SUITE_GROUP_DEFS: SuiteGroupDef[] = [
     {
         label: "Test Business",
         planName: "Front Office Auto - Sprint 1 - UAT",
-        suiteNames: ["Test Business"],
+        suiteIds: [6181],
     },
     {
         label: "Test Agenti",
         planName: "Front Office Auto - Sprint 1 - UAT",
-        suiteNames: ["Test Agenti"],
+        suiteIds: [6179],
     },
 ];
 
@@ -298,6 +311,8 @@ export function SprintDefectReportTab({
         AUTO_SUITE_GROUP_DEFS.map((def) => def.label)
     );
     const [isExportingCard, setIsExportingCard] = useState(false);
+    const [isExportingPptx, setIsExportingPptx] = useState(false);
+    const [pptxTheme, setPptxTheme] = useState<StatusReportCardTheme>("light");
     const statusCardRef = useRef<HTMLDivElement>(null);
     const dashboardLinkRef = useRef<HTMLAnchorElement>(null);
 
@@ -376,21 +391,25 @@ export function SprintDefectReportTab({
             };
         }
 
-        if (!def.suiteNames) {
+        if (!def.suiteIds && !def.suiteNames) {
             return {
                 label: groupLabels[index],
                 totalTestCases: overview.totalTestCases,
                 outcomeCounts: overview.outcomeCounts,
                 planFound: true,
                 availableSuiteNames: overview.suites.map(
-                    (suite) => suite.suiteName
+                    (suite) => `${suite.suiteName} (id ${suite.suiteId})`
                 ),
             };
         }
 
-        const matchedSuites = overview.suites.filter((suite) =>
-            def.suiteNames!.includes(suite.suiteName)
-        );
+        const matchedSuites = def.suiteIds
+            ? overview.suites.filter((suite) =>
+                  def.suiteIds!.includes(suite.suiteId)
+              )
+            : overview.suites.filter((suite) =>
+                  def.suiteNames!.includes(suite.suiteName)
+              );
 
         const totalTestCases = matchedSuites.reduce(
             (sum, suite) => sum + suite.totalTestCases,
@@ -441,7 +460,7 @@ export function SprintDefectReportTab({
 
         try {
             await exportStatusReportCardToPdf(
-                t("defectManagementPage.sprintReport.statusCard.pdfFilename"),
+                buildStatusReportCardFilename(headerTitle, "pdf"),
                 statusCardRef.current,
                 [
                     {
@@ -457,7 +476,7 @@ export function SprintDefectReportTab({
 
     const handleDownloadStatusCardHtml = () => {
         downloadStatusReportCardEmailHtml(
-            t("defectManagementPage.sprintReport.statusCard.pdfFilename"),
+            buildStatusReportCardFilename(headerTitle, "html"),
             {
                 headerTitle,
                 headerSubtitle,
@@ -469,6 +488,29 @@ export function SprintDefectReportTab({
             },
             t
         );
+    };
+
+    const handleDownloadStatusCardPptx = async () => {
+        setIsExportingPptx(true);
+
+        try {
+            await downloadStatusReportCardPptx(
+                buildStatusReportCardFilename(headerTitle, "pptx"),
+                {
+                    headerTitle,
+                    headerSubtitle,
+                    suiteGroups,
+                    report,
+                    alertText,
+                    actionsText,
+                    dashboardUrl: MONITORING_DASHBOARD_URL,
+                },
+                t,
+                pptxTheme
+            );
+        } finally {
+            setIsExportingPptx(false);
+        }
     };
 
     const emailReportMutation = useMutation({
@@ -504,9 +546,7 @@ export function SprintDefectReportTab({
             subject: headerTitle,
             bodyHtml: payload.bodyHtml,
             pdfBase64: payload.pdfBase64,
-            filename: `${t(
-                "defectManagementPage.sprintReport.statusCard.pdfFilename"
-            )}.pdf`,
+            filename: buildStatusReportCardFilename(headerTitle, "pdf"),
             fromName: headerTitle,
         });
     };
@@ -725,6 +765,29 @@ export function SprintDefectReportTab({
                             "defectManagementPage.sprintReport.statusCard.downloadHtmlButton"
                         )}
                     </Button>
+
+                    <Button
+                        appearance="secondary"
+                        icon={<SlideContentRegular />}
+                        disabled={isExportingPptx}
+                        onClick={handleDownloadStatusCardPptx}
+                    >
+                        {isExportingPptx
+                            ? t("planOverviewPage.exporting")
+                            : t(
+                                  "defectManagementPage.sprintReport.statusCard.downloadPptxButton"
+                              )}
+                    </Button>
+
+                    <Switch
+                        checked={pptxTheme === "dark"}
+                        onChange={(_, data) =>
+                            setPptxTheme(data.checked ? "dark" : "light")
+                        }
+                        label={t(
+                            `defectManagementPage.sprintReport.statusCard.pptxTheme.${pptxTheme}`
+                        )}
+                    />
 
                     {emailReportEnabled && (
                         <Button

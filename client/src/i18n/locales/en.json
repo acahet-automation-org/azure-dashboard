@@ -35,6 +35,8 @@
         "Failed": "Failed",
         "Blocked": "Blocked",
         "NotApplicable": "Not Applicable",
+        "Paused": "Paused",
+        "InProgress": "In Progress",
         "NotRun": "Not Run",
         "ariaLabel": "Outcome: {{outcome}}"
     },
@@ -358,8 +360,12 @@
                 "actionsTitle": "Actions Required",
                 "exportButton": "Export Status Card",
                 "downloadHtmlButton": "Download HTML",
+                "downloadPptxButton": "Download PPTX",
+                "pptxTheme": {
+                    "light": "PPTX theme: Light",
+                    "dark": "PPTX theme: Dark"
+                },
                 "openDashboard": "Open monitoring dashboard",
-                "pdfFilename": "sprint_status_card",
                 "casesCount": "{{count}} cases",
                 "executed": "executed",
                 "passRate": "Pass rate",

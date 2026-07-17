@@ -40,6 +40,37 @@ export function getCacheTimestamp(): number {
     return cacheTimestamp;
 }
 
+// A test point's `results.outcome` can carry a stale/interim verdict (e.g.
+// "passed") left over from a prior completed run even while the point's
+// *current* result is still open - `results.lastResultState` is what
+// actually reflects whether that latest result is finished, so it takes
+// priority: only a "completed" result's outcome is trustworthy as
+// Passed/Failed/etc, everything else maps to the in-limbo states below
+// (verified against Azure's own Test Plans UI numbers for a suite where the
+// two had diverged - see the "Test Agenti" suiteId/InProgress/Paused
+// investigation this was added for).
+export function resolveTestPointStatus(point: any): string {
+    const lastResultState = point.results?.lastResultState;
+
+    if (lastResultState == null) {
+        return "notrun";
+    }
+
+    const normalized = String(lastResultState).toLowerCase();
+
+    if (normalized === "completed") {
+        return String(point.results?.outcome ?? "none").toLowerCase();
+    }
+
+    if (normalized === "pending") {
+        return "inprogress";
+    }
+
+    // "inProgress" and "paused" (and any other in-limbo state Azure adds)
+    // pass through as-is, to be matched by resolveOutcome() below.
+    return normalized;
+}
+
 export function resolveOutcome(
     outcomes: string[]
 ): Outcome {
@@ -59,6 +90,14 @@ export function resolveOutcome(
         return "Blocked";
     }
 
+    if (normalized.includes("paused")) {
+        return "Paused";
+    }
+
+    if (normalized.includes("inprogress")) {
+        return "InProgress";
+    }
+
     if (normalized.every((o) => o === "notapplicable")) {
         return "NotApplicable";
     }
@@ -74,6 +113,7 @@ export async function buildTestCaseRow(
     tc: any,
     planName: string,
     suiteName: string,
+    suiteId: number,
     outcomesByTestCase: Record<number, string[]>,
     lastRunByTestCase: Record<number, number>,
     planIteration?: string
@@ -114,6 +154,7 @@ export async function buildTestCaseRow(
             ],
         iteration: planIteration,
         suiteName,
+        suiteId,
         testCaseId: tc.workItem.id,
         testCaseTitle: tc.workItem.name,
         testCaseUrl:
@@ -199,7 +240,7 @@ export async function buildDashboard(): Promise<
                 }
 
                 outcomesByTestCase[tcId].push(
-                    point.results?.outcome ?? "none"
+                    resolveTestPointStatus(point)
                 );
 
                 const runId =
@@ -230,6 +271,7 @@ export async function buildDashboard(): Promise<
                         tc,
                         plan.name,
                         suite.name,
+                        suite.id,
                         outcomesByTestCase,
                         lastRunByTestCase,
                         plan.iteration
@@ -450,6 +492,8 @@ function summarizeRunStats(
         Failed: 0,
         Blocked: 0,
         NotApplicable: 0,
+        Paused: 0,
+        InProgress: 0,
         NotRun: 0,
     };
 

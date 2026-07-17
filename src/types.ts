@@ -3,6 +3,8 @@ export type Outcome =
     | "Failed"
     | "Blocked"
     | "NotApplicable"
+    | "Paused"
+    | "InProgress"
     | "NotRun";
 
 export interface BugInfo {
@@ -46,6 +48,7 @@ export interface TestCaseRow {
     areaPath: string;
     iteration?: string;
     suiteName: string;
+    suiteId: number;
     testCaseId: number;
     testCaseTitle: string;
     testCaseUrl?: string;
@@ -367,6 +370,7 @@ export interface PlanOverviewSuiteCount {
 }
 
 export interface PlanOverviewSuiteDetail {
+    suiteId: number;
     suiteName: string;
     totalTestCases: number;
     outcomeCounts: Record<Outcome, number>;
