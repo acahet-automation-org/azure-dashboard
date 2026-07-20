@@ -5,7 +5,7 @@ import {
     getTestCases,
     getTestPoints,
 } from "./azdo.js";
-import { buildTestCaseRow } from "./dashboardData.js";
+import { buildTestCaseRow, resolveTestPointStatus } from "./dashboardData.js";
 import type {
     BugInfo,
     TestPlanProgressCounts,
@@ -202,7 +202,7 @@ export async function computeTestPlanProgressBugs(
                 }
 
                 outcomesByTestCase[tcId].push(
-                    point.results?.outcome ?? "none"
+                    resolveTestPointStatus(point)
                 );
             }
 
@@ -212,6 +212,7 @@ export async function computeTestPlanProgressBugs(
                         tc,
                         "",
                         "",
+                        suiteId,
                         outcomesByTestCase,
                         lastRunByTestCase
                     )

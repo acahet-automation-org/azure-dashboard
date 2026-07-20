@@ -5,7 +5,7 @@ import {
     getTestPoints,
     getBugWorkItemTypeStates,
 } from "./azdo.js";
-import { buildTestCaseRow } from "./dashboardData.js";
+import { buildTestCaseRow, resolveTestPointStatus } from "./dashboardData.js";
 import type {
     BugInfo,
     Outcome,
@@ -15,7 +15,15 @@ import type {
 } from "./types.js";
 
 function zeroOutcomeCounts(): Record<Outcome, number> {
-    return { Passed: 0, Failed: 0, Blocked: 0, NotApplicable: 0, NotRun: 0 };
+    return {
+        Passed: 0,
+        Failed: 0,
+        Blocked: 0,
+        NotApplicable: 0,
+        Paused: 0,
+        InProgress: 0,
+        NotRun: 0,
+    };
 }
 
 // Azure DevOps doesn't guarantee `_apis/wit/workitemtypes/Bug/states` returns
@@ -92,7 +100,7 @@ async function buildPlanRows(
                 }
 
                 outcomesByTestCase[tcId].push(
-                    point.results?.outcome ?? "none"
+                    resolveTestPointStatus(point)
                 );
 
                 const runId =
@@ -123,6 +131,7 @@ async function buildPlanRows(
                         tc,
                         planName,
                         suite.name,
+                        suite.id,
                         outcomesByTestCase,
                         lastRunByTestCase
                     )
@@ -156,16 +165,24 @@ export async function computePlanOverview(
         Failed: 0,
         Blocked: 0,
         NotApplicable: 0,
+        Paused: 0,
+        InProgress: 0,
         NotRun: 0,
     };
     const bugsById = new Map<number, BugInfo>();
 
+    // Keyed by suiteId, not suiteName - two suites in the same plan can
+    // share a display name (that's exactly the "Test Agenti" mismatch this
+    // was added for), and merging them under a shared name key would
+    // silently combine their counts/bugs instead of keeping them apart.
+    const suiteNameById = new Map<number, string>();
+    const suiteTestCountById = new Map<number, number>();
     const suiteOutcomeCounts = new Map<
-        string,
+        number,
         Record<Outcome, number>
     >();
     const suiteBugsById = new Map<
-        string,
+        number,
         Map<number, BugInfo>
     >();
 
@@ -181,14 +198,20 @@ export async function computePlanOverview(
             bugsById.set(bug.id, bug);
         }
 
-        if (!suiteOutcomeCounts.has(row.suiteName)) {
-            suiteOutcomeCounts.set(row.suiteName, zeroOutcomeCounts());
-            suiteBugsById.set(row.suiteName, new Map());
+        if (!suiteOutcomeCounts.has(row.suiteId)) {
+            suiteNameById.set(row.suiteId, row.suiteName);
+            suiteTestCountById.set(row.suiteId, 0);
+            suiteOutcomeCounts.set(row.suiteId, zeroOutcomeCounts());
+            suiteBugsById.set(row.suiteId, new Map());
         }
 
-        suiteOutcomeCounts.get(row.suiteName)![row.outcome]++;
+        suiteTestCountById.set(
+            row.suiteId,
+            suiteTestCountById.get(row.suiteId)! + 1
+        );
+        suiteOutcomeCounts.get(row.suiteId)![row.outcome]++;
 
-        const suiteBugs = suiteBugsById.get(row.suiteName)!;
+        const suiteBugs = suiteBugsById.get(row.suiteId)!;
 
         for (const bug of row.bugs) {
             suiteBugs.set(bug.id, bug);
@@ -239,13 +262,14 @@ export async function computePlanOverview(
         .sort((a, b) => orderOf(a.state) - orderOf(b.state));
 
     const suites: PlanOverviewSuiteDetail[] = [
-        ...testsBySuiteMap.entries(),
-    ].map(([suiteName, totalTestCases]) => ({
-        suiteName,
+        ...suiteTestCountById.entries(),
+    ].map(([suiteId, totalTestCases]) => ({
+        suiteId,
+        suiteName: suiteNameById.get(suiteId)!,
         totalTestCases,
         outcomeCounts:
-            suiteOutcomeCounts.get(suiteName) ?? zeroOutcomeCounts(),
-        bugs: [...(suiteBugsById.get(suiteName)?.values() ?? [])].sort(
+            suiteOutcomeCounts.get(suiteId) ?? zeroOutcomeCounts(),
+        bugs: [...(suiteBugsById.get(suiteId)?.values() ?? [])].sort(
             (a, b) => orderOf(a.state) - orderOf(b.state)
         ),
     }));

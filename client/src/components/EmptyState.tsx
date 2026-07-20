@@ -21,7 +21,10 @@ export function EmptyState({
     icon,
 }: {
     message: string;
-    icon?: ReactElement;
+    icon?: ReactElement<{
+        className?: string;
+        "aria-hidden"?: boolean | "true" | "false";
+    }>;
 }) {
     const styles = useStyles();
 

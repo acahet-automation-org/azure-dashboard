@@ -5,6 +5,8 @@ import {
     ErrorCircleFilled,
     SubtractCircleFilled,
     CircleOffFilled,
+    PauseCircleFilled,
+    ArrowClockwiseFilled,
 } from "@fluentui/react-icons";
 import { useTranslation } from "react-i18next";
 import type { Outcome } from "../types";
@@ -17,6 +19,8 @@ const outcomeConfig: Record<
     Failed: { color: "danger", icon: <DismissCircleFilled /> },
     Blocked: { color: "severe", icon: <ErrorCircleFilled /> },
     NotApplicable: { color: "informative", icon: <CircleOffFilled /> },
+    Paused: { color: "warning", icon: <PauseCircleFilled /> },
+    InProgress: { color: "brand", icon: <ArrowClockwiseFilled /> },
     NotRun: { color: "subtle", icon: <SubtractCircleFilled /> },
 };
 

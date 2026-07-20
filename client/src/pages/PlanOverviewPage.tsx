@@ -112,6 +112,8 @@ const OUTCOME_COLORS: Record<Outcome, string> = {
     Failed: "#d13438",
     Blocked: "#8764b8",
     NotApplicable: "#0078d4",
+    Paused: "#eda100",
+    InProgress: "#00b7c3",
     NotRun: "#605e5c",
 };
 
