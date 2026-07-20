@@ -31,10 +31,10 @@
         "signIn": "Accedi con Microsoft"
     },
     "outcome": {
-        "Passed": "Superato",
-        "Failed": "Fallito",
-        "Blocked": "Bloccato",
-        "NotApplicable": "Non Applicabile",
+        "Passed": "Passed",
+        "Failed": "Failed",
+        "Blocked": "Blocked",
+        "NotApplicable": "N/A",
         "Paused": "In Pausa",
         "InProgress": "In Corso",
         "NotRun": "Non Eseguito",
