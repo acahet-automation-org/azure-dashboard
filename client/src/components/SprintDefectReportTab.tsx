@@ -616,11 +616,20 @@ export function SprintDefectReportTab({
                 STATUS_SORT_ORDER.indexOf(b.key)
         );
 
+    const severityTotal = Object.values(report.bySeverity).reduce(
+        (sum, count) => sum + count,
+        0
+    );
+
     const severityData = Object.entries(report.bySeverity)
         .map(([raw, count]) => {
             const { label, order } = parseSeverity(raw);
+            const percent =
+                severityTotal > 0
+                    ? Math.round((count / severityTotal) * 100)
+                    : 0;
 
-            return { key: raw, name: label, count, order };
+            return { key: raw, name: label, count, percent, order };
         })
         .sort((a, b) => a.order - b.order);
 
@@ -982,15 +991,19 @@ export function SprintDefectReportTab({
                             </BarChart>
                         </ResponsiveContainer>
                         <div className={styles.legend}>
-                            {severityData.map(({ key, name, count }) => (
+                            {severityData.map(({ key, name, count, percent }) => (
                                 <div key={key} className={styles.legendRow}>
                                     <span
                                         className={styles.legendDot}
                                         style={{ backgroundColor: "#d83b01" }}
                                     />
-                                    <Text>
-                                        {name} - {count}
+                                    <Text
+                                        className={styles.legendCount}
+                                        weight="semibold"
+                                    >
+                                        {count} ({percent}%)
                                     </Text>
+                                    <Text>{name}</Text>
                                 </div>
                             ))}
                         </div>

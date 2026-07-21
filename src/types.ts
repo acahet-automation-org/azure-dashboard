@@ -239,6 +239,12 @@ export interface DefectRecord {
     areaPath: string;
     iterationPath?: string;
     suiteName?: string;
+    // Only set for bugs whose own suite doesn't map to a real Test Factory
+    // suite (currently Test Agenti/Business) - the suite resolved by
+    // matching the linked test case's title against its equivalently-titled
+    // original in a genuine Test Factory suite. See getTestCaseLookups in
+    // defectData.ts.
+    resolvedSuiteName?: string;
     environment?: string;
     createdDate: string;
     closedDate?: string;
@@ -289,9 +295,21 @@ export interface SprintDefectReport {
     effectiveCount: number;
     outOfScopeCount: number;
     byOrigin: Record<string, number>;
+    // Like byOrigin, but counting every detected bug (including out-of-scope
+    // ones) rather than just the effective/in-scope subset.
+    byOriginDetected: Record<string, number>;
     byStatus: Record<string, number>;
     byStatusAll: Record<string, number>;
     bySeverity: Record<string, number>;
+    // Effective (in-scope) bug count per suite, Test Factory suites only
+    // (DSI and Test Agenti excluded) - zero-seeded so a suite with no bugs
+    // still shows 0.
+    testFactoryBySuite: Record<string, number>;
+    // Same shape, but for Test Agenti/Business-origin bugs, bucketed by
+    // their *resolved* suite (see DefectRecord.resolvedSuiteName) rather
+    // than their own Custom.Suite value.
+    testAgentiBySuite: Record<string, number>;
+    testBusinessBySuite: Record<string, number>;
     effectiveDefects: DefectSummary[];
 }
 

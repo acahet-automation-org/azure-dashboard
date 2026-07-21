@@ -324,7 +324,9 @@
             },
             "origin": {
                 "dsi": "DSI",
-                "testFactory": "Test Factory"
+                "testFactory": "Test Factory",
+                "testAgenti": "Test Agenti",
+                "business": "Business"
             },
             "status": {
                 "closed": "Chiusi",
@@ -390,6 +392,13 @@
                     "passRate": "Pass Rate",
                     "bugsClosed": "Bug Chiusi ({{percent}}%)",
                     "criticalBugs": "Bug Critici"
+                },
+                "originBreakdown": {
+                    "title": "Bug per Suite",
+                    "bugsInSuite": "Bug su {{suite}}",
+                    "unmatched": "Nessun caso di test corrispondente",
+                    "detected": "Bug rilevati",
+                    "accepted": "Bug accettati"
                 }
             }
         }

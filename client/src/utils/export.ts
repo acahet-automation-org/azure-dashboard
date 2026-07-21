@@ -1295,6 +1295,69 @@ function lightSuiteRow(group: SuiteProgressGroup, t: TranslateFn): string {
     );
 }
 
+// Matches the server-side fallback bucket in computeDuplicateSuiteBySuite
+// (defectData.ts) for a Test Agenti/Business bug whose linked test case
+// couldn't be title-matched to a Test Factory suite - shown as its own
+// callout instead of a suite name so it reads as "needs manual review"
+// rather than an unlabeled/generic suite.
+const UNMATCHED_SUITE_KEY = "Unspecified";
+
+function suiteCaption(t: TranslateFn, suite: string): string {
+    return suite === UNMATCHED_SUITE_KEY
+        ? t("defectManagementPage.sprintReport.statusCard.originBreakdown.unmatched")
+        : t(
+              "defectManagementPage.sprintReport.statusCard.originBreakdown.bugsInSuite",
+              { suite }
+          );
+}
+
+function lightOriginTile(value: number, caption: string): string {
+    const { bg, accent } = LIGHT_KPI[0];
+
+    return (
+        `<td width="33%" style="padding:3px;">` +
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${bg}" style="background-color:${bg};border-radius:6px;">` +
+        `<tr><td align="center" style="padding:8px 4px;font-family:${EMAIL_FONT_FAMILY};">` +
+        `<div style="font-size:16px;font-weight:700;color:${accent};">${value}</div>` +
+        `<div style="font-size:9px;color:${LIGHT_INK_MUTED};margin-top:2px;">${escapeHtml(caption)}</div>` +
+        `</td></tr></table></td>`
+    );
+}
+
+// Renders an origin's suite-count tiles plus its detected/accepted totals as
+// a bordered panel with a rotated side label. The rotation is plain CSS
+// (writing-mode + transform) - it renders correctly when this file is opened
+// in a browser (the intended flow, see buildStatusReportCardEmailDocument),
+// but degrades to horizontal text if pasted into a client that strips it,
+// which is an acceptable fallback rather than a broken layout.
+function lightOriginPanel(
+    label: string,
+    tiles: { value: number; caption: string }[],
+    labelBg: string,
+    labelText: string
+): string {
+    const rowsHtml: string[] = [];
+
+    for (let i = 0; i < tiles.length; i += 3) {
+        const rowTiles = tiles
+            .slice(i, i + 3)
+            .map((tile) => lightOriginTile(tile.value, tile.caption))
+            .join("");
+        rowsHtml.push(`<tr>${rowTiles}</tr>`);
+    }
+
+    return (
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${LIGHT_RULE};border-radius:6px;margin-top:8px;"><tr>` +
+        `<td width="24" bgcolor="${labelBg}" style="background-color:${labelBg};" valign="middle" align="center">` +
+        `<div style="writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;font-weight:700;color:${labelText};font-family:${EMAIL_FONT_FAMILY};padding:6px 0;white-space:nowrap;">${escapeHtml(label)}</div>` +
+        `</td>` +
+        `<td style="padding:8px;">` +
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rowsHtml.join("")}</table>` +
+        `</td>` +
+        `</tr></table>`
+    );
+}
+
 // Builds the sprint status card as genuine HTML tables with inline styles
 // (rather than an html2canvas screenshot embedded via <img>, the previous
 // approach), so it renders as crisp, selectable text/links in Outlook,
@@ -1352,6 +1415,10 @@ export function buildStatusReportCardEmailBodyHtml(
     const severityEntries = Object.entries(report.bySeverity).sort(
         ([a], [b]) => severityRank(a) - severityRank(b)
     );
+    const severityTotal = severityEntries.reduce(
+        (sum, [, count]) => sum + count,
+        0
+    );
 
     const actionParagraphs = actionsText
         .split(/\n\s*\n/)
@@ -1361,6 +1428,71 @@ export function buildStatusReportCardEmailBodyHtml(
     const bugSources = [...suiteGroups.map((group) => group.label), "DSI"].join(
         ", "
     );
+
+    const emailOriginPanelDefs = [
+        {
+            origin: "Test Factory",
+            labelKey: "defectManagementPage.sprintReport.origin.testFactory",
+            bySuite: report.testFactoryBySuite,
+            labelBg: "#eaf7ea",
+            labelText: "#2e7d32",
+        },
+        {
+            origin: "Test Agenti",
+            labelKey: "defectManagementPage.sprintReport.origin.testAgenti",
+            bySuite: report.testAgentiBySuite,
+            labelBg: "#eef3fb",
+            labelText: "#1f3864",
+        },
+        {
+            origin: "Business",
+            labelKey: "defectManagementPage.sprintReport.origin.business",
+            bySuite: report.testBusinessBySuite,
+            labelBg: "#fff8e6",
+            labelText: "#7a5308",
+        },
+    ];
+
+    const originPanelsHtml = emailOriginPanelDefs
+        .map((def) => {
+            const suiteEntries = Object.entries(def.bySuite).sort(([a], [b]) =>
+                a.localeCompare(b)
+            );
+
+            if (suiteEntries.length === 0) {
+                return "";
+            }
+
+            return lightOriginPanel(
+                t(def.labelKey),
+                [
+                    ...suiteEntries.map(([suite, count]) => ({
+                        value: count,
+                        caption: suiteCaption(t, suite),
+                    })),
+                    {
+                        value: report.byOriginDetected[def.origin] ?? 0,
+                        caption: t(
+                            "defectManagementPage.sprintReport.statusCard.originBreakdown.detected"
+                        ),
+                    },
+                    {
+                        value: report.byOrigin[def.origin] ?? 0,
+                        caption: t(
+                            "defectManagementPage.sprintReport.statusCard.originBreakdown.accepted"
+                        ),
+                    },
+                ],
+                def.labelBg,
+                def.labelText
+            );
+        })
+        .join("");
+
+    const originBreakdownHtml = originPanelsHtml
+        ? `<div style="font-size:14px;font-weight:600;color:${LIGHT_INK};margin-top:18px;font-family:${EMAIL_FONT_FAMILY};">${escapeHtml(t("defectManagementPage.sprintReport.statusCard.originBreakdown.title"))}</div>` +
+          originPanelsHtml
+        : "";
 
     const alertHtml = alertText
         ? `<tr><td style="padding:14px 20px 0 20px;">` +
@@ -1447,12 +1579,16 @@ export function buildStatusReportCardEmailBodyHtml(
                   const palette =
                       LIGHT_SEVERITY_PALETTE[rank - 1] ?? LIGHT_SEVERITY_FALLBACK;
                   const width = Math.floor(100 / severityEntries.length);
+                  const percent = severityTotal
+                      ? Math.round((count / severityTotal) * 100)
+                      : 0;
 
                   return (
                       `<td width="${width}%" style="padding:3px;">` +
                       `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${palette.bg}" style="background-color:${palette.bg};border:1px solid ${palette.border};border-radius:6px;">` +
                       `<tr><td align="center" style="padding:8px 4px;font-family:${EMAIL_FONT_FAMILY};">` +
                       `<div style="font-size:18px;font-weight:700;color:${palette.text};">${count}</div>` +
+                      `<div style="font-size:10px;color:${palette.text};opacity:0.85;">${percent}%</div>` +
                       `<div style="font-size:11px;color:${palette.text};">${escapeHtml(emailSeverityLabel(raw))}</div>` +
                       `</td></tr></table></td>`
                   );
@@ -1492,6 +1628,7 @@ export function buildStatusReportCardEmailBodyHtml(
         actionsHtml +
         suiteProgressHtml +
         bugStatusHtml +
+        originBreakdownHtml +
         `</td></tr>` +
         `</table></td></tr></table>`
     );
@@ -1723,6 +1860,10 @@ export async function buildStatusReportCardPptx(
     const severityEntries = Object.entries(report.bySeverity).sort(
         ([a], [b]) => severityRank(a) - severityRank(b)
     );
+    const severityTotal = severityEntries.reduce(
+        (sum, [, count]) => sum + count,
+        0
+    );
 
     const actionParagraphs = actionsText
         .split(/\n\s*\n/)
@@ -1732,6 +1873,46 @@ export async function buildStatusReportCardPptx(
     const bugSources = [...suiteGroups.map((group) => group.label), "DSI"].join(
         ", "
     );
+
+    const pptxOriginPanelDefs = [
+        {
+            origin: "Test Factory",
+            labelKey: "defectManagementPage.sprintReport.origin.testFactory",
+            bySuite: report.testFactoryBySuite,
+            labelBg: pptxColor("#1f3d1f"),
+            labelText: pptxColor("#6bcf6b"),
+        },
+        {
+            origin: "Test Agenti",
+            labelKey: "defectManagementPage.sprintReport.origin.testAgenti",
+            bySuite: report.testAgentiBySuite,
+            labelBg: pptxColor("#1f2f4d"),
+            labelText: pptxColor("#5b9bd5"),
+        },
+        {
+            origin: "Business",
+            labelKey: "defectManagementPage.sprintReport.origin.business",
+            bySuite: report.testBusinessBySuite,
+            labelBg: pptxColor("#3d3319"),
+            labelText: pptxColor("#f2b134"),
+        },
+    ]
+        .map((def) => {
+            const suiteEntries = Object.entries(def.bySuite).sort(
+                ([a], [b]) => a.localeCompare(b)
+            );
+            const rows = Math.ceil(suiteEntries.length / 2);
+            const panelHeight = rows * 0.5 + (rows - 1) * 0.06 + 0.16;
+
+            return {
+                ...def,
+                suiteEntries,
+                panelHeight,
+                detected: report.byOriginDetected[def.origin] ?? 0,
+                accepted: report.byOrigin[def.origin] ?? 0,
+            };
+        })
+        .filter((def) => def.suiteEntries.length > 0);
 
     // Height is a running estimate rather than fixed, so the slide is sized
     // to fit this specific report's content (suite count, action paragraph
@@ -1754,7 +1935,13 @@ export async function buildStatusReportCardPptx(
     height += 0.24 + suiteGroups.length * 0.54;
     height += 0.68; // bug status header + summary + track + legend
     if (severityEntries.length > 0) {
-        height += 0.73;
+        height += 0.83;
+    }
+    if (pptxOriginPanelDefs.length > 0) {
+        height += 0.3;
+        for (const def of pptxOriginPanelDefs) {
+            height += def.panelHeight + 0.1;
+        }
     }
     height += PPTX_MARGIN;
 
@@ -2286,13 +2473,16 @@ export async function buildStatusReportCardPptx(
         const chipWidth =
             (PPTX_CONTENT_WIDTH - chipGap * (severityEntries.length - 1)) /
             severityEntries.length;
-        const chipHeight = 0.55;
+        const chipHeight = 0.65;
 
         severityEntries.forEach(([raw, count], index) => {
             const rank = severityRank(raw);
             const chipColors =
                 palette.severityPalette[rank - 1] ?? palette.severityFallback;
             const x = PPTX_MARGIN + index * (chipWidth + chipGap);
+            const percent = severityTotal
+                ? Math.round((count / severityTotal) * 100)
+                : 0;
 
             slide.addShape(pptx.ShapeType.roundRect, {
                 x,
@@ -2305,20 +2495,30 @@ export async function buildStatusReportCardPptx(
             });
             slide.addText(String(count), {
                 x,
-                y: y + 0.06,
+                y: y + 0.05,
                 w: chipWidth,
-                h: 0.28,
+                h: 0.24,
                 fontFace: PPTX_FONT,
                 fontSize: 14,
                 bold: true,
                 color: chipColors.text,
                 align: "center",
             });
+            slide.addText(`${percent}%`, {
+                x,
+                y: y + 0.29,
+                w: chipWidth,
+                h: 0.16,
+                fontFace: PPTX_FONT,
+                fontSize: 8,
+                color: chipColors.text,
+                align: "center",
+            });
             slide.addText(emailSeverityLabel(raw), {
                 x,
-                y: y + 0.34,
+                y: y + 0.45,
                 w: chipWidth,
-                h: 0.2,
+                h: 0.18,
                 fontFace: PPTX_FONT,
                 fontSize: 8,
                 color: chipColors.text,
@@ -2342,6 +2542,175 @@ export async function buildStatusReportCardPptx(
                 align: "center",
             }
         );
+    }
+
+    // Origin breakdown panels (per-origin suite counts + detected/accepted
+    // totals - Test Factory, Test Agenti, Business). The rotated side label
+    // uses addText's `rotate` option since, unlike the HTML email export's
+    // CSS writing-mode trick, pptxgenjs text boxes support real rotation -
+    // the box is defined pre-rotation (swapped w/h) and centered on the
+    // same point as the visible label strip.
+    if (pptxOriginPanelDefs.length > 0) {
+        slide.addText(
+            t(
+                "defectManagementPage.sprintReport.statusCard.originBreakdown.title"
+            ),
+            {
+                x: PPTX_MARGIN,
+                y,
+                w: PPTX_CONTENT_WIDTH,
+                h: 0.25,
+                fontFace: PPTX_FONT,
+                fontSize: 11,
+                bold: true,
+                color: palette.ink,
+                align: "left",
+            }
+        );
+        y += 0.3;
+
+        for (const def of pptxOriginPanelDefs) {
+            const labelWidth = 0.28;
+            const bodyGap = 0.06;
+            const bodyX = PPTX_MARGIN + labelWidth + bodyGap;
+            const bodyWidth = PPTX_CONTENT_WIDTH - labelWidth - bodyGap;
+            const suiteAreaWidth = bodyWidth * 0.62;
+            const totalsGap = 0.08;
+            const totalsAreaWidth = bodyWidth - suiteAreaWidth - totalsGap;
+
+            const tileGap = 0.06;
+            const tileWidth = (suiteAreaWidth - tileGap) / 2;
+            const tileHeight = 0.5;
+            const panelHeight = def.panelHeight;
+            const totalTileHeight = (panelHeight - 0.16 - totalsGap) / 2;
+
+            slide.addShape(pptx.ShapeType.roundRect, {
+                x: PPTX_MARGIN,
+                y,
+                w: PPTX_CONTENT_WIDTH,
+                h: panelHeight,
+                rectRadius: 0.06,
+                fill: { color: palette.bg },
+                line: { color: palette.trackBg, width: 0.75 },
+            });
+
+            slide.addShape(pptx.ShapeType.rect, {
+                x: PPTX_MARGIN,
+                y,
+                w: labelWidth,
+                h: panelHeight,
+                fill: { color: def.labelBg },
+                line: { type: "none" },
+            });
+            slide.addText(t(def.labelKey), {
+                x: PPTX_MARGIN + labelWidth / 2 - panelHeight / 2,
+                y: y + panelHeight / 2 - labelWidth / 2,
+                w: panelHeight,
+                h: labelWidth,
+                fontFace: PPTX_FONT,
+                fontSize: 9,
+                bold: true,
+                color: def.labelText,
+                align: "center",
+                valign: "middle",
+                rotate: 270,
+            });
+
+            def.suiteEntries.forEach(([suite, count], index) => {
+                const col = index % 2;
+                const row = Math.floor(index / 2);
+                const tileX = bodyX + col * (tileWidth + tileGap);
+                const tileY = y + 0.08 + row * (tileHeight + tileGap);
+
+                slide.addShape(pptx.ShapeType.roundRect, {
+                    x: tileX,
+                    y: tileY,
+                    w: tileWidth,
+                    h: tileHeight,
+                    rectRadius: 0.05,
+                    fill: { color: palette.kpi[0].bg },
+                    line: { type: "none" },
+                });
+                slide.addText(String(count), {
+                    x: tileX,
+                    y: tileY + 0.05,
+                    w: tileWidth,
+                    h: 0.26,
+                    fontFace: PPTX_FONT,
+                    fontSize: 13,
+                    bold: true,
+                    color: palette.kpi[0].accent,
+                    align: "center",
+                });
+                slide.addText(
+                    suiteCaption(t, suite),
+                    {
+                        x: tileX,
+                        y: tileY + 0.3,
+                        w: tileWidth,
+                        h: tileHeight - 0.3,
+                        fontFace: PPTX_FONT,
+                        fontSize: 6.5,
+                        color: palette.inkMuted,
+                        align: "center",
+                        valign: "top",
+                    }
+                );
+            });
+
+            const totalsX = bodyX + suiteAreaWidth + totalsGap;
+            const totals = [
+                {
+                    value: def.detected,
+                    caption: t(
+                        "defectManagementPage.sprintReport.statusCard.originBreakdown.detected"
+                    ),
+                },
+                {
+                    value: def.accepted,
+                    caption: t(
+                        "defectManagementPage.sprintReport.statusCard.originBreakdown.accepted"
+                    ),
+                },
+            ];
+
+            totals.forEach((total, index) => {
+                const tileY = y + 0.08 + index * (totalTileHeight + totalsGap);
+
+                slide.addShape(pptx.ShapeType.roundRect, {
+                    x: totalsX,
+                    y: tileY,
+                    w: totalsAreaWidth,
+                    h: totalTileHeight,
+                    rectRadius: 0.05,
+                    fill: { color: palette.kpi[0].bg },
+                    line: { type: "none" },
+                });
+                slide.addText(String(total.value), {
+                    x: totalsX,
+                    y: tileY + 0.04,
+                    w: totalsAreaWidth,
+                    h: 0.26,
+                    fontFace: PPTX_FONT,
+                    fontSize: 13,
+                    bold: true,
+                    color: palette.kpi[0].accent,
+                    align: "center",
+                });
+                slide.addText(total.caption, {
+                    x: totalsX,
+                    y: tileY + totalTileHeight - 0.22,
+                    w: totalsAreaWidth,
+                    h: 0.2,
+                    fontFace: PPTX_FONT,
+                    fontSize: 7,
+                    color: palette.inkMuted,
+                    align: "center",
+                });
+            });
+
+            y += panelHeight + 0.1;
+        }
     }
 
     return pptx;

@@ -58,6 +58,20 @@ const REGRESSION_TAG = "Regression";
 // (populated or not) is reported as "Test Factory" in the sprint report.
 const DSI_SUITE_NAME = "Test DSI";
 
+// Custom.Suite values for suites whose test cases are duplicates of Test
+// Factory test cases (same title, different work item ID) kept in a
+// separate suite - one for agent-run execution, one for business-side
+// testing - rather than being real content suites in their own right.
+// Unlike DSI (its own genuine suite), a bug filed against one of these needs
+// its suite *resolved* via its linked test case's title rather than read
+// directly off Custom.Suite. Keyed by the Custom.Suite value, valued by the
+// origin label shown in reports. See getTestCaseLookups/buildDefectRecord
+// below.
+const DUPLICATE_SUITE_ORIGINS: Record<string, string> = {
+    "Test Agenti": "Test Agenti",
+    "Test Business": "Business",
+};
+
 // Custom.Suite is manually typed on each bug in Azure DevOps, so the same
 // suite ends up spelled differently across bugs (e.g. "Login & Profilazione"
 // vs "Login e profilazione"), fragmenting the by-suite charts into
@@ -209,17 +223,30 @@ async function getLinkedTestCaseIds(
         .map((item: any) => item.id);
 }
 
+interface TestCaseLookups {
+    iterationByTestCase: Map<number, string>;
+    titleByTestCase: Map<number, string>;
+    // Test case title -> its suite, restricted to test cases actually living
+    // in a genuine Test Factory suite (DSI/Test Agenti/Business excluded) -
+    // i.e. the resolution *target* for a title match, never the source.
+    suiteByTitle: Map<string, string>;
+}
+
 // Bugs are rarely tagged with a real sprint themselves (System.IterationPath
 // mostly defaults to the project/team root), so the sprint shown for a bug
 // is instead borrowed from the Test Plan of the test case it's linked to -
-// that's where this project's actual sprint assignments live.
+// that's where this project's actual sprint assignments live. Also builds
+// the title/suite lookups buildDefectRecord uses to resolve a Test
+// Agenti/Business bug's real suite (see DUPLICATE_SUITE_ORIGINS).
 //
 // Keyed by test case ID rather than bug ID so lookups can be driven off the
 // bug's own confirmed test case links (see getLinkedTestCaseIds) instead of
 // requiring the bug to also turn up in the dashboard's own test-case-to-bug
 // crawl.
-async function getTestCaseIterationMap(): Promise<Map<number, string>> {
+async function getTestCaseLookups(): Promise<TestCaseLookups> {
     const iterationByTestCase = new Map<number, string>();
+    const titleByTestCase = new Map<number, string>();
+    const suiteByTitle = new Map<string, string>();
 
     const testCases = await getDashboardData();
 
@@ -230,14 +257,29 @@ async function getTestCaseIterationMap(): Promise<Map<number, string>> {
                 tc.iteration
             );
         }
+
+        if (!titleByTestCase.has(tc.testCaseId)) {
+            titleByTestCase.set(tc.testCaseId, tc.testCaseTitle);
+        }
+
+        const normalizedSuite = normalizeSuiteName(tc.suiteName);
+
+        if (
+            normalizedSuite &&
+            normalizedSuite !== DSI_SUITE_NAME &&
+            !(normalizedSuite in DUPLICATE_SUITE_ORIGINS) &&
+            !suiteByTitle.has(tc.testCaseTitle)
+        ) {
+            suiteByTitle.set(tc.testCaseTitle, normalizedSuite);
+        }
     }
 
-    return iterationByTestCase;
+    return { iterationByTestCase, titleByTestCase, suiteByTitle };
 }
 
 async function buildDefectRecord(
     bug: any,
-    iterationByTestCase: Map<number, string>
+    lookups: TestCaseLookups
 ): Promise<DefectRecord> {
     const [revisions, linkedTestCaseIds] =
         await Promise.all([
@@ -258,7 +300,27 @@ async function buildDefectRecord(
     );
 
     for (const tcId of linkedTestCaseIds) {
-        iterationPath ??= iterationByTestCase.get(tcId);
+        iterationPath ??= lookups.iterationByTestCase.get(tcId);
+    }
+
+    // Test Agenti/Business test cases are duplicates of Test Factory ones
+    // (same title, different work item ID), so their bugs' real suite is
+    // resolved by matching the linked test case's title against the
+    // equivalently-titled test case in its original Test Factory suite.
+    let resolvedSuiteName: string | undefined;
+
+    if (suiteName && suiteName in DUPLICATE_SUITE_ORIGINS) {
+        for (const tcId of linkedTestCaseIds) {
+            const title = lookups.titleByTestCase.get(tcId);
+            const matchedSuite = title
+                ? lookups.suiteByTitle.get(title)
+                : undefined;
+
+            if (matchedSuite) {
+                resolvedSuiteName = matchedSuite;
+                break;
+            }
+        }
     }
 
     const state = bug.fields["System.State"];
@@ -283,6 +345,7 @@ async function buildDefectRecord(
         areaPath: bug.fields["System.AreaPath"],
         iterationPath,
         suiteName,
+        resolvedSuiteName,
         environment:
             bug.fields["Microsoft.VSTS.Build.FoundIn"],
         createdDate:
@@ -307,14 +370,14 @@ async function buildDefectRecord(
 }
 
 export async function buildDefectRecords(): Promise<DefectRecord[]> {
-    const [bugs, iterationByTestCase] = await Promise.all([
+    const [bugs, lookups] = await Promise.all([
         getAllBugFields(),
-        getTestCaseIterationMap(),
+        getTestCaseLookups(),
     ]);
 
     return Promise.all(
         bugs.map((bug) =>
-            buildDefectRecord(bug, iterationByTestCase)
+            buildDefectRecord(bug, lookups)
         )
     );
 }
@@ -666,18 +729,113 @@ function statusBucket(
     return "In Progress";
 }
 
+// Every real Test Factory suite name, i.e. the full catalog minus the
+// suites that aren't "content" suites in their own right (DSI has its own
+// origin bucket; Test Agenti/Business bugs get resolved to one of these
+// suites instead of appearing as their own box).
+function realTestFactorySuites(allSuiteNames: string[]): string[] {
+    return allSuiteNames.filter(
+        (suite) =>
+            suite !== DSI_SUITE_NAME && !(suite in DUPLICATE_SUITE_ORIGINS)
+    );
+}
+
+// Like computeByTestSuite, but scoped to effective (in-scope) bugs whose own
+// Custom.Suite is a real Test Factory suite, and zero-seeded from the full
+// suite catalog (not just suites with bugs) so the breakdown always shows
+// every suite.
+function computeTestFactoryBySuite(
+    effectiveRecords: DefectRecord[],
+    allSuiteNames: string[]
+): Record<string, number> {
+    const result: Record<string, number> = {};
+
+    for (const suite of realTestFactorySuites(allSuiteNames)) {
+        result[suite] = 0;
+    }
+
+    for (const record of effectiveRecords) {
+        if (
+            !record.suiteName ||
+            record.suiteName === DSI_SUITE_NAME ||
+            record.suiteName in DUPLICATE_SUITE_ORIGINS
+        ) {
+            continue;
+        }
+
+        result[record.suiteName] = (result[record.suiteName] ?? 0) + 1;
+    }
+
+    return result;
+}
+
+// Test Agenti/Business bugs don't carry a real suite on Custom.Suite (see
+// DUPLICATE_SUITE_ORIGINS) - their suite comes from resolvedSuiteName,
+// computed in buildDefectRecord by matching the linked test case's title
+// against its Test Factory original. A bug whose test case couldn't be
+// matched (no link, or no equivalently-titled Test Factory test case) still
+// counts toward the origin's total but falls outside every seeded box.
+function computeDuplicateSuiteBySuite(
+    effectiveRecords: DefectRecord[],
+    allSuiteNames: string[],
+    duplicateSuiteName: string
+): Record<string, number> {
+    const result: Record<string, number> = {};
+
+    for (const suite of realTestFactorySuites(allSuiteNames)) {
+        result[suite] = 0;
+    }
+
+    for (const record of effectiveRecords) {
+        if (record.suiteName !== duplicateSuiteName) {
+            continue;
+        }
+
+        const suite = record.resolvedSuiteName ?? "Unspecified";
+
+        result[suite] = (result[suite] ?? 0) + 1;
+    }
+
+    return result;
+}
+
 export function computeSprintDefectReport(
-    records: DefectRecord[]
+    records: DefectRecord[],
+    allSuiteNames: string[] = []
 ): SprintDefectReport {
     const outOfScope = records.filter(isOutOfScope);
     const effective = records.filter((r) => !isOutOfScope(r));
+    const originOf = (r: DefectRecord) => {
+        if (r.suiteName === DSI_SUITE_NAME) {
+            return "DSI";
+        }
+
+        if (r.suiteName && r.suiteName in DUPLICATE_SUITE_ORIGINS) {
+            return DUPLICATE_SUITE_ORIGINS[r.suiteName];
+        }
+
+        return "Test Factory";
+    };
 
     return {
         total: records.length,
         effectiveCount: effective.length,
         outOfScopeCount: outOfScope.length,
-        byOrigin: groupCount(effective, (r) =>
-            r.suiteName === DSI_SUITE_NAME ? "DSI" : "Test Factory"
+        byOrigin: groupCount(effective, originOf),
+        byOriginDetected: groupCount(records, originOf),
+        testFactoryBySuite: computeTestFactoryBySuite(
+            effective,
+            allSuiteNames
+        ),
+        testAgentiBySuite: computeDuplicateSuiteBySuite(
+            effective,
+            allSuiteNames,
+            "Test Agenti"
+        ),
+        testBusinessBySuite: computeDuplicateSuiteBySuite(
+            effective,
+            allSuiteNames,
+            "Test Business"
         ),
         byStatus: groupCount(effective, (r) => statusBucket(r.state)),
         // Unlike byStatus (scoped to in-scope/effective bugs, for the
@@ -1132,7 +1290,7 @@ export function computeDefectStats(
         closureReasonBreakdown: computeClosureReasonBreakdown(records),
         outOfScopeRate: computeOutOfScopeRate(records),
         outOfScopeBySuite: computeOutOfScopeBySuite(records),
-        sprintDefectReport: computeSprintDefectReport(records),
+        sprintDefectReport: computeSprintDefectReport(records, allSuiteNames),
         firstTimeFixRate: computeFirstTimeFixRate(records),
         densityByComponent: computeDensityByComponent(
             records,

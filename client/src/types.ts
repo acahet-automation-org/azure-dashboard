@@ -236,9 +236,13 @@ export interface SprintDefectReport {
     effectiveCount: number;
     outOfScopeCount: number;
     byOrigin: Record<string, number>;
+    byOriginDetected: Record<string, number>;
     byStatus: Record<string, number>;
     byStatusAll: Record<string, number>;
     bySeverity: Record<string, number>;
+    testFactoryBySuite: Record<string, number>;
+    testAgentiBySuite: Record<string, number>;
+    testBusinessBySuite: Record<string, number>;
     effectiveDefects: DefectSummary[];
 }
 
