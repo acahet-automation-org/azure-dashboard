@@ -10,11 +10,18 @@ import {
 import { ArrowSyncRegular } from "@fluentui/react-icons";
 import { useTranslation } from "react-i18next";
 import { useMsal } from "@azure/msal-react";
-import { NAV_HEIGHT } from "../../layoutConstants";
+import { NAV_HEIGHT, RAIL_BG, RAIL_FG, RAIL_FG_ACTIVE } from "../../layoutConstants";
 import { postRefresh } from "../../api/client";
 import { LanguageSwitcher } from "../LanguageSwitcher";
 import { ThemeSwitcher } from "../ThemeSwitcher";
 
+// Colors are hardcoded (not theme tokens) to match the Sidebar rail, which
+// is also always dark regardless of the light/dark content theme - see
+// RAIL_BG's doc comment in layoutConstants.ts. Fluent's token-driven
+// components (Button, Title1, Text) default to the outer theme's colors, so
+// they need explicit overrides here rather than a nested FluentProvider -
+// that was tried first but broke Tooltip/Menu popovers, which portal
+// outside this subtree and don't inherit a nested theme's CSS variables.
 const useStyles = makeStyles({
     bar: {
         position: "sticky",
@@ -30,11 +37,13 @@ const useStyles = makeStyles({
         padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalL}`,
         borderBottomWidth: "1px",
         borderBottomStyle: "solid",
-        borderBottomColor: tokens.colorNeutralStroke2,
-        backgroundColor: tokens.colorNeutralBackground1,
+        borderBottomColor: "rgba(255, 255, 255, 0.08)",
+        backgroundColor: RAIL_BG,
+        color: RAIL_FG_ACTIVE,
     },
     title: {
         margin: 0,
+        color: RAIL_FG_ACTIVE,
     },
     controls: {
         display: "flex",
@@ -43,7 +52,17 @@ const useStyles = makeStyles({
         flexWrap: "wrap",
     },
     error: {
-        color: tokens.colorPaletteRedForeground1,
+        color: "#ff9b93",
+    },
+    welcome: {
+        color: RAIL_FG,
+    },
+    refreshButton: {
+        color: RAIL_FG_ACTIVE,
+        ":hover": {
+            color: RAIL_FG_ACTIVE,
+            backgroundColor: "rgba(255, 255, 255, 0.06)",
+        },
     },
 });
 
@@ -74,6 +93,7 @@ export function TopBar({ title }: { title: string }) {
 
                 <Button
                     appearance="subtle"
+                    className={styles.refreshButton}
                     icon={
                         refreshMutation.isPending ? (
                             <Spinner size="tiny" />
@@ -92,7 +112,7 @@ export function TopBar({ title }: { title: string }) {
                 </Button>
 
                 {activeAccount && (
-                    <Text>
+                    <Text className={styles.welcome}>
                         {t("nav.welcome", {
                             name: activeAccount.name ?? activeAccount.username,
                         })}

@@ -33,11 +33,14 @@ import {
 } from "@fluentui/react-icons";
 import { useTranslation } from "react-i18next";
 import { fetchNavBadges } from "../../api/client";
-import { SIDEBAR_WIDTH, SIDEBAR_COLLAPSED_WIDTH } from "../../layoutConstants";
+import {
+    SIDEBAR_WIDTH,
+    SIDEBAR_COLLAPSED_WIDTH,
+    RAIL_BG,
+    RAIL_FG,
+    RAIL_FG_ACTIVE,
+} from "../../layoutConstants";
 
-const RAIL_BG = "#14181F";
-const RAIL_FG = "#B8BEC9";
-const RAIL_FG_ACTIVE = "#FFFFFF";
 const ACTIVE_ACCENT = "#0EA5A0";
 const BADGE_COLOR = "#E5484D";
 
@@ -77,11 +80,26 @@ const useStyles = makeStyles({
         display: "flex",
         alignItems: "center",
         flexShrink: 0,
+        overflow: "hidden",
+        boxSizing: "border-box",
+    },
+    // Collapsed rail has no room for the full "TEST FACTORY" wordmark logo -
+    // pin the badge to a square matching the icon-only logo-mark.svg instead
+    // of letting the full-width logo get clipped mid-wordmark.
+    logoBadgeCollapsed: {
+        width: "32px",
+        height: "32px",
+        padding: "4px",
+        justifyContent: "center",
     },
     logo: {
         height: "24px",
         width: "auto",
         display: "block",
+    },
+    logoCollapsed: {
+        height: "100%",
+        width: "100%",
     },
     nav: {
         display: "flex",
@@ -302,6 +320,68 @@ function NavRow({
     );
 }
 
+// A native <button> rather than Fluent's <Button> - Button brings its own
+// root padding/min-height/line-height that fought .navItem's sizing and
+// made this row render smaller/misaligned next to the NavLink-based rows
+// above it, since .navItem is a full CSS reset built to stand on its own.
+function AutomationToggle({
+    collapsed,
+    active,
+    open,
+    onToggle,
+}: {
+    collapsed: boolean;
+    active: boolean;
+    open: boolean;
+    onToggle: () => void;
+}) {
+    const styles = useStyles();
+    const { t } = useTranslation();
+    const label = t("nav.automation");
+
+    const row = (
+        <button
+            type="button"
+            className={mergeClasses(styles.navItem, active && styles.navItemActive)}
+            onClick={onToggle}
+            aria-expanded={open}
+        >
+            <span
+                className={mergeClasses(
+                    styles.navIndicator,
+                    active && styles.navIndicatorActive
+                )}
+            />
+            <span className={styles.navIcon}>
+                <RocketRegular />
+            </span>
+            {!collapsed && (
+                <>
+                    <span className={styles.navLabel}>{label}</span>
+                    <span
+                        className={mergeClasses(
+                            styles.groupChevron,
+                            open ? styles.groupChevronOpen : styles.groupChevronClosed
+                        )}
+                    >
+                        <ChevronDownRegular />
+                    </span>
+                </>
+            )}
+        </button>
+    );
+
+    if (!collapsed) {
+        return row;
+    }
+
+    return (
+        <Tooltip content={label} relationship="label" positioning="after">
+            {row}
+        </Tooltip>
+    );
+}
+
 export function Sidebar({
     collapsed,
     onToggleCollapse,
@@ -337,11 +417,19 @@ export function Sidebar({
             aria-label={t("nav.primary")}
         >
             <NavLink to="/" className={styles.brand} aria-label={t("nav.home")}>
-                <span className={styles.logoBadge}>
+                <span
+                    className={mergeClasses(
+                        styles.logoBadge,
+                        collapsed && styles.logoBadgeCollapsed
+                    )}
+                >
                     <img
-                        src={`${import.meta.env.BASE_URL}logo.svg`}
+                        src={`${import.meta.env.BASE_URL}${collapsed ? "logo-mark.svg" : "logo.svg"}`}
                         alt={t("nav.home")}
-                        className={styles.logo}
+                        className={mergeClasses(
+                            styles.logo,
+                            collapsed && styles.logoCollapsed
+                        )}
                     />
                 </span>
                 {!collapsed && (
@@ -383,43 +471,12 @@ export function Sidebar({
                             />
                         ))}
 
-                        <Button
-                            appearance="transparent"
-                            className={mergeClasses(
-                                styles.navItem,
-                                AUTOMATION_PATHS.includes(location.pathname) &&
-                                    styles.navItemActive
-                            )}
-                            onClick={() => setAutomationOpen((open) => !open)}
-                        >
-                            <span
-                                className={mergeClasses(
-                                    styles.navIndicator,
-                                    AUTOMATION_PATHS.includes(location.pathname) &&
-                                        styles.navIndicatorActive
-                                )}
-                            />
-                            <span className={styles.navIcon}>
-                                <RocketRegular />
-                            </span>
-                            {!collapsed && (
-                                <>
-                                    <span className={styles.navLabel}>
-                                        {t("nav.automation")}
-                                    </span>
-                                    <span
-                                        className={mergeClasses(
-                                            styles.groupChevron,
-                                            automationOpen
-                                                ? styles.groupChevronOpen
-                                                : styles.groupChevronClosed
-                                        )}
-                                    >
-                                        <ChevronDownRegular />
-                                    </span>
-                                </>
-                            )}
-                        </Button>
+                        <AutomationToggle
+                            collapsed={collapsed}
+                            active={AUTOMATION_PATHS.includes(location.pathname)}
+                            open={automationOpen}
+                            onToggle={() => setAutomationOpen((open) => !open)}
+                        />
 
                         {!collapsed && automationOpen && (
                             <div className={styles.groupChildren}>
