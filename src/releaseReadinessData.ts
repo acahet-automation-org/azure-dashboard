@@ -203,7 +203,7 @@ function computePassRateDelta(
     };
 }
 
-function countOpenBySeverity(
+export function countOpenBySeverity(
     defects: DefectRecord[]
 ): Record<"1 - Critical" | "2 - High" | "3 - Medium" | "4 - Low", number> {
     const open = defects.filter((d) => d.state !== "Closed");

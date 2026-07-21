@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 
 export interface DashboardFilters {
     area: string;
-    suite: string;
+    suites: string[];
     priority: string;
     search: string;
 }
@@ -62,7 +62,7 @@ export function FilterBar({
                         onChange({
                             ...filters,
                             area: data.optionValue ?? "",
-                            suite: "",
+                            suites: [],
                         })
                     }
                 >
@@ -77,15 +77,21 @@ export function FilterBar({
 
             <Field label={t("filterBar.suite")} className={styles.field}>
                 <Dropdown
+                    multiselect
                     expandIcon={<ChevronDownRegular className={styles.chevron} />}
                     button={{ className: styles.dropdownButton }}
-                    value={filters.suite || allSuites}
-                    selectedOptions={filters.suite ? [filters.suite] : [""]}
+                    value={
+                        filters.suites.length > 0
+                            ? t("filterBar.selectedSuites", {
+                                  count: filters.suites.length,
+                              })
+                            : allSuites
+                    }
+                    selectedOptions={filters.suites}
                     onOptionSelect={(_, data) =>
-                        onChange({ ...filters, suite: data.optionValue ?? "" })
+                        onChange({ ...filters, suites: data.selectedOptions })
                     }
                 >
-                    <Option value="">{allSuites}</Option>
                     {suiteOptions.map((s) => (
                         <Option key={s} value={s}>
                             {s}

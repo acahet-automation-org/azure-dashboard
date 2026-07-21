@@ -15,6 +15,7 @@
         "automationDashboard": "Automation Dashboard",
         "execution": "Test Execution",
         "defects": "Defect Management",
+        "sprintReport": "Sprint Report",
         "commonErrors": "Common Errors",
         "myWorkItems": "My Work Items",
         "removeTestCases": "Remove Test Cases",
@@ -23,7 +24,9 @@
         "refreshing": "Refreshing...",
         "refreshFailed": "Refresh failed: {{message}}",
         "welcome": "Welcome, {{name}}",
-        "signOut": "Sign Out"
+        "signOut": "Sign Out",
+        "collapseSidebar": "Collapse sidebar",
+        "expandSidebar": "Expand sidebar"
     },
     "signInPage": {
         "title": "QA Dashboard",
@@ -62,7 +65,8 @@
             "blocked": "Blocked",
             "notApplicable": "Not Applicable",
             "notRun": "Not Run",
-            "passRate": "Pass Rate"
+            "passRate": "Pass Rate",
+            "passRateExclNA": "Pass Rate (excl. N/A)"
         }
     },
     "runsPage": {
@@ -111,6 +115,7 @@
             "totalTests": "Total Test Cases",
             "totalBugs": "Total Bugs",
             "passRate": "Pass Rate",
+            "passRateExclNA": "Pass Rate (excl. N/A)",
             "executionRate": "Execution Rate"
         },
         "charts": {
@@ -143,6 +148,7 @@
             "testPoints": "Test Cases",
             "testPointsRun": "Test Cases Run",
             "passRate": "Pass Rate",
+            "passRateExclNA": "Pass Rate (excl. N/A)",
             "runChart": "Run %",
             "passRateChart": "Pass Rate",
             "executedLabel": "Run"
@@ -249,8 +255,7 @@
         "tabs": {
             "overview": "Overview",
             "quality": "Quality & Process Health",
-            "resource": "Resource & Focus",
-            "sprintReport": "Sprint Report"
+            "resource": "Resource & Focus"
         },
         "stats": {
             "totalOpen": "Open Bugs",
@@ -324,7 +329,9 @@
             },
             "origin": {
                 "dsi": "DSI",
-                "testFactory": "Test Factory"
+                "testFactory": "Test Factory",
+                "testAgenti": "Test Agenti",
+                "business": "Business"
             },
             "status": {
                 "closed": "Closed",
@@ -336,6 +343,7 @@
                 "byOrigin": "Effective Defects by Origin",
                 "byStatus": "Effective Defects by Status",
                 "bySeverity": "Effective Defects by Severity",
+                "byOpenSeverity": "Open Defects by Severity",
                 "noEffectiveDefects": "No effective defects in the current data."
             },
             "list": {
@@ -385,14 +393,28 @@
                     "new": "New (to be picked up)"
                 },
                 "severityCaption": "Severity distribution of the {{count}} effective bugs",
+                "openSeverityCaption": "Severity distribution of the {{count}} bugs still open",
                 "kpis": {
                     "totalTestCases": "Total Test Cases",
                     "passRate": "Pass Rate",
                     "bugsClosed": "Bugs Closed ({{percent}}%)",
-                    "criticalBugs": "Critical Bugs"
+                    "criticalBugs": "Critical Bugs",
+                    "reopenedBugs": "Reopened Bugs ({{percent}}%)",
+                    "avgClosureTime": "Average Bug Closure Time"
+                },
+                "originBreakdown": {
+                    "title": "Bugs by Suite",
+                    "toggleLabel": "Include Bugs by Suite (trial)",
+                    "bugsInSuite": "Bugs in {{suite}}",
+                    "unmatched": "No matching test case found",
+                    "detected": "Bugs detected",
+                    "accepted": "Bugs accepted"
                 }
             }
         }
+    },
+    "sprintReportPage": {
+        "title": "Sprint Report"
     },
     "commonErrorsPage": {
         "title": "Common Errors",
@@ -429,6 +451,7 @@
         "allAreas": "All Areas",
         "suite": "Suite",
         "allSuites": "All Suites",
+        "selectedSuites": "{{count}} selected",
         "priority": "Priority",
         "allPriorities": "All Priorities",
         "search": "Search",

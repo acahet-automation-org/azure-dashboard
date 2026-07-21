@@ -35,6 +35,7 @@ import {
     sumCounts,
     runPercent,
     passedPercent,
+    passedPercentExclNA,
 } from "../utils/progressReport";
 import {
     buildEmailReportHtml,
@@ -243,6 +244,10 @@ export function PlanProgressPage() {
                     [
                         t("planProgressPage.summary.passRate"),
                         `${passedPercent(summaryCounts)}%`,
+                    ],
+                    [
+                        t("planProgressPage.summary.passRateExclNA"),
+                        `${passedPercentExclNA(summaryCounts)}%`,
                     ],
                 ],
                 t("planOverviewPage.email.metricColumn"),

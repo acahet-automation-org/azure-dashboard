@@ -236,10 +236,16 @@ export interface SprintDefectReport {
     effectiveCount: number;
     outOfScopeCount: number;
     byOrigin: Record<string, number>;
+    byOriginDetected: Record<string, number>;
     byStatus: Record<string, number>;
     byStatusAll: Record<string, number>;
     bySeverity: Record<string, number>;
+    testFactoryBySuite: Record<string, number>;
+    testAgentiBySuite: Record<string, number>;
+    testBusinessBySuite: Record<string, number>;
     effectiveDefects: DefectSummary[];
+    reopenedCount: number;
+    mttrDays: number | null;
 }
 
 export interface DefectSummary extends BugInfo {
@@ -454,4 +460,8 @@ export interface ReleaseReadinessResponse {
     passRateDelta: PassRateDelta;
     blockingDefects: BlockingDefectsSummary;
     cacheTimestamp: number;
+}
+
+export interface NavBadgesResponse {
+    openCriticalHighDefects: number;
 }

@@ -41,7 +41,7 @@ import { StatusReportCard } from "./StatusReportCard";
 import type { SuiteProgressGroup } from "./StatusReportCard";
 import { fetchPlanOverview, fetchPlans, sendEmailReport } from "../api/client";
 import {
-    buildStatusReportCardEmailPayload,
+    buildStatusReportCardEmailBodyHtml,
     buildStatusReportCardFilename,
     downloadStatusReportCardEmailHtml,
     downloadStatusReportCardPptx,
@@ -304,8 +304,8 @@ export function SprintDefectReportTab({
     );
     const [uatDeadline, setUatDeadline] = useState("2026-07-20");
     const [actionsText, setActionsText] = useState(
-        "System Integrator (@Domenico Schiavone) – entro la giornata di domani, per ciascun bug ancora aperto indicare la data prevista di risoluzione e rilascio della correttiva, per consentire la pianificazione dei retest e la valutazione degli impatti sulla chiusura dell'UAT.\n\n" +
-            "In arrivo su Azure DevOps: la maschera di creazione bug richiederà obbligatoriamente al System Integrator la data prevista di risoluzione alla presa in carico, per un monitoraggio tempestivo di criticità e rischi rispetto alle finestre di test."
+        "Yellow section text content\n\n" +
+        "Blue section text content\n\n"
     );
     const [groupLabels, setGroupLabels] = useState<string[]>(
         AUTO_SUITE_GROUP_DEFS.map((def) => def.label)
@@ -313,6 +313,10 @@ export function SprintDefectReportTab({
     const [isExportingCard, setIsExportingCard] = useState(false);
     const [isExportingPptx, setIsExportingPptx] = useState(false);
     const [pptxTheme, setPptxTheme] = useState<StatusReportCardTheme>("light");
+    // Off by default: the Test Factory/Test Agenti/Business breakdown is
+    // still being validated, so regular report sends shouldn't include it
+    // until someone opts in for a given card.
+    const [showOriginBreakdown, setShowOriginBreakdown] = useState(false);
     const statusCardRef = useRef<HTMLDivElement>(null);
     const dashboardLinkRef = useRef<HTMLAnchorElement>(null);
 
@@ -323,9 +327,9 @@ export function SprintDefectReportTab({
     const alertText =
         deadlineDate && !Number.isNaN(deadlineDate.getTime())
             ? t("defectManagementPage.sprintReport.statusCard.alertTemplate", {
-                  date: formatDDMM(deadlineDate),
-                  count: countBusinessDaysRemaining(new Date(), deadlineDate),
-              })
+                date: formatDDMM(deadlineDate),
+                count: countBusinessDaysRemaining(new Date(), deadlineDate),
+            })
             : "";
 
     // Same per-plan endpoint Plan Overview uses (uncached, fetched fresh by
@@ -405,11 +409,11 @@ export function SprintDefectReportTab({
 
         const matchedSuites = def.suiteIds
             ? overview.suites.filter((suite) =>
-                  def.suiteIds!.includes(suite.suiteId)
-              )
+                def.suiteIds!.includes(suite.suiteId)
+            )
             : overview.suites.filter((suite) =>
-                  def.suiteNames!.includes(suite.suiteName)
-              );
+                def.suiteNames!.includes(suite.suiteName)
+            );
 
         const totalTestCases = matchedSuites.reduce(
             (sum, suite) => sum + suite.totalTestCases,
@@ -485,6 +489,7 @@ export function SprintDefectReportTab({
                 alertText,
                 actionsText,
                 dashboardUrl: MONITORING_DASHBOARD_URL,
+                showOriginBreakdown,
             },
             t
         );
@@ -504,6 +509,7 @@ export function SprintDefectReportTab({
                     alertText,
                     actionsText,
                     dashboardUrl: MONITORING_DASHBOARD_URL,
+                    showOriginBreakdown,
                 },
                 t,
                 pptxTheme
@@ -517,15 +523,8 @@ export function SprintDefectReportTab({
         mutationFn: sendEmailReport,
     });
 
-    const handleSendStatusCardEmail = async () => {
-        const payload = await buildStatusReportCardEmailPayload(
-            statusCardRef.current,
-            [
-                {
-                    element: dashboardLinkRef.current,
-                    url: MONITORING_DASHBOARD_URL,
-                },
-            ],
+    const handleSendStatusCardEmail = () => {
+        const bodyHtml = buildStatusReportCardEmailBodyHtml(
             {
                 headerTitle,
                 headerSubtitle,
@@ -534,19 +533,14 @@ export function SprintDefectReportTab({
                 alertText,
                 actionsText,
                 dashboardUrl: MONITORING_DASHBOARD_URL,
+                showOriginBreakdown,
             },
             t
         );
 
-        if (!payload) {
-            return;
-        }
-
         emailReportMutation.mutate({
             subject: headerTitle,
-            bodyHtml: payload.bodyHtml,
-            pdfBase64: payload.pdfBase64,
-            filename: buildStatusReportCardFilename(headerTitle, "pdf"),
+            bodyHtml,
             fromName: headerTitle,
         });
     };
@@ -571,10 +565,10 @@ export function SprintDefectReportTab({
 
     const filteredBugs = filter
         ? report.effectiveDefects.filter((bug) =>
-              filter.kind === "status"
-                  ? statusBucketOf(bug.state) === filter.key
-                  : (bug.severity ?? "Unspecified") === filter.key
-          )
+            filter.kind === "status"
+                ? statusBucketOf(bug.state) === filter.key
+                : (bug.severity ?? "Unspecified") === filter.key
+        )
         : [];
 
     const listPageCount = Math.max(
@@ -616,11 +610,50 @@ export function SprintDefectReportTab({
                 STATUS_SORT_ORDER.indexOf(b.key)
         );
 
+    const severityTotal = Object.values(report.bySeverity).reduce(
+        (sum, count) => sum + count,
+        0
+    );
+
     const severityData = Object.entries(report.bySeverity)
         .map(([raw, count]) => {
             const { label, order } = parseSeverity(raw);
+            const percent =
+                severityTotal > 0
+                    ? Math.round((count / severityTotal) * 100)
+                    : 0;
 
-            return { key: raw, name: label, count, order };
+            return { key: raw, name: label, count, percent, order };
+        })
+        .sort((a, b) => a.order - b.order);
+
+    // Same shape as severityData but scoped to bugs still open (not
+    // Closed) - mirrors the "still open" definition used elsewhere (e.g.
+    // StatusReportCard's openSeverityCounts, byStatusAll.Closed), so the
+    // dashboard has a chart for "what's left to fix" alongside the general
+    // all-time severity breakdown.
+    const openBySeverity = report.effectiveDefects
+        .filter((bug) => bug.state !== "Closed")
+        .reduce<Record<string, number>>((acc, bug) => {
+            const key = bug.severity ?? "Unspecified";
+            acc[key] = (acc[key] ?? 0) + 1;
+            return acc;
+        }, {});
+
+    const openSeverityTotal = Object.values(openBySeverity).reduce(
+        (sum, count) => sum + count,
+        0
+    );
+
+    const openSeverityData = Object.entries(openBySeverity)
+        .map(([raw, count]) => {
+            const { label, order } = parseSeverity(raw);
+            const percent =
+                openSeverityTotal > 0
+                    ? Math.round((count / openSeverityTotal) * 100)
+                    : 0;
+
+            return { key: raw, name: label, count, percent, order };
         })
         .sort((a, b) => a.order - b.order);
 
@@ -739,6 +772,7 @@ export function SprintDefectReportTab({
                         actionsText={actionsText}
                         dashboardUrl={MONITORING_DASHBOARD_URL}
                         dashboardLinkRef={dashboardLinkRef}
+                        showOriginBreakdown={showOriginBreakdown}
                     />
                 </div>
 
@@ -752,8 +786,8 @@ export function SprintDefectReportTab({
                         {isExportingCard
                             ? t("planOverviewPage.exporting")
                             : t(
-                                  "defectManagementPage.sprintReport.statusCard.exportButton"
-                              )}
+                                "defectManagementPage.sprintReport.statusCard.exportButton"
+                            )}
                     </Button>
 
                     <Button
@@ -775,8 +809,8 @@ export function SprintDefectReportTab({
                         {isExportingPptx
                             ? t("planOverviewPage.exporting")
                             : t(
-                                  "defectManagementPage.sprintReport.statusCard.downloadPptxButton"
-                              )}
+                                "defectManagementPage.sprintReport.statusCard.downloadPptxButton"
+                            )}
                     </Button>
 
                     <Switch
@@ -786,6 +820,16 @@ export function SprintDefectReportTab({
                         }
                         label={t(
                             `defectManagementPage.sprintReport.statusCard.pptxTheme.${pptxTheme}`
+                        )}
+                    />
+
+                    <Switch
+                        checked={showOriginBreakdown}
+                        onChange={(_, data) =>
+                            setShowOriginBreakdown(data.checked)
+                        }
+                        label={t(
+                            "defectManagementPage.sprintReport.statusCard.originBreakdown.toggleLabel"
                         )}
                     />
 
@@ -982,15 +1026,68 @@ export function SprintDefectReportTab({
                             </BarChart>
                         </ResponsiveContainer>
                         <div className={styles.legend}>
-                            {severityData.map(({ key, name, count }) => (
+                            {severityData.map(({ key, name, count, percent }) => (
                                 <div key={key} className={styles.legendRow}>
                                     <span
                                         className={styles.legendDot}
                                         style={{ backgroundColor: "#d83b01" }}
                                     />
-                                    <Text>
-                                        {name} - {count}
+                                    <Text
+                                        className={styles.legendCount}
+                                        weight="semibold"
+                                    >
+                                        {count} ({percent}%)
                                     </Text>
+                                    <Text>{name}</Text>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                    <EmptyState
+                        message={t(
+                            "defectManagementPage.sprintReport.charts.noEffectiveDefects"
+                        )}
+                    />
+                )}
+            </ChartCard>
+
+            <ChartCard
+                title={t("defectManagementPage.sprintReport.charts.byOpenSeverity")}
+            >
+                {openSeverityData.length > 0 ? (
+                    <div>
+                        <ResponsiveContainer width="100%" height={280}>
+                            <BarChart data={openSeverityData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="name" tick={{ fontSize: 13 }} />
+                                <YAxis allowDecimals={false} tick={{ fontSize: 13 }} />
+                                <Tooltip />
+                                <Bar
+                                    dataKey="count"
+                                    fill="#d13438"
+                                    cursor="pointer"
+                                    onClick={(_data, index) => {
+                                        const entry = openSeverityData[index];
+                                        selectSeverity(entry.key, entry.name);
+                                    }}
+                                />
+                            </BarChart>
+                        </ResponsiveContainer>
+                        <div className={styles.legend}>
+                            {openSeverityData.map(({ key, name, count, percent }) => (
+                                <div key={key} className={styles.legendRow}>
+                                    <span
+                                        className={styles.legendDot}
+                                        style={{ backgroundColor: "#d13438" }}
+                                    />
+                                    <Text
+                                        className={styles.legendCount}
+                                        weight="semibold"
+                                    >
+                                        {count} ({percent}%)
+                                    </Text>
+                                    <Text>{name}</Text>
                                 </div>
                             ))}
                         </div>

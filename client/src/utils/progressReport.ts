@@ -114,6 +114,19 @@ export function passedPercent(counts: TestPlanProgressCounts): number {
     return Math.round((counts.passed / counts.total) * 100);
 }
 
+// Not Applicable cases are neither a pass nor a fail, so they shouldn't
+// dilute the pass rate - same convention as CoverageSection's
+// suitePassRateExcludingNA.
+export function passedPercentExclNA(counts: TestPlanProgressCounts): number {
+    const applicable = counts.total - counts.notApplicable;
+
+    if (applicable === 0) {
+        return 0;
+    }
+
+    return Math.round((counts.passed / applicable) * 100);
+}
+
 export function failedPercent(counts: TestPlanProgressCounts): number {
     if (counts.total === 0) {
         return 0;

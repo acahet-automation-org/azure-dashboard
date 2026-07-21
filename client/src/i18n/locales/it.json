@@ -15,6 +15,7 @@
         "automationDashboard": "Dashboard Automazione",
         "execution": "Esecuzione Test",
         "defects": "Gestione Difetti",
+        "sprintReport": "Report Sprint",
         "commonErrors": "Errori Comuni",
         "myWorkItems": "I Miei Elementi",
         "removeTestCases": "Rimuovi Test Case",
@@ -23,7 +24,9 @@
         "refreshing": "Aggiornamento...",
         "refreshFailed": "Aggiornamento non riuscito: {{message}}",
         "welcome": "Benvenuto, {{name}}",
-        "signOut": "Esci"
+        "signOut": "Esci",
+        "collapseSidebar": "Comprimi barra laterale",
+        "expandSidebar": "Espandi barra laterale"
     },
     "signInPage": {
         "title": "QA Dashboard",
@@ -62,7 +65,8 @@
             "blocked": "Bloccati",
             "notApplicable": "Non Applicabili",
             "notRun": "Non Eseguiti",
-            "passRate": "Percentuale di Successo"
+            "passRate": "Percentuale di Successo",
+            "passRateExclNA": "Percentuale di Successo (escl. N/A)"
         }
     },
     "runsPage": {
@@ -111,6 +115,7 @@
             "totalTests": "Test Case Totali",
             "totalBugs": "Bug Totali",
             "passRate": "Percentuale di Successo",
+            "passRateExclNA": "Percentuale di Successo (escl. N/A)",
             "executionRate": "Percentuale di Esecuzione"
         },
         "charts": {
@@ -143,6 +148,7 @@
             "testPoints": "Casi di Test",
             "testPointsRun": "Casi di Test Eseguiti",
             "passRate": "Percentuale di Successo",
+            "passRateExclNA": "Percentuale di Successo (escl. N/A)",
             "runChart": "% Eseguiti",
             "passRateChart": "Percentuale di Successo",
             "executedLabel": "Eseguiti"
@@ -249,8 +255,7 @@
         "tabs": {
             "overview": "Panoramica",
             "quality": "Qualità e Salute del Processo",
-            "resource": "Risorse e Focus",
-            "sprintReport": "Report di Sprint"
+            "resource": "Risorse e Focus"
         },
         "stats": {
             "totalOpen": "Bug Aperti",
@@ -260,7 +265,7 @@
             "reopenRate": "Tasso di Riapertura",
             "duplicateRate": "Percentuale Bug Duplicati",
             "bugsPerStory": "Bug per Story",
-            "days": "{{value}} giorni",
+            "days": "{{value}}",
             "notAvailable": "N/D",
             "notConfigured": "Non configurato",
             "withoutLinkedTestCase": "Difetti Senza Test Case Collegati",
@@ -324,7 +329,9 @@
             },
             "origin": {
                 "dsi": "DSI",
-                "testFactory": "Test Factory"
+                "testFactory": "Test Factory",
+                "testAgenti": "Test Agenti",
+                "business": "Business"
             },
             "status": {
                 "closed": "Chiusi",
@@ -336,6 +343,7 @@
                 "byOrigin": "Difetti Effettivi per Origine",
                 "byStatus": "Difetti Effettivi per Stato",
                 "bySeverity": "Difetti Effettivi per Gravità",
+                "byOpenSeverity": "Difetti Aperti per Gravità",
                 "noEffectiveDefects": "Nessun difetto effettivo nei dati correnti."
             },
             "list": {
@@ -385,14 +393,28 @@
                     "new": "New (da prendere in carico)"
                 },
                 "severityCaption": "Distribuzione per severity dei {{count}} bug effettivi",
+                "openSeverityCaption": "Distribuzione per severity dei {{count}} bug ancora aperti",
                 "kpis": {
                     "totalTestCases": "Casi di Test Totali",
                     "passRate": "Pass Rate",
                     "bugsClosed": "Bug Chiusi ({{percent}}%)",
-                    "criticalBugs": "Bug Critici"
+                    "criticalBugs": "Bug Critici",
+                    "reopenedBugs": "Bug riaperti ({{percent}}%)",
+                    "avgClosureTime": "TM chiusura bug (gg)"
+                },
+                "originBreakdown": {
+                    "title": "Bug per Suite",
+                    "toggleLabel": "Includi Bug per Suite (in prova)",
+                    "bugsInSuite": "Bug su {{suite}}",
+                    "unmatched": "Nessun caso di test corrispondente",
+                    "detected": "Bug rilevati",
+                    "accepted": "Bug accettati"
                 }
             }
         }
+    },
+    "sprintReportPage": {
+        "title": "Report Sprint"
     },
     "commonErrorsPage": {
         "title": "Errori Comuni",
@@ -429,6 +451,7 @@
         "allAreas": "Tutte le Aree",
         "suite": "Suite",
         "allSuites": "Tutte le Suite",
+        "selectedSuites": "{{count}} selezionate",
         "priority": "Priorità",
         "allPriorities": "Tutte le Priorità",
         "search": "Cerca",

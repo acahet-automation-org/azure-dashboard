@@ -39,6 +39,11 @@ function severityLabel(raw: string): string {
     return match ? match[2] : raw;
 }
 
+// The three severities this card always shows a chip for, even when a
+// severity has zero bugs - keeps the row's shape stable sprint to sprint
+// instead of chips appearing/disappearing as counts hit zero.
+const SEVERITY_KEYS = ["1 - Critical", "2 - High", "3 - Medium"];
+
 const SEVERITY_PALETTE = [
     { bg: "#442726", border: "#d13438", text: "#ff9b93" },
     { bg: "#3d3319", border: "#eda100", text: "#f4c669" },
@@ -61,6 +66,13 @@ const STATUS_LABEL_KEYS: Record<string, string> = {
     "In Progress": "inProgress",
     New: "new",
 };
+
+// Matches the server-side fallback bucket in computeDuplicateSuiteBySuite
+// (defectData.ts) for a Test Agenti/Business bug whose linked test case
+// couldn't be title-matched to a Test Factory suite - shown as its own
+// callout instead of a suite name so it reads as "needs manual review"
+// rather than an unlabeled/generic suite.
+const UNMATCHED_SUITE_KEY = "Unspecified";
 
 const ACTION_PALETTE = [
     { bg: "#3d3319", border: "#eda100" },
@@ -86,7 +98,7 @@ function splitActionLeadIn(paragraph: string): {
 
 const useStyles = makeStyles({
     card: {
-        maxWidth: "480px",
+        maxWidth: "900px",
         display: "flex",
         flexDirection: "column",
         borderRadius: "8px",
@@ -142,7 +154,7 @@ const useStyles = makeStyles({
     },
     kpiGrid: {
         display: "grid",
-        gridTemplateColumns: "repeat(4, 1fr)",
+        gridTemplateColumns: "repeat(6, 1fr)",
         gap: "8px",
     },
     kpiTile: {
@@ -280,8 +292,72 @@ const useStyles = makeStyles({
         fontSize: "18px",
         fontWeight: 700,
     },
+    severityPercent: {
+        fontSize: "10px",
+        opacity: 0.85,
+    },
     severityLabelText: {
         fontSize: "11px",
+    },
+    originPanel: {
+        display: "flex",
+        borderRadius: "6px",
+        overflow: "hidden",
+        border: "1px solid #3b3a39",
+    },
+    originLabel: {
+        flexShrink: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: "26px",
+        padding: "6px 0",
+        fontSize: "11px",
+        fontWeight: 700,
+        writingMode: "vertical-rl",
+        transform: "rotate(180deg)",
+        whiteSpace: "nowrap",
+    },
+    originBody: {
+        flex: 1,
+        display: "flex",
+        gap: "6px",
+        padding: "8px",
+    },
+    originSuiteGrid: {
+        flex: "2 1 0",
+        display: "grid",
+        gridTemplateColumns: "repeat(2, 1fr)",
+        gap: "6px",
+        alignContent: "start",
+    },
+    originTotals: {
+        flex: "1 1 0",
+        display: "flex",
+        flexDirection: "column",
+        gap: "6px",
+    },
+    originTile: {
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "2px",
+        padding: "8px 4px",
+        borderRadius: "6px",
+        backgroundColor: "#2d2d2d",
+        textAlign: "center",
+        minHeight: "44px",
+    },
+    originValue: {
+        fontSize: "17px",
+        fontWeight: 700,
+        color: "#3aa0f3",
+    },
+    originCaption: {
+        fontSize: "9px",
+        color: "#c8c6c4",
+        lineHeight: 1.2,
     },
 });
 
@@ -294,6 +370,10 @@ export interface StatusReportCardProps {
     actionsText: string;
     dashboardUrl?: string;
     dashboardLinkRef?: RefObject<HTMLAnchorElement | null>;
+    // Off by default - the Test Factory/Test Agenti/Business breakdown is
+    // still being validated, so existing report sends stay unaffected
+    // unless someone opts in for a given card.
+    showOriginBreakdown?: boolean;
 }
 
 export const StatusReportCard = forwardRef<
@@ -309,6 +389,7 @@ export const StatusReportCard = forwardRef<
         actionsText,
         dashboardUrl,
         dashboardLinkRef,
+        showOriginBreakdown = false,
     },
     ref
 ) {
@@ -354,6 +435,14 @@ export const StatusReportCard = forwardRef<
         : 0;
     const stillOpen = report.total - bugsClosed;
 
+    const reopenedPct = report.total
+        ? Math.round((report.reopenedCount / report.total) * 1000) / 10
+        : 0;
+    // Always shown as a number, even when there's no closed bug yet to
+    // compute a real average from - a blank/"N/A" tile reads as broken on
+    // the exported card, 0 reads as "nothing to report yet".
+    const avgClosureDays = Math.round(report.mttrDays ?? 0);
+
     const criticalCount = Object.entries(report.bySeverity)
         .filter(([key]) => severityRank(key) === 1)
         .reduce((sum, [, count]) => sum + count, 0);
@@ -364,9 +453,38 @@ export const StatusReportCard = forwardRef<
     ] as const).filter(([, count]) => count > 0);
 
     // Severity distribution stays scoped to effective (in-scope) bugs only,
-    // matching the caption under the chips.
-    const severityEntries = Object.entries(report.bySeverity).sort(
-        ([a], [b]) => severityRank(a) - severityRank(b)
+    // matching the caption under the chips. Always shows all three known
+    // severities (defaulting missing ones to 0) rather than only the
+    // severities present in the data, so e.g. "Critical" doesn't just
+    // disappear from the row when there happen to be zero critical bugs.
+    const severityTotal = Object.values(report.bySeverity).reduce(
+        (sum, count) => sum + count,
+        0
+    );
+    const severityEntries = SEVERITY_KEYS.map(
+        (key) => [key, report.bySeverity[key] ?? 0] as const
+    );
+
+    // Same idea as severityEntries above, but scoped to effective bugs that
+    // are still open - lets the card show whether the remaining open work
+    // skews critical/high even after most bugs have been closed out.
+    const openSeverityCounts = report.effectiveDefects.reduce<
+        Record<string, number>
+    >((acc, bug) => {
+        if (bug.state === "Closed") {
+            return acc;
+        }
+
+        const key = bug.severity ?? "Unspecified";
+        acc[key] = (acc[key] ?? 0) + 1;
+        return acc;
+    }, {});
+    const openSeverityTotal = Object.values(openSeverityCounts).reduce(
+        (sum, count) => sum + count,
+        0
+    );
+    const openSeverityEntries = SEVERITY_KEYS.map(
+        (key) => [key, openSeverityCounts[key] ?? 0] as const
     );
 
     const actionParagraphs = actionsText
@@ -378,6 +496,37 @@ export const StatusReportCard = forwardRef<
         ...suiteGroups.map((group) => group.label),
         "DSI",
     ].join(", ");
+
+    const originPanels = [
+        {
+            origin: "Test Factory",
+            labelKey: "defectManagementPage.sprintReport.origin.testFactory",
+            bySuite: report.testFactoryBySuite,
+            labelBg: "#1f3d1f",
+            labelText: "#6bcf6b",
+        },
+        {
+            origin: "Test Agenti",
+            labelKey: "defectManagementPage.sprintReport.origin.testAgenti",
+            bySuite: report.testAgentiBySuite,
+            labelBg: "#1f2f4d",
+            labelText: "#5b9bd5",
+        },
+        {
+            origin: "Business",
+            labelKey: "defectManagementPage.sprintReport.origin.business",
+            bySuite: report.testBusinessBySuite,
+            labelBg: "#3d3319",
+            labelText: "#f2b134",
+        },
+    ].map((panel) => ({
+        ...panel,
+        suiteEntries: Object.entries(panel.bySuite).sort(([a], [b]) =>
+            a.localeCompare(b)
+        ),
+        detected: report.byOriginDetected[panel.origin] ?? 0,
+        accepted: report.byOrigin[panel.origin] ?? 0,
+    }));
 
     return (
         <div ref={ref} className={styles.card}>
@@ -443,6 +592,29 @@ export const StatusReportCard = forwardRef<
                     <span className={styles.kpiLabel}>
                         {t(
                             "defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"
+                        )}
+                    </span>
+                </div>
+                <div className={styles.kpiTile}>
+                    <span className={styles.kpiValue} style={{ color: "#3aa0f3" }}>
+                        {report.reopenedCount}
+                    </span>
+                    <span className={styles.kpiLabel}>
+                        {t(
+                            "defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs",
+                            { percent: reopenedPct }
+                        )}
+                    </span>
+                </div>
+                <div className={styles.kpiTile}>
+                    <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
+                        {t("defectManagementPage.stats.days", {
+                            value: avgClosureDays,
+                        })}
+                    </span>
+                    <span className={styles.kpiLabel}>
+                        {t(
+                            "defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime"
                         )}
                     </span>
                 </div>
@@ -589,50 +761,177 @@ export const StatusReportCard = forwardRef<
                     ))}
                 </span>
 
-                {severityEntries.length > 0 && (
-                    <>
-                        <div className={styles.severityRow}>
-                            {severityEntries.map(([raw, count]) => {
-                                const rank = severityRank(raw);
-                                const palette =
-                                    SEVERITY_PALETTE[rank - 1] ??
-                                    SEVERITY_FALLBACK;
+                <div className={styles.severityRow}>
+                    {severityEntries.map(([raw, count]) => {
+                        const rank = severityRank(raw);
+                        const palette =
+                            SEVERITY_PALETTE[rank - 1] ?? SEVERITY_FALLBACK;
+                        const percent = severityTotal
+                            ? Math.round((count / severityTotal) * 100)
+                            : 0;
 
-                                return (
-                                    <div
-                                        key={raw}
-                                        className={styles.severityChip}
-                                        style={{
-                                            backgroundColor: palette.bg,
-                                            borderColor: palette.border,
-                                        }}
-                                    >
-                                        <span
-                                            className={styles.severityCount}
-                                            style={{ color: palette.text }}
-                                        >
-                                            {count}
-                                        </span>
-                                        <span
-                                            className={styles.severityLabelText}
-                                            style={{ color: palette.text }}
-                                        >
-                                            {severityLabel(raw)}
-                                        </span>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                        return (
+                            <div
+                                key={raw}
+                                className={styles.severityChip}
+                                style={{
+                                    backgroundColor: palette.bg,
+                                    borderColor: palette.border,
+                                }}
+                            >
+                                <span
+                                    className={styles.severityCount}
+                                    style={{ color: palette.text }}
+                                >
+                                    {count}
+                                </span>
+                                <span
+                                    className={styles.severityPercent}
+                                    style={{ color: palette.text }}
+                                >
+                                    {percent}%
+                                </span>
+                                <span
+                                    className={styles.severityLabelText}
+                                    style={{ color: palette.text }}
+                                >
+                                    {severityLabel(raw)}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
 
-                        <span className={styles.severityCaption}>
-                            {t(
-                                "defectManagementPage.sprintReport.statusCard.severityCaption",
-                                { count: report.effectiveCount }
-                            )}
-                        </span>
-                    </>
-                )}
+                <span className={styles.severityCaption}>
+                    {t(
+                        "defectManagementPage.sprintReport.statusCard.severityCaption",
+                        { count: report.effectiveCount }
+                    )}
+                </span>
+
+                <div className={styles.severityRow}>
+                    {openSeverityEntries.map(([raw, count]) => {
+                        const rank = severityRank(raw);
+                        const palette =
+                            SEVERITY_PALETTE[rank - 1] ?? SEVERITY_FALLBACK;
+                        const percent = openSeverityTotal
+                            ? Math.round((count / openSeverityTotal) * 100)
+                            : 0;
+
+                        return (
+                            <div
+                                key={raw}
+                                className={styles.severityChip}
+                                style={{
+                                    backgroundColor: palette.bg,
+                                    borderColor: palette.border,
+                                }}
+                            >
+                                <span
+                                    className={styles.severityCount}
+                                    style={{ color: palette.text }}
+                                >
+                                    {count}
+                                </span>
+                                <span
+                                    className={styles.severityPercent}
+                                    style={{ color: palette.text }}
+                                >
+                                    {percent}%
+                                </span>
+                                <span
+                                    className={styles.severityLabelText}
+                                    style={{ color: palette.text }}
+                                >
+                                    {severityLabel(raw)}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                <span className={styles.severityCaption}>
+                    {t(
+                        "defectManagementPage.sprintReport.statusCard.openSeverityCaption",
+                        { count: openSeverityTotal }
+                    )}
+                </span>
             </div>
+
+            {showOriginBreakdown &&
+                originPanels.some((panel) => panel.suiteEntries.length > 0) && (
+                <div className={styles.section}>
+                    <span className={styles.sectionTitle}>
+                        {t(
+                            "defectManagementPage.sprintReport.statusCard.originBreakdown.title"
+                        )}
+                    </span>
+
+                    {originPanels
+                        .filter((panel) => panel.suiteEntries.length > 0)
+                        .map((panel) => (
+                            <div key={panel.origin} className={styles.originPanel}>
+                                <span
+                                    className={styles.originLabel}
+                                    style={{
+                                        backgroundColor: panel.labelBg,
+                                        color: panel.labelText,
+                                    }}
+                                >
+                                    {t(panel.labelKey)}
+                                </span>
+
+                                <div className={styles.originBody}>
+                                    <div className={styles.originSuiteGrid}>
+                                        {panel.suiteEntries.map(([suite, count]) => (
+                                            <div
+                                                key={suite}
+                                                className={styles.originTile}
+                                            >
+                                                <span className={styles.originValue}>
+                                                    {count}
+                                                </span>
+                                                <span className={styles.originCaption}>
+                                                    {suite === UNMATCHED_SUITE_KEY
+                                                        ? t(
+                                                              "defectManagementPage.sprintReport.statusCard.originBreakdown.unmatched"
+                                                          )
+                                                        : t(
+                                                              "defectManagementPage.sprintReport.statusCard.originBreakdown.bugsInSuite",
+                                                              { suite }
+                                                          )}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className={styles.originTotals}>
+                                        <div className={styles.originTile}>
+                                            <span className={styles.originValue}>
+                                                {panel.detected}
+                                            </span>
+                                            <span className={styles.originCaption}>
+                                                {t(
+                                                    "defectManagementPage.sprintReport.statusCard.originBreakdown.detected"
+                                                )}
+                                            </span>
+                                        </div>
+                                        <div className={styles.originTile}>
+                                            <span className={styles.originValue}>
+                                                {panel.accepted}
+                                            </span>
+                                            <span className={styles.originCaption}>
+                                                {t(
+                                                    "defectManagementPage.sprintReport.statusCard.originBreakdown.accepted"
+                                                )}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                </div>
+            )}
             </div>
         </div>
     );

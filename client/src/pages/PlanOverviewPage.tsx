@@ -289,6 +289,21 @@ export function PlanOverviewPage() {
               ) / 10
             : 0;
 
+    // Not Applicable cases are neither a pass nor a fail, so they shouldn't
+    // dilute the pass rate - same convention as CoverageSection's
+    // suitePassRateExcludingNA.
+    const passRateExclNA = (() => {
+        if (!data) {
+            return 0;
+        }
+
+        const applicable = data.totalTestCases - data.outcomeCounts.NotApplicable;
+
+        return applicable
+            ? Math.round((data.outcomeCounts.Passed / applicable) * 1000) / 10
+            : 0;
+    })();
+
     const executionRate =
         data && data.totalTestCases
             ? Math.round(
@@ -312,6 +327,22 @@ export function PlanOverviewPage() {
                       1000
               ) / 10
             : 0;
+
+    const suitePassRateExclNA = (() => {
+        if (!selectedSuite) {
+            return 0;
+        }
+
+        const applicable =
+            selectedSuite.totalTestCases -
+            selectedSuite.outcomeCounts.NotApplicable;
+
+        return applicable
+            ? Math.round(
+                  (selectedSuite.outcomeCounts.Passed / applicable) * 1000
+              ) / 10
+            : 0;
+    })();
 
     const suiteExecutionRate =
         selectedSuite && selectedSuite.totalTestCases
@@ -436,6 +467,10 @@ export function PlanOverviewPage() {
                             `${suitePassRate}%`,
                         ],
                         [
+                            t("planOverviewPage.stats.passRateExclNA"),
+                            `${suitePassRateExclNA}%`,
+                        ],
+                        [
                             t("planOverviewPage.stats.executionRate"),
                             `${suiteExecutionRate}%`,
                         ],
@@ -504,6 +539,10 @@ export function PlanOverviewPage() {
                         data.outcomeCounts.NotApplicable,
                     ],
                     [t("planOverviewPage.stats.passRate"), `${passRate}%`],
+                    [
+                        t("planOverviewPage.stats.passRateExclNA"),
+                        `${passRateExclNA}%`,
+                    ],
                     [
                         t("planOverviewPage.stats.executionRate"),
                         `${executionRate}%`,
@@ -684,6 +723,12 @@ export function PlanOverviewPage() {
                                     "planOverviewPage.stats.passRate"
                                 )}
                                 value={`${passRate}%`}
+                            />
+                            <StatCard
+                                label={t(
+                                    "planOverviewPage.stats.passRateExclNA"
+                                )}
+                                value={`${passRateExclNA}%`}
                             />
                             <StatCard
                                 label={t(
@@ -936,6 +981,12 @@ export function PlanOverviewPage() {
                                         "planOverviewPage.stats.passRate"
                                     )}
                                     value={`${suitePassRate}%`}
+                                />
+                                <StatCard
+                                    label={t(
+                                        "planOverviewPage.stats.passRateExclNA"
+                                    )}
+                                    value={`${suitePassRateExclNA}%`}
                                 />
                                 <StatCard
                                     label={t(
