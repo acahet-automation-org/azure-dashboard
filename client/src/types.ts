@@ -244,6 +244,8 @@ export interface SprintDefectReport {
     testAgentiBySuite: Record<string, number>;
     testBusinessBySuite: Record<string, number>;
     effectiveDefects: DefectSummary[];
+    reopenedCount: number;
+    mttrDays: number | null;
 }
 
 export interface DefectSummary extends BugInfo {
@@ -458,4 +460,8 @@ export interface ReleaseReadinessResponse {
     passRateDelta: PassRateDelta;
     blockingDefects: BlockingDefectsSummary;
     cacheTimestamp: number;
+}
+
+export interface NavBadgesResponse {
+    openCriticalHighDefects: number;
 }

@@ -18,6 +18,7 @@ import type {
     DeleteTestCaseItem,
     DeleteTestCasesResult,
     ReleaseReadinessResponse,
+    NavBadgesResponse,
 } from "../types";
 import { loginRequest } from "../authConfig";
 import { msalInstance } from "../msalInstance";
@@ -184,6 +185,10 @@ export function fetchReleaseReadiness(): Promise<ReleaseReadinessResponse> {
     return getJson("/api/release-readiness");
 }
 
+export function fetchNavBadges(): Promise<NavBadgesResponse> {
+    return getJson("/api/nav-badges");
+}
+
 export function fetchCommonErrors(): Promise<CommonErrorsResponse> {
     return getJson("/api/common-errors");
 }
@@ -197,8 +202,8 @@ export function fetchMyWorkItems(
 export async function sendEmailReport(payload: {
     subject: string;
     bodyHtml: string;
-    pdfBase64: string;
-    filename: string;
+    pdfBase64?: string;
+    filename?: string;
     fromName: string;
 }): Promise<void> {
     const res = await authorizedFetch("/api/email-report", {

@@ -12,6 +12,7 @@ export interface GroupStats {
     notApplicable: number;
     notRun: number;
     passRate: number;
+    passRateExclNA: number;
 }
 
 export function computeGroupStats(
@@ -54,6 +55,14 @@ export function computeGroupStats(
         ? Math.round((passed / total) * 1000) / 10
         : 0;
 
+    // Not Applicable cases are neither a pass nor a fail, so they shouldn't
+    // dilute the pass rate the way an unrun or failed case would - same
+    // convention as CoverageSection's suitePassRateExcludingNA.
+    const applicable = total - notApplicable;
+    const passRateExclNA = applicable
+        ? Math.round((passed / applicable) * 1000) / 10
+        : 0;
+
     return {
         total,
         withOpenBugs,
@@ -66,5 +75,6 @@ export function computeGroupStats(
         notApplicable,
         notRun,
         passRate,
+        passRateExclNA,
     };
 }

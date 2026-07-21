@@ -857,6 +857,8 @@ export function computeSprintDefectReport(
             creator: r.creator,
             assignee: r.assignedTo,
         })),
+        reopenedCount: records.filter((r) => r.reopenedCount > 0).length,
+        mttrDays: computeMttrDays(records),
     };
 }
 

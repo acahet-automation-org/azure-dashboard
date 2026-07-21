@@ -61,7 +61,7 @@ function matchesFilters(
         return false;
     }
 
-    if (filters.suite && tc.suiteName !== filters.suite) {
+    if (filters.suites.length > 0 && !filters.suites.includes(tc.suiteName)) {
         return false;
     }
 
@@ -94,9 +94,11 @@ export function DashboardPage() {
         queryFn: fetchDashboard,
     });
 
+    const initialSuite = searchParams.get("suite");
+
     const [filters, setFilters] = useState<DashboardFilters>({
         area: "",
-        suite: searchParams.get("suite") ?? "",
+        suites: initialSuite ? [initialSuite] : [],
         priority: "",
         search: "",
     });
@@ -174,7 +176,7 @@ export function DashboardPage() {
     });
 
     const handleExport = (format: ExportFormat) => {
-        const isSingleSuiteFiltered = Boolean(filters.suite);
+        const isSingleSuiteFiltered = filters.suites.length === 1;
 
         const buildRows = (includeSuiteColumn: boolean): ExportableRow[] =>
             filteredTestCases.map((tc) => ({
@@ -205,7 +207,7 @@ export function DashboardPage() {
                 suiteHeader
             );
             const fromName = isSingleSuiteFiltered
-                ? `${title} - ${filters.suite}`
+                ? `${title} - ${filters.suites[0]}`
                 : title;
             const subject = fromName;
             const bodyHtml = `<p>${t("dashboardPage.stats.total")}: ${filteredStats.total}</p>` +
@@ -343,6 +345,10 @@ export function DashboardPage() {
                         <StatCard
                             label={t("dashboardPage.stats.passRate")}
                             value={`${filteredStats.passRate}%`}
+                        />
+                        <StatCard
+                            label={t("dashboardPage.stats.passRateExclNA")}
+                            value={`${filteredStats.passRateExclNA}%`}
                         />
                     </div>
 

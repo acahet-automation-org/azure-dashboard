@@ -1,8 +1,9 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthenticatedTemplate, UnauthenticatedTemplate } from "@azure/msal-react";
 import { Spinner } from "@fluentui/react-components";
 import { SignInPage } from "./pages/SignInPage";
+import { useIsRestrictedOwner } from "./hooks/useIsRestrictedOwner";
 
 const SuitesPage = lazy(() => import("./pages/SuitesPage").then((m) => ({ default: m.SuitesPage })));
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
@@ -24,6 +25,9 @@ const TestExecutionPage = lazy(() =>
 const DefectManagementPage = lazy(() =>
     import("./pages/DefectManagementPage").then((m) => ({ default: m.DefectManagementPage }))
 );
+const SprintReportPage = lazy(() =>
+    import("./pages/SprintReportPage").then((m) => ({ default: m.SprintReportPage }))
+);
 const CommonErrorsPage = lazy(() => import("./pages/CommonErrorsPage").then((m) => ({ default: m.CommonErrorsPage })));
 const MyWorkItemsPage = lazy(() => import("./pages/MyWorkItemsPage").then((m) => ({ default: m.MyWorkItemsPage })));
 const RemoveTestCasesPage = lazy(() =>
@@ -32,6 +36,19 @@ const RemoveTestCasesPage = lazy(() =>
 const ReleaseReadinessPage = lazy(() =>
     import("./pages/ReleaseReadinessPage").then((m) => ({ default: m.ReleaseReadinessPage }))
 );
+
+// "Plan Progress" and "Remove Test Cases" are hidden from the sidebar for
+// everyone but the restricted owner (see useIsRestrictedOwner) - guard the
+// routes too so a typed/bookmarked URL can't bypass that.
+function RestrictedRoute({ children }: { children: ReactNode }) {
+    const isRestrictedOwner = useIsRestrictedOwner();
+
+    if (!isRestrictedOwner) {
+        return <Navigate to="/" replace />;
+    }
+
+    return <>{children}</>;
+}
 
 function PageFallback() {
     return (
@@ -59,6 +76,7 @@ function AppRoutes() {
                 {showOnlyDefectAndRelease ? (
                     <>
                         <Route path="/defects" element={<DefectManagementPage />} />
+                        <Route path="/sprint-report" element={<SprintReportPage />} />
                         {releaseReadinessEnabled && (
                             <Route
                                 path="/release-readiness"
@@ -75,13 +93,28 @@ function AppRoutes() {
                         <Route path="/plans" element={<PlansPage />} />
                         <Route path="/plans/:planId" element={<PlanDetailPage />} />
                         <Route path="/plan-overview" element={<PlanOverviewPage />} />
-                        <Route path="/plan-progress" element={<PlanProgressPage />} />
+                        <Route
+                            path="/plan-progress"
+                            element={
+                                <RestrictedRoute>
+                                    <PlanProgressPage />
+                                </RestrictedRoute>
+                            }
+                        />
                         <Route path="/automation-dashboard" element={<AutomationDashboardPage />} />
                         <Route path="/test-execution" element={<TestExecutionPage />} />
                         <Route path="/defects" element={<DefectManagementPage />} />
+                        <Route path="/sprint-report" element={<SprintReportPage />} />
                         <Route path="/common-errors" element={<CommonErrorsPage />} />
                         <Route path="/my-work-items" element={<MyWorkItemsPage />} />
-                        <Route path="/remove-test-cases" element={<RemoveTestCasesPage />} />
+                        <Route
+                            path="/remove-test-cases"
+                            element={
+                                <RestrictedRoute>
+                                    <RemoveTestCasesPage />
+                                </RestrictedRoute>
+                            }
+                        />
                         {releaseReadinessEnabled && (
                             <Route
                                 path="/release-readiness"

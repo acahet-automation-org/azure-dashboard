@@ -54,6 +54,7 @@ import {
 import {
     computeReleaseReadiness,
     clearReleaseReadinessCache,
+    countOpenBySeverity,
 } from "./releaseReadinessData.js";
 import {
     startBugSummaryScheduler,
@@ -212,6 +213,20 @@ app.get("/api/release-readiness", async (_, res) => {
         res.status(500).json({
             message: error.message,
         });
+    }
+});
+
+app.get("/api/nav-badges", async (_, res) => {
+    try {
+        const records = await getDefectData();
+        const counts = countOpenBySeverity(records);
+
+        res.json({
+            openCriticalHighDefects:
+                counts["1 - Critical"] + counts["2 - High"],
+        });
+    } catch (error: any) {
+        sendApiError(res, error);
     }
 });
 
@@ -376,9 +391,9 @@ app.post("/api/email-report", async (req, res) => {
             fromName?: string;
         };
 
-    if (!subject || !pdfBase64 || !filename) {
+    if (!subject) {
         res.status(400).json({
-            message: "subject, pdfBase64 and filename are required.",
+            message: "subject is required.",
         });
 
         return;

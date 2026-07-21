@@ -6,11 +6,12 @@ let transporter: nodemailer.Transporter | null = null;
 function getTransporter(): nodemailer.Transporter {
     if (!transporter) {
         transporter = nodemailer.createTransport({
-            host: process.env.MAILTRAP_HOST,
-            port: Number(process.env.MAILTRAP_PORT) || 2525,
+            host: process.env.SMTP_HOST,
+            port: Number(process.env.SMTP_PORT) || 587,
+            secure: process.env.SMTP_SECURE === "true",
             auth: {
-                user: process.env.MAILTRAP_USER,
-                pass: process.env.MAILTRAP_PASS,
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS,
             },
         });
     }
@@ -29,8 +30,8 @@ export async function sendReportEmail({
     to: string[];
     subject: string;
     bodyHtml: string;
-    pdfBase64: string;
-    filename: string;
+    pdfBase64?: string;
+    filename?: string;
     fromName: string;
 }): Promise<void> {
     const fromAddress = process.env.MAIL_FROM;
@@ -50,15 +51,22 @@ export async function sendReportEmail({
             name: fromDisplayName,
             address: fromAddress,
         },
-        to,
+        // Nodemailer accepts an array here, but joining into a single
+        // comma-separated header is the form actually documented/guaranteed
+        // to address every recipient - an array was silently only
+        // delivering to the first address.
+        to: to.join(", "),
         subject,
         html: bodyHtml,
-        attachments: [
-            {
-                filename,
-                content: Buffer.from(pdfBase64, "base64"),
-                contentType: "application/pdf",
-            },
-        ],
+        attachments:
+            pdfBase64 && filename
+                ? [
+                      {
+                          filename,
+                          content: Buffer.from(pdfBase64, "base64"),
+                          contentType: "application/pdf",
+                      },
+                  ]
+                : undefined,
     });
 }

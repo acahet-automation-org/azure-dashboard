@@ -39,6 +39,11 @@ function severityLabel(raw: string): string {
     return match ? match[2] : raw;
 }
 
+// The three severities this card always shows a chip for, even when a
+// severity has zero bugs - keeps the row's shape stable sprint to sprint
+// instead of chips appearing/disappearing as counts hit zero.
+const SEVERITY_KEYS = ["1 - Critical", "2 - High", "3 - Medium"];
+
 const SEVERITY_PALETTE = [
     { bg: "#442726", border: "#d13438", text: "#ff9b93" },
     { bg: "#3d3319", border: "#eda100", text: "#f4c669" },
@@ -93,7 +98,7 @@ function splitActionLeadIn(paragraph: string): {
 
 const useStyles = makeStyles({
     card: {
-        maxWidth: "480px",
+        maxWidth: "900px",
         display: "flex",
         flexDirection: "column",
         borderRadius: "8px",
@@ -149,7 +154,7 @@ const useStyles = makeStyles({
     },
     kpiGrid: {
         display: "grid",
-        gridTemplateColumns: "repeat(4, 1fr)",
+        gridTemplateColumns: "repeat(6, 1fr)",
         gap: "8px",
     },
     kpiTile: {
@@ -430,6 +435,14 @@ export const StatusReportCard = forwardRef<
         : 0;
     const stillOpen = report.total - bugsClosed;
 
+    const reopenedPct = report.total
+        ? Math.round((report.reopenedCount / report.total) * 1000) / 10
+        : 0;
+    // Always shown as a number, even when there's no closed bug yet to
+    // compute a real average from - a blank/"N/A" tile reads as broken on
+    // the exported card, 0 reads as "nothing to report yet".
+    const avgClosureDays = Math.round(report.mttrDays ?? 0);
+
     const criticalCount = Object.entries(report.bySeverity)
         .filter(([key]) => severityRank(key) === 1)
         .reduce((sum, [, count]) => sum + count, 0);
@@ -440,13 +453,38 @@ export const StatusReportCard = forwardRef<
     ] as const).filter(([, count]) => count > 0);
 
     // Severity distribution stays scoped to effective (in-scope) bugs only,
-    // matching the caption under the chips.
-    const severityEntries = Object.entries(report.bySeverity).sort(
-        ([a], [b]) => severityRank(a) - severityRank(b)
-    );
-    const severityTotal = severityEntries.reduce(
-        (sum, [, count]) => sum + count,
+    // matching the caption under the chips. Always shows all three known
+    // severities (defaulting missing ones to 0) rather than only the
+    // severities present in the data, so e.g. "Critical" doesn't just
+    // disappear from the row when there happen to be zero critical bugs.
+    const severityTotal = Object.values(report.bySeverity).reduce(
+        (sum, count) => sum + count,
         0
+    );
+    const severityEntries = SEVERITY_KEYS.map(
+        (key) => [key, report.bySeverity[key] ?? 0] as const
+    );
+
+    // Same idea as severityEntries above, but scoped to effective bugs that
+    // are still open - lets the card show whether the remaining open work
+    // skews critical/high even after most bugs have been closed out.
+    const openSeverityCounts = report.effectiveDefects.reduce<
+        Record<string, number>
+    >((acc, bug) => {
+        if (bug.state === "Closed") {
+            return acc;
+        }
+
+        const key = bug.severity ?? "Unspecified";
+        acc[key] = (acc[key] ?? 0) + 1;
+        return acc;
+    }, {});
+    const openSeverityTotal = Object.values(openSeverityCounts).reduce(
+        (sum, count) => sum + count,
+        0
+    );
+    const openSeverityEntries = SEVERITY_KEYS.map(
+        (key) => [key, openSeverityCounts[key] ?? 0] as const
     );
 
     const actionParagraphs = actionsText
@@ -554,6 +592,29 @@ export const StatusReportCard = forwardRef<
                     <span className={styles.kpiLabel}>
                         {t(
                             "defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"
+                        )}
+                    </span>
+                </div>
+                <div className={styles.kpiTile}>
+                    <span className={styles.kpiValue} style={{ color: "#3aa0f3" }}>
+                        {report.reopenedCount}
+                    </span>
+                    <span className={styles.kpiLabel}>
+                        {t(
+                            "defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs",
+                            { percent: reopenedPct }
+                        )}
+                    </span>
+                </div>
+                <div className={styles.kpiTile}>
+                    <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
+                        {t("defectManagementPage.stats.days", {
+                            value: avgClosureDays,
+                        })}
+                    </span>
+                    <span className={styles.kpiLabel}>
+                        {t(
+                            "defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime"
                         )}
                     </span>
                 </div>
@@ -700,58 +761,101 @@ export const StatusReportCard = forwardRef<
                     ))}
                 </span>
 
-                {severityEntries.length > 0 && (
-                    <>
-                        <div className={styles.severityRow}>
-                            {severityEntries.map(([raw, count]) => {
-                                const rank = severityRank(raw);
-                                const palette =
-                                    SEVERITY_PALETTE[rank - 1] ??
-                                    SEVERITY_FALLBACK;
-                                const percent = severityTotal
-                                    ? Math.round((count / severityTotal) * 100)
-                                    : 0;
+                <div className={styles.severityRow}>
+                    {severityEntries.map(([raw, count]) => {
+                        const rank = severityRank(raw);
+                        const palette =
+                            SEVERITY_PALETTE[rank - 1] ?? SEVERITY_FALLBACK;
+                        const percent = severityTotal
+                            ? Math.round((count / severityTotal) * 100)
+                            : 0;
 
-                                return (
-                                    <div
-                                        key={raw}
-                                        className={styles.severityChip}
-                                        style={{
-                                            backgroundColor: palette.bg,
-                                            borderColor: palette.border,
-                                        }}
-                                    >
-                                        <span
-                                            className={styles.severityCount}
-                                            style={{ color: palette.text }}
-                                        >
-                                            {count}
-                                        </span>
-                                        <span
-                                            className={styles.severityPercent}
-                                            style={{ color: palette.text }}
-                                        >
-                                            {percent}%
-                                        </span>
-                                        <span
-                                            className={styles.severityLabelText}
-                                            style={{ color: palette.text }}
-                                        >
-                                            {severityLabel(raw)}
-                                        </span>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                        return (
+                            <div
+                                key={raw}
+                                className={styles.severityChip}
+                                style={{
+                                    backgroundColor: palette.bg,
+                                    borderColor: palette.border,
+                                }}
+                            >
+                                <span
+                                    className={styles.severityCount}
+                                    style={{ color: palette.text }}
+                                >
+                                    {count}
+                                </span>
+                                <span
+                                    className={styles.severityPercent}
+                                    style={{ color: palette.text }}
+                                >
+                                    {percent}%
+                                </span>
+                                <span
+                                    className={styles.severityLabelText}
+                                    style={{ color: palette.text }}
+                                >
+                                    {severityLabel(raw)}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
 
-                        <span className={styles.severityCaption}>
-                            {t(
-                                "defectManagementPage.sprintReport.statusCard.severityCaption",
-                                { count: report.effectiveCount }
-                            )}
-                        </span>
-                    </>
-                )}
+                <span className={styles.severityCaption}>
+                    {t(
+                        "defectManagementPage.sprintReport.statusCard.severityCaption",
+                        { count: report.effectiveCount }
+                    )}
+                </span>
+
+                <div className={styles.severityRow}>
+                    {openSeverityEntries.map(([raw, count]) => {
+                        const rank = severityRank(raw);
+                        const palette =
+                            SEVERITY_PALETTE[rank - 1] ?? SEVERITY_FALLBACK;
+                        const percent = openSeverityTotal
+                            ? Math.round((count / openSeverityTotal) * 100)
+                            : 0;
+
+                        return (
+                            <div
+                                key={raw}
+                                className={styles.severityChip}
+                                style={{
+                                    backgroundColor: palette.bg,
+                                    borderColor: palette.border,
+                                }}
+                            >
+                                <span
+                                    className={styles.severityCount}
+                                    style={{ color: palette.text }}
+                                >
+                                    {count}
+                                </span>
+                                <span
+                                    className={styles.severityPercent}
+                                    style={{ color: palette.text }}
+                                >
+                                    {percent}%
+                                </span>
+                                <span
+                                    className={styles.severityLabelText}
+                                    style={{ color: palette.text }}
+                                >
+                                    {severityLabel(raw)}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                <span className={styles.severityCaption}>
+                    {t(
+                        "defectManagementPage.sprintReport.statusCard.openSeverityCaption",
+                        { count: openSeverityTotal }
+                    )}
+                </span>
             </div>
 
             {showOriginBreakdown &&

@@ -1063,7 +1063,7 @@ export interface StatusReportCardEmailData {
     showOriginBreakdown?: boolean;
 }
 
-const EMAIL_CARD_WIDTH = 600;
+const EMAIL_CARD_WIDTH = 900;
 
 // Mirrors StatusReportCard.tsx's SEVERITY_PALETTE/STATUS_COLORS/ACTION_PALETTE
 // and SuiteProgressBar.tsx's OUTCOME_COLORS - kept as its own copy (like the
@@ -1183,6 +1183,8 @@ const LIGHT_KPI = [
     { bg: "#f1f8f2", accent: "#2e7d32" },
     { bg: "#fdf6e7", accent: "#b45309" },
     { bg: "#fdecea", accent: "#c62828" },
+    { bg: "#eef7f6", accent: "#0e7c72" },
+    { bg: "#eef0fa", accent: "#3730a3" },
 ];
 const LIGHT_ACTION_PALETTE = [
     { bg: "#fff8e6", border: "#f0a500" },
@@ -1210,6 +1212,10 @@ const LIGHT_SEVERITY_PALETTE = [
 ];
 const LIGHT_SEVERITY_FALLBACK = { bg: LIGHT_PAGE_BG, border: LIGHT_RULE, text: LIGHT_INK_MUTED };
 
+// The three severities this card always shows a chip for, even when a
+// severity has zero bugs - mirrors SEVERITY_KEYS in StatusReportCard.tsx.
+const EMAIL_SEVERITY_KEYS = ["1 - Critical", "2 - High", "3 - Medium"];
+
 function lightExecutedColor(pct: number): string {
     if (pct >= 90) {
         return LIGHT_OUTCOME_COLORS.Passed;
@@ -1226,7 +1232,7 @@ function lightKpiTile(value: string, kpiIndex: number, label: string): string {
     const { bg, accent } = LIGHT_KPI[kpiIndex];
 
     return (
-        `<td width="25%" style="padding:4px;">` +
+        `<td width="16.66%" style="padding:4px;">` +
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${bg}" style="background-color:${bg};border-radius:6px;border-top:3px solid ${accent};">` +
         `<tr><td align="center" style="padding:10px 4px;font-family:${EMAIL_FONT_FAMILY};">` +
         `<div style="font-size:20px;font-weight:700;color:${accent};line-height:1.2;">${escapeHtml(value)}</div>` +
@@ -1407,20 +1413,45 @@ export function buildStatusReportCardEmailBodyHtml(
         : 0;
     const stillOpen = report.total - bugsClosed;
 
-    const criticalCount = Object.entries(report.bySeverity)
-        .filter(([key]) => severityRank(key) === 1)
-        .reduce((sum, [, count]) => sum + count, 0);
+    const reopenedPct = report.total
+        ? Math.round((report.reopenedCount / report.total) * 1000) / 10
+        : 0;
+    // Always shown as a number - matches StatusReportCard.tsx's
+    // avgClosureDays (0 rather than blank when there's no closed bug yet to
+    // compute a real average from).
+    const avgClosureDays = Math.round(report.mttrDays ?? 0);
 
     const statusEntries = EMAIL_STATUS_ORDER.map(
         (name) => [name, report.byStatusAll[name] ?? 0] as const
     ).filter(([, count]) => count > 0);
 
-    const severityEntries = Object.entries(report.bySeverity).sort(
-        ([a], [b]) => severityRank(a) - severityRank(b)
-    );
-    const severityTotal = severityEntries.reduce(
-        (sum, [, count]) => sum + count,
+    const severityTotal = Object.values(report.bySeverity).reduce(
+        (sum, count) => sum + count,
         0
+    );
+    const severityEntries = EMAIL_SEVERITY_KEYS.map(
+        (key) => [key, report.bySeverity[key] ?? 0] as const
+    );
+
+    // Same idea as severityEntries above, but scoped to effective bugs that
+    // are still open - mirrors StatusReportCard.tsx's openSeverityEntries.
+    const openSeverityCounts = report.effectiveDefects.reduce<
+        Record<string, number>
+    >((acc, bug) => {
+        if (bug.state === "Closed") {
+            return acc;
+        }
+
+        const key = bug.severity ?? "Unspecified";
+        acc[key] = (acc[key] ?? 0) + 1;
+        return acc;
+    }, {});
+    const openSeverityTotal = Object.values(openSeverityCounts).reduce(
+        (sum, count) => sum + count,
+        0
+    );
+    const openSeverityEntries = EMAIL_SEVERITY_KEYS.map(
+        (key) => [key, openSeverityCounts[key] ?? 0] as const
     );
 
     const actionParagraphs = actionsText
@@ -1526,9 +1557,21 @@ export function buildStatusReportCardEmailBodyHtml(
             })
         ) +
         lightKpiTile(
-            String(criticalCount),
+            String(severityEntries[0][1]),
             3,
             t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs")
+        ) +
+        lightKpiTile(
+            String(report.reopenedCount),
+            4,
+            t("defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs", {
+                percent: reopenedPct,
+            })
+        ) +
+        lightKpiTile(
+            t("defectManagementPage.stats.days", { value: avgClosureDays }),
+            5,
+            t("defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime")
         ) +
         `</tr></table>`;
 
@@ -1576,32 +1619,52 @@ export function buildStatusReportCardEmailBodyHtml(
         pct: report.total ? (count / report.total) * 100 : 0,
     }));
 
-    const severityHtml = severityEntries.length
-        ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:10px;"><tr>` +
-          severityEntries
-              .map(([raw, count]) => {
-                  const rank = severityRank(raw);
-                  const palette =
-                      LIGHT_SEVERITY_PALETTE[rank - 1] ?? LIGHT_SEVERITY_FALLBACK;
-                  const width = Math.floor(100 / severityEntries.length);
-                  const percent = severityTotal
-                      ? Math.round((count / severityTotal) * 100)
-                      : 0;
+    const lightSeverityRowHtml = (
+        entries: readonly (readonly [string, number])[],
+        total: number,
+        caption: string
+    ): string =>
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:10px;"><tr>` +
+        entries
+            .map(([raw, count]) => {
+                const rank = severityRank(raw);
+                const palette =
+                    LIGHT_SEVERITY_PALETTE[rank - 1] ?? LIGHT_SEVERITY_FALLBACK;
+                const width = Math.floor(100 / entries.length);
+                const percent = total
+                    ? Math.round((count / total) * 100)
+                    : 0;
 
-                  return (
-                      `<td width="${width}%" style="padding:3px;">` +
-                      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${palette.bg}" style="background-color:${palette.bg};border:1px solid ${palette.border};border-radius:6px;">` +
-                      `<tr><td align="center" style="padding:8px 4px;font-family:${EMAIL_FONT_FAMILY};">` +
-                      `<div style="font-size:18px;font-weight:700;color:${palette.text};">${count}</div>` +
-                      `<div style="font-size:10px;color:${palette.text};opacity:0.85;">${percent}%</div>` +
-                      `<div style="font-size:11px;color:${palette.text};">${escapeHtml(emailSeverityLabel(raw))}</div>` +
-                      `</td></tr></table></td>`
-                  );
-              })
-              .join("") +
-          `</tr></table>` +
-          `<div style="font-size:11px;color:${LIGHT_INK_MUTED};text-align:center;margin-top:4px;font-family:${EMAIL_FONT_FAMILY};">${escapeHtml(t("defectManagementPage.sprintReport.statusCard.severityCaption", { count: report.effectiveCount }))}</div>`
-        : "";
+                return (
+                    `<td width="${width}%" style="padding:3px;">` +
+                    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${palette.bg}" style="background-color:${palette.bg};border:1px solid ${palette.border};border-radius:6px;">` +
+                    `<tr><td align="center" style="padding:8px 4px;font-family:${EMAIL_FONT_FAMILY};">` +
+                    `<div style="font-size:18px;font-weight:700;color:${palette.text};">${count}</div>` +
+                    `<div style="font-size:10px;color:${palette.text};opacity:0.85;">${percent}%</div>` +
+                    `<div style="font-size:11px;color:${palette.text};">${escapeHtml(emailSeverityLabel(raw))}</div>` +
+                    `</td></tr></table></td>`
+                );
+            })
+            .join("") +
+        `</tr></table>` +
+        `<div style="font-size:11px;color:${LIGHT_INK_MUTED};text-align:center;margin-top:4px;font-family:${EMAIL_FONT_FAMILY};">${escapeHtml(caption)}</div>`;
+
+    const severityHtml =
+        lightSeverityRowHtml(
+            severityEntries,
+            severityTotal,
+            t("defectManagementPage.sprintReport.statusCard.severityCaption", {
+                count: report.effectiveCount,
+            })
+        ) +
+        lightSeverityRowHtml(
+            openSeverityEntries,
+            openSeverityTotal,
+            t(
+                "defectManagementPage.sprintReport.statusCard.openSeverityCaption",
+                { count: openSeverityTotal }
+            )
+        );
 
     const bugStatusHtml =
         `<div style="margin-top:18px;font-family:${EMAIL_FONT_FAMILY};">` +
@@ -2731,34 +2794,6 @@ export async function downloadStatusReportCardPptx(
     const pptx = await buildStatusReportCardPptx(data, t, theme);
     const blob = (await pptx.write({ outputType: "blob" })) as Blob;
     downloadBlob(blob, filename);
-}
-
-export async function buildStatusReportCardEmailPayload(
-    element: HTMLElement | null,
-    links: StatusReportCardLink[],
-    data: StatusReportCardEmailData,
-    t: TranslateFn
-): Promise<{ pdfBase64: string; bodyHtml: string } | null> {
-    // The email body already carries the full card as real HTML (see
-    // buildStatusReportCardEmailBodyHtml), so the PDF attachment here is a
-    // secondary "as-viewed" copy - a smaller, JPEG-encoded capture keeps the
-    // whole message safely under mail-relay size caps (e.g. Mailtrap's
-    // default 5MB) without needing scale-2 PNG fidelity.
-    const capture = await captureFullCanvas(element, {
-        scale: 1,
-        jpegQuality: 0.85,
-    });
-
-    if (!capture || !element) {
-        return null;
-    }
-
-    const doc = buildStatusReportCardPdfDoc(capture, element, links);
-
-    return {
-        pdfBase64: pdfDocToBase64(doc),
-        bodyHtml: buildStatusReportCardEmailBodyHtml(data, t),
-    };
 }
 
 export function exportPlanProgressToPdf(

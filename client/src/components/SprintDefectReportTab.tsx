@@ -41,7 +41,7 @@ import { StatusReportCard } from "./StatusReportCard";
 import type { SuiteProgressGroup } from "./StatusReportCard";
 import { fetchPlanOverview, fetchPlans, sendEmailReport } from "../api/client";
 import {
-    buildStatusReportCardEmailPayload,
+    buildStatusReportCardEmailBodyHtml,
     buildStatusReportCardFilename,
     downloadStatusReportCardEmailHtml,
     downloadStatusReportCardPptx,
@@ -523,15 +523,8 @@ export function SprintDefectReportTab({
         mutationFn: sendEmailReport,
     });
 
-    const handleSendStatusCardEmail = async () => {
-        const payload = await buildStatusReportCardEmailPayload(
-            statusCardRef.current,
-            [
-                {
-                    element: dashboardLinkRef.current,
-                    url: MONITORING_DASHBOARD_URL,
-                },
-            ],
+    const handleSendStatusCardEmail = () => {
+        const bodyHtml = buildStatusReportCardEmailBodyHtml(
             {
                 headerTitle,
                 headerSubtitle,
@@ -545,15 +538,9 @@ export function SprintDefectReportTab({
             t
         );
 
-        if (!payload) {
-            return;
-        }
-
         emailReportMutation.mutate({
             subject: headerTitle,
-            bodyHtml: payload.bodyHtml,
-            pdfBase64: payload.pdfBase64,
-            filename: buildStatusReportCardFilename(headerTitle, "pdf"),
+            bodyHtml,
             fromName: headerTitle,
         });
     };

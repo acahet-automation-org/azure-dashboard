@@ -11,7 +11,11 @@ import { useTranslation } from "react-i18next";
 import { ChartCard } from "./ChartCard";
 import { StatCard } from "./StatCard";
 import type { TestPlanProgressCounts } from "../types";
-import { runPercent, passedPercent } from "../utils/progressReport";
+import {
+    runPercent,
+    passedPercent,
+    passedPercentExclNA,
+} from "../utils/progressReport";
 
 const useStyles = makeStyles({
     container: {
@@ -117,6 +121,7 @@ export function ProgressSummaryCards({
         counts.total - counts.notExecuted - counts.notApplicable;
     const run = runPercent(counts);
     const passed = passedPercent(counts);
+    const passedExclNA = passedPercentExclNA(counts);
 
     const runChartData = [
         { name: "executed", value: executed },
@@ -162,6 +167,10 @@ export function ProgressSummaryCards({
                 <StatCard
                     label={t("planProgressPage.summary.passRate")}
                     value={`${passed}% (${counts.passed} / ${counts.total})`}
+                />
+                <StatCard
+                    label={t("planProgressPage.summary.passRateExclNA")}
+                    value={`${passedExclNA}%`}
                 />
             </div>
 

@@ -311,6 +311,11 @@ export interface SprintDefectReport {
     testAgentiBySuite: Record<string, number>;
     testBusinessBySuite: Record<string, number>;
     effectiveDefects: DefectSummary[];
+    // Both scoped to ALL detected bugs (like byStatusAll/total), not just
+    // the effective subset - reopened/unresolved-time tracking applies to
+    // out-of-scope bugs too.
+    reopenedCount: number;
+    mttrDays: number | null;
 }
 
 export interface DefectFilterOptions {
@@ -527,4 +532,8 @@ export interface ReleaseReadinessResponse {
     passRateDelta: PassRateDelta;
     blockingDefects: BlockingDefectsSummary;
     cacheTimestamp: number;
+}
+
+export interface NavBadgesResponse {
+    openCriticalHighDefects: number;
 }
