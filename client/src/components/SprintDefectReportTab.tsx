@@ -313,6 +313,10 @@ export function SprintDefectReportTab({
     const [isExportingCard, setIsExportingCard] = useState(false);
     const [isExportingPptx, setIsExportingPptx] = useState(false);
     const [pptxTheme, setPptxTheme] = useState<StatusReportCardTheme>("light");
+    // Off by default: the Test Factory/Test Agenti/Business breakdown is
+    // still being validated, so regular report sends shouldn't include it
+    // until someone opts in for a given card.
+    const [showOriginBreakdown, setShowOriginBreakdown] = useState(false);
     const statusCardRef = useRef<HTMLDivElement>(null);
     const dashboardLinkRef = useRef<HTMLAnchorElement>(null);
 
@@ -485,6 +489,7 @@ export function SprintDefectReportTab({
                 alertText,
                 actionsText,
                 dashboardUrl: MONITORING_DASHBOARD_URL,
+                showOriginBreakdown,
             },
             t
         );
@@ -504,6 +509,7 @@ export function SprintDefectReportTab({
                     alertText,
                     actionsText,
                     dashboardUrl: MONITORING_DASHBOARD_URL,
+                    showOriginBreakdown,
                 },
                 t,
                 pptxTheme
@@ -534,6 +540,7 @@ export function SprintDefectReportTab({
                 alertText,
                 actionsText,
                 dashboardUrl: MONITORING_DASHBOARD_URL,
+                showOriginBreakdown,
             },
             t
         );
@@ -748,6 +755,7 @@ export function SprintDefectReportTab({
                         actionsText={actionsText}
                         dashboardUrl={MONITORING_DASHBOARD_URL}
                         dashboardLinkRef={dashboardLinkRef}
+                        showOriginBreakdown={showOriginBreakdown}
                     />
                 </div>
 
@@ -795,6 +803,16 @@ export function SprintDefectReportTab({
                         }
                         label={t(
                             `defectManagementPage.sprintReport.statusCard.pptxTheme.${pptxTheme}`
+                        )}
+                    />
+
+                    <Switch
+                        checked={showOriginBreakdown}
+                        onChange={(_, data) =>
+                            setShowOriginBreakdown(data.checked)
+                        }
+                        label={t(
+                            "defectManagementPage.sprintReport.statusCard.originBreakdown.toggleLabel"
                         )}
                     />
 

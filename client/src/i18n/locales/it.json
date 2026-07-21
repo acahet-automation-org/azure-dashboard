@@ -395,6 +395,7 @@
                 },
                 "originBreakdown": {
                     "title": "Bug per Suite",
+                    "toggleLabel": "Includi Bug per Suite (in prova)",
                     "bugsInSuite": "Bug su {{suite}}",
                     "unmatched": "Nessun caso di test corrispondente",
                     "detected": "Bug rilevati",

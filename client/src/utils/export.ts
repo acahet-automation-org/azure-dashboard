@@ -1059,6 +1059,8 @@ export interface StatusReportCardEmailData {
     alertText: string;
     actionsText: string;
     dashboardUrl?: string;
+    // Off by default - see StatusReportCard.tsx's prop of the same name.
+    showOriginBreakdown?: boolean;
 }
 
 const EMAIL_CARD_WIDTH = 600;
@@ -1377,6 +1379,7 @@ export function buildStatusReportCardEmailBodyHtml(
         alertText,
         actionsText,
         dashboardUrl,
+        showOriginBreakdown = false,
     } = data;
 
     const { datePart, timePart } = formatEmailTimestamp(new Date());
@@ -1429,29 +1432,31 @@ export function buildStatusReportCardEmailBodyHtml(
         ", "
     );
 
-    const emailOriginPanelDefs = [
-        {
-            origin: "Test Factory",
-            labelKey: "defectManagementPage.sprintReport.origin.testFactory",
-            bySuite: report.testFactoryBySuite,
-            labelBg: "#eaf7ea",
-            labelText: "#2e7d32",
-        },
-        {
-            origin: "Test Agenti",
-            labelKey: "defectManagementPage.sprintReport.origin.testAgenti",
-            bySuite: report.testAgentiBySuite,
-            labelBg: "#eef3fb",
-            labelText: "#1f3864",
-        },
-        {
-            origin: "Business",
-            labelKey: "defectManagementPage.sprintReport.origin.business",
-            bySuite: report.testBusinessBySuite,
-            labelBg: "#fff8e6",
-            labelText: "#7a5308",
-        },
-    ];
+    const emailOriginPanelDefs = showOriginBreakdown
+        ? [
+              {
+                  origin: "Test Factory",
+                  labelKey: "defectManagementPage.sprintReport.origin.testFactory",
+                  bySuite: report.testFactoryBySuite,
+                  labelBg: "#eaf7ea",
+                  labelText: "#2e7d32",
+              },
+              {
+                  origin: "Test Agenti",
+                  labelKey: "defectManagementPage.sprintReport.origin.testAgenti",
+                  bySuite: report.testAgentiBySuite,
+                  labelBg: "#eef3fb",
+                  labelText: "#1f3864",
+              },
+              {
+                  origin: "Business",
+                  labelKey: "defectManagementPage.sprintReport.origin.business",
+                  bySuite: report.testBusinessBySuite,
+                  labelBg: "#fff8e6",
+                  labelText: "#7a5308",
+              },
+          ]
+        : [];
 
     const originPanelsHtml = emailOriginPanelDefs
         .map((def) => {
@@ -1822,6 +1827,7 @@ export async function buildStatusReportCardPptx(
         alertText,
         actionsText,
         dashboardUrl,
+        showOriginBreakdown = false,
     } = data;
 
     const { datePart, timePart } = formatEmailTimestamp(new Date());
@@ -1912,7 +1918,7 @@ export async function buildStatusReportCardPptx(
                 accepted: report.byOrigin[def.origin] ?? 0,
             };
         })
-        .filter((def) => def.suiteEntries.length > 0);
+        .filter((def) => showOriginBreakdown && def.suiteEntries.length > 0);
 
     // Height is a running estimate rather than fixed, so the slide is sized
     // to fit this specific report's content (suite count, action paragraph

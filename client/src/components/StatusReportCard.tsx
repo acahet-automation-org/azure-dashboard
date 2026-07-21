@@ -365,6 +365,10 @@ export interface StatusReportCardProps {
     actionsText: string;
     dashboardUrl?: string;
     dashboardLinkRef?: RefObject<HTMLAnchorElement | null>;
+    // Off by default - the Test Factory/Test Agenti/Business breakdown is
+    // still being validated, so existing report sends stay unaffected
+    // unless someone opts in for a given card.
+    showOriginBreakdown?: boolean;
 }
 
 export const StatusReportCard = forwardRef<
@@ -380,6 +384,7 @@ export const StatusReportCard = forwardRef<
         actionsText,
         dashboardUrl,
         dashboardLinkRef,
+        showOriginBreakdown = false,
     },
     ref
 ) {
@@ -749,7 +754,8 @@ export const StatusReportCard = forwardRef<
                 )}
             </div>
 
-            {originPanels.some((panel) => panel.suiteEntries.length > 0) && (
+            {showOriginBreakdown &&
+                originPanels.some((panel) => panel.suiteEntries.length > 0) && (
                 <div className={styles.section}>
                     <span className={styles.sectionTitle}>
                         {t(
