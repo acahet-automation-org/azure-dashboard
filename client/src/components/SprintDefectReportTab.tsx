@@ -627,6 +627,36 @@ export function SprintDefectReportTab({
         })
         .sort((a, b) => a.order - b.order);
 
+    // Same shape as severityData but scoped to bugs still open (not
+    // Closed) - mirrors the "still open" definition used elsewhere (e.g.
+    // StatusReportCard's openSeverityCounts, byStatusAll.Closed), so the
+    // dashboard has a chart for "what's left to fix" alongside the general
+    // all-time severity breakdown.
+    const openBySeverity = report.effectiveDefects
+        .filter((bug) => bug.state !== "Closed")
+        .reduce<Record<string, number>>((acc, bug) => {
+            const key = bug.severity ?? "Unspecified";
+            acc[key] = (acc[key] ?? 0) + 1;
+            return acc;
+        }, {});
+
+    const openSeverityTotal = Object.values(openBySeverity).reduce(
+        (sum, count) => sum + count,
+        0
+    );
+
+    const openSeverityData = Object.entries(openBySeverity)
+        .map(([raw, count]) => {
+            const { label, order } = parseSeverity(raw);
+            const percent =
+                openSeverityTotal > 0
+                    ? Math.round((count / openSeverityTotal) * 100)
+                    : 0;
+
+            return { key: raw, name: label, count, percent, order };
+        })
+        .sort((a, b) => a.order - b.order);
+
     return (
         <>
             <ChartCard
@@ -1001,6 +1031,55 @@ export function SprintDefectReportTab({
                                     <span
                                         className={styles.legendDot}
                                         style={{ backgroundColor: "#d83b01" }}
+                                    />
+                                    <Text
+                                        className={styles.legendCount}
+                                        weight="semibold"
+                                    >
+                                        {count} ({percent}%)
+                                    </Text>
+                                    <Text>{name}</Text>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                    <EmptyState
+                        message={t(
+                            "defectManagementPage.sprintReport.charts.noEffectiveDefects"
+                        )}
+                    />
+                )}
+            </ChartCard>
+
+            <ChartCard
+                title={t("defectManagementPage.sprintReport.charts.byOpenSeverity")}
+            >
+                {openSeverityData.length > 0 ? (
+                    <div>
+                        <ResponsiveContainer width="100%" height={280}>
+                            <BarChart data={openSeverityData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="name" tick={{ fontSize: 13 }} />
+                                <YAxis allowDecimals={false} tick={{ fontSize: 13 }} />
+                                <Tooltip />
+                                <Bar
+                                    dataKey="count"
+                                    fill="#d13438"
+                                    cursor="pointer"
+                                    onClick={(_data, index) => {
+                                        const entry = openSeverityData[index];
+                                        selectSeverity(entry.key, entry.name);
+                                    }}
+                                />
+                            </BarChart>
+                        </ResponsiveContainer>
+                        <div className={styles.legend}>
+                            {openSeverityData.map(({ key, name, count, percent }) => (
+                                <div key={key} className={styles.legendRow}>
+                                    <span
+                                        className={styles.legendDot}
+                                        style={{ backgroundColor: "#d13438" }}
                                     />
                                     <Text
                                         className={styles.legendCount}

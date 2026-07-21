@@ -343,6 +343,7 @@
                 "byOrigin": "Effective Defects by Origin",
                 "byStatus": "Effective Defects by Status",
                 "bySeverity": "Effective Defects by Severity",
+                "byOpenSeverity": "Open Defects by Severity",
                 "noEffectiveDefects": "No effective defects in the current data."
             },
             "list": {

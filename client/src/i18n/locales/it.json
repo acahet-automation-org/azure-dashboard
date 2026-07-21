@@ -343,6 +343,7 @@
                 "byOrigin": "Difetti Effettivi per Origine",
                 "byStatus": "Difetti Effettivi per Stato",
                 "bySeverity": "Difetti Effettivi per Gravità",
+                "byOpenSeverity": "Difetti Aperti per Gravità",
                 "noEffectiveDefects": "Nessun difetto effettivo nei dati correnti."
             },
             "list": {
