@@ -304,8 +304,8 @@ export function SprintDefectReportTab({
     );
     const [uatDeadline, setUatDeadline] = useState("2026-07-20");
     const [actionsText, setActionsText] = useState(
-        "System Integrator (@Domenico Schiavone) – entro la giornata di domani, per ciascun bug ancora aperto indicare la data prevista di risoluzione e rilascio della correttiva, per consentire la pianificazione dei retest e la valutazione degli impatti sulla chiusura dell'UAT.\n\n" +
-            "In arrivo su Azure DevOps: la maschera di creazione bug richiederà obbligatoriamente al System Integrator la data prevista di risoluzione alla presa in carico, per un monitoraggio tempestivo di criticità e rischi rispetto alle finestre di test."
+        "Yellow section text content\n\n" +
+        "Blue section text content\n\n"
     );
     const [groupLabels, setGroupLabels] = useState<string[]>(
         AUTO_SUITE_GROUP_DEFS.map((def) => def.label)
@@ -327,9 +327,9 @@ export function SprintDefectReportTab({
     const alertText =
         deadlineDate && !Number.isNaN(deadlineDate.getTime())
             ? t("defectManagementPage.sprintReport.statusCard.alertTemplate", {
-                  date: formatDDMM(deadlineDate),
-                  count: countBusinessDaysRemaining(new Date(), deadlineDate),
-              })
+                date: formatDDMM(deadlineDate),
+                count: countBusinessDaysRemaining(new Date(), deadlineDate),
+            })
             : "";
 
     // Same per-plan endpoint Plan Overview uses (uncached, fetched fresh by
@@ -409,11 +409,11 @@ export function SprintDefectReportTab({
 
         const matchedSuites = def.suiteIds
             ? overview.suites.filter((suite) =>
-                  def.suiteIds!.includes(suite.suiteId)
-              )
+                def.suiteIds!.includes(suite.suiteId)
+            )
             : overview.suites.filter((suite) =>
-                  def.suiteNames!.includes(suite.suiteName)
-              );
+                def.suiteNames!.includes(suite.suiteName)
+            );
 
         const totalTestCases = matchedSuites.reduce(
             (sum, suite) => sum + suite.totalTestCases,
@@ -565,10 +565,10 @@ export function SprintDefectReportTab({
 
     const filteredBugs = filter
         ? report.effectiveDefects.filter((bug) =>
-              filter.kind === "status"
-                  ? statusBucketOf(bug.state) === filter.key
-                  : (bug.severity ?? "Unspecified") === filter.key
-          )
+            filter.kind === "status"
+                ? statusBucketOf(bug.state) === filter.key
+                : (bug.severity ?? "Unspecified") === filter.key
+        )
         : [];
 
     const listPageCount = Math.max(
@@ -756,8 +756,8 @@ export function SprintDefectReportTab({
                         {isExportingCard
                             ? t("planOverviewPage.exporting")
                             : t(
-                                  "defectManagementPage.sprintReport.statusCard.exportButton"
-                              )}
+                                "defectManagementPage.sprintReport.statusCard.exportButton"
+                            )}
                     </Button>
 
                     <Button
@@ -779,8 +779,8 @@ export function SprintDefectReportTab({
                         {isExportingPptx
                             ? t("planOverviewPage.exporting")
                             : t(
-                                  "defectManagementPage.sprintReport.statusCard.downloadPptxButton"
-                              )}
+                                "defectManagementPage.sprintReport.statusCard.downloadPptxButton"
+                            )}
                     </Button>
 
                     <Switch
