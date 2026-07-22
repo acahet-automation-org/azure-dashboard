@@ -253,6 +253,7 @@
     "defectManagementPage": {
         "title": "Defect Management",
         "tabs": {
+            "sprintReport": "Sprint Report",
             "overview": "Overview",
             "quality": "Quality & Process Health",
             "resource": "Resource & Focus"
@@ -379,6 +380,7 @@
                 "passRate": "Pass rate",
                 "suiteProgressTitle": "Test Execution Progress",
                 "suiteGroupsLabel": "Row labels (suites are merged in automatically)",
+                "suiteGroupsLoading": "Loading suite data...",
                 "suiteGroupsWarning": "\"{{group}}\": no test cases matched ({{hint}})",
                 "noPlanSelected": "No suites matched yet - check the plan/suite names configured for this card.",
                 "bugStatusTitle": "Bug Status",
@@ -395,7 +397,7 @@
                 "severityCaption": "Severity distribution of the {{count}} effective bugs",
                 "openSeverityCaption": "Severity distribution of the {{count}} bugs still open",
                 "kpis": {
-                    "totalTestCases": "Total Test Cases",
+                    "totalTestCases": "Total Test Cases\n\n (Test Factory, Business, Test Agenti)",
                     "passRate": "Pass Rate",
                     "bugsClosed": "Bugs Closed ({{percent}}%)",
                     "criticalBugs": "Critical Bugs",
@@ -467,6 +469,10 @@
         "suite": "Test Suite",
         "allSuites": "All Test Suites",
         "selectedSuites": "{{count}} selected"
+    },
+    "iterationFilter": {
+        "label": "Sprint/Iteration (Azure)",
+        "all": "All Iterations"
     },
     "suiteCard": {
         "total": "Total: {{count}}",
@@ -613,6 +619,10 @@
                 "requirementsCoverage": {
                     "label": "Functional Requirements Coverage",
                     "description": "Percentage of functional requirements covered by at least one test case."
+                },
+                "testCaseRelevance": {
+                    "label": "Test Case Relevance",
+                    "description": "Percentage of manual test cases marked Not Applicable, i.e. out of scope for the current release."
                 },
                 "criticalDefectsOpen": {
                     "label": "Critical Defects Open",

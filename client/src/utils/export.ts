@@ -1270,7 +1270,7 @@ function lightSuiteRow(group: SuiteProgressGroup, t: TranslateFn): string {
     const executedPct = totalTestCases
         ? Math.round((executed / totalTestCases) * 100)
         : 0;
-    const decided = outcomeCounts.Passed + outcomeCounts.Failed;
+    const decided = totalTestCases - outcomeCounts.NotApplicable;
     const passRate = decided
         ? Math.round((outcomeCounts.Passed / decided) * 100)
         : 0;
@@ -1398,11 +1398,11 @@ export function buildStatusReportCardEmailBodyHtml(
         (sum, group) => sum + group.outcomeCounts.Passed,
         0
     );
-    const totalFailed = suiteGroups.reduce(
-        (sum, group) => sum + group.outcomeCounts.Failed,
+    const totalNotApplicable = suiteGroups.reduce(
+        (sum, group) => sum + group.outcomeCounts.NotApplicable,
         0
     );
-    const totalDecided = totalPassed + totalFailed;
+    const totalDecided = totalTestCases - totalNotApplicable;
     const passRate = totalDecided
         ? Math.round((totalPassed / totalDecided) * 100)
         : 0;

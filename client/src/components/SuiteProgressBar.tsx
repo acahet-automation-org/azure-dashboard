@@ -111,10 +111,10 @@ export function SuiteProgressBar({
         ? Math.round((executed / totalTestCases) * 100)
         : 0;
 
-    // Pass rate of decided cases only (Passed / (Passed + Failed)) -
-    // Blocked/NotApplicable/NotRun cases have no verdict yet, so they're
-    // excluded rather than diluting the rate.
-    const decided = outcomeCounts.Passed + outcomeCounts.Failed;
+    // Pass rate = Passed / everything except NotApplicable - those cases
+    // were never meant to run, so they're excluded; every other outcome
+    // (NotRun/Blocked/InProgress included) still counts against the rate.
+    const decided = totalTestCases - outcomeCounts.NotApplicable;
     const passRate = decided
         ? Math.round((outcomeCounts.Passed / decided) * 100)
         : 0;

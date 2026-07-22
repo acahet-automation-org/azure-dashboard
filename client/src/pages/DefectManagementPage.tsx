@@ -9,10 +9,11 @@ import { DefectFilterBar } from "../components/DefectFilterBar";
 import { DefectOverviewTab } from "../components/DefectOverviewTab";
 import { DefectQualityTab } from "../components/DefectQualityTab";
 import { DefectResourceTab } from "../components/DefectResourceTab";
+import { SprintDefectStatsTab } from "../components/SprintDefectStatsTab";
 import { fetchDefects } from "../api/client";
 import type { DefectFilters } from "../types";
 
-type DefectTab = "overview" | "quality" | "resource";
+type DefectTab = "sprintReport" | "overview" | "quality" | "resource";
 
 const useStyles = makeStyles({
     toolbar: {
@@ -36,7 +37,7 @@ export function DefectManagementPage() {
     const { t } = useTranslation();
     const styles = useStyles();
     const [filters, setFilters] = useState<DefectFilters>(EMPTY_FILTERS);
-    const [tab, setTab] = useState<DefectTab>("overview");
+    const [tab, setTab] = useState<DefectTab>("sprintReport");
 
     const { data, isLoading, isError, error, refetch } = useQuery({
         queryKey: ["defects", filters],
@@ -66,6 +67,9 @@ export function DefectManagementPage() {
                                 setTab(item.value as DefectTab)
                             }
                         >
+                            <Tab value="sprintReport">
+                                {t("defectManagementPage.tabs.sprintReport")}
+                            </Tab>
                             <Tab value="overview">
                                 {t("defectManagementPage.tabs.overview")}
                             </Tab>
@@ -78,6 +82,9 @@ export function DefectManagementPage() {
                         </TabList>
                     </div>
 
+                    {tab === "sprintReport" && (
+                        <SprintDefectStatsTab stats={data.stats} />
+                    )}
                     {tab === "overview" && (
                         <DefectOverviewTab stats={data.stats} />
                     )}

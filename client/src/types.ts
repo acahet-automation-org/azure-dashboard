@@ -400,6 +400,7 @@ export type GateCriterionId =
     | "testsExecuted"
     | "testsPassed"
     | "requirementsCoverage"
+    | "testCaseRelevance"
     | "criticalDefectsOpen"
     | "highDefectsOpen"
     | "mediumDefectsOpen"
@@ -464,4 +465,12 @@ export interface ReleaseReadinessResponse {
 
 export interface NavBadgesResponse {
     openCriticalHighDefects: number;
+}
+
+export interface IterationNode {
+    id: string;
+    name: string;
+    path: string;
+    startDate: string | null;
+    finishDate: string | null;
 }

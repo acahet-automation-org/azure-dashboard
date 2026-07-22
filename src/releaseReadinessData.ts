@@ -54,6 +54,7 @@ function envNumber(name: string, fallback: number): number {
 function buildGateCriteria(
     completion: SprintCompletion,
     testsPassedPct: number | null,
+    testCaseRelevancePct: number | null,
     severityOpenCounts: Record<"1 - Critical" | "2 - High" | "3 - Medium" | "4 - Low", number>
 ): ReleaseGateCriterion[] {
     const testsExecutedTarget = envNumber(
@@ -67,6 +68,10 @@ function buildGateCriteria(
     const requirementsCoverageTarget = envNumber(
         "RELEASE_GATE_REQUIREMENTS_COVERAGE_TARGET_PCT",
         95
+    );
+    const testCaseRelevanceTarget = envNumber(
+        "RELEASE_GATE_TEST_CASE_RELEVANCE_TARGET_PCT",
+        0
     );
 
     return [
@@ -93,6 +98,16 @@ function buildGateCriteria(
             actual: null,
             tracked: false,
             passed: false,
+        },
+        {
+            id: "testCaseRelevance",
+            action: "block",
+            target: `${testCaseRelevanceTarget}%`,
+            actual: testCaseRelevancePct != null ? `${testCaseRelevancePct}%` : null,
+            tracked: testCaseRelevancePct != null,
+            passed:
+                testCaseRelevancePct != null &&
+                testCaseRelevancePct <= testCaseRelevanceTarget,
         },
         {
             id: "criticalDefectsOpen",
@@ -262,11 +277,24 @@ export async function computeReleaseReadiness(): Promise<ReleaseReadinessRespons
           ) / 10
         : null;
 
+    // "Not Applicable" test cases are ones marked out-of-scope for the
+    // current release (code_coverage.md's "Pertinenza casi test") - the
+    // target is 0%, i.e. the plan shouldn't contain out-of-scope test cases
+    // without documented justification.
+    const testCaseRelevancePct = dashboardStats.totalTestCases
+        ? Math.round(
+              (dashboardStats.notApplicableCount /
+                  dashboardStats.totalTestCases) *
+                  1000
+          ) / 10
+        : 0;
+
     const severityOpenCounts = countOpenBySeverity(defects);
 
     const criteria = buildGateCriteria(
         completion,
         testsPassedPct,
+        testCaseRelevancePct,
         severityOpenCounts
     );
     const releaseGate = computeReleaseGate(criteria);

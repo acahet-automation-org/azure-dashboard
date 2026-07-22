@@ -253,6 +253,7 @@
     "defectManagementPage": {
         "title": "Gestione Difetti",
         "tabs": {
+            "sprintReport": "Report Sprint",
             "overview": "Panoramica",
             "quality": "Qualità e Salute del Processo",
             "resource": "Risorse e Focus"
@@ -379,6 +380,7 @@
                 "passRate": "Pass rate",
                 "suiteProgressTitle": "Avanzamento Esecuzione Test",
                 "suiteGroupsLabel": "Etichette righe (le suite vengono unite automaticamente)",
+                "suiteGroupsLoading": "Caricamento dati suite...",
                 "suiteGroupsWarning": "\"{{group}}\": nessun caso di test corrisponde ({{hint}})",
                 "noPlanSelected": "Nessuna suite ancora corrisponde - controlla i nomi di piano/suite configurati per questa scheda.",
                 "bugStatusTitle": "Stato bug",
@@ -390,17 +392,17 @@
                     "closed": "Chiusi",
                     "resolved": "Da verificare (retest DSI)",
                     "inProgress": "In lavorazione",
-                    "new": "New (da prendere in carico)"
+                    "new": "Nuovi (da prendere in carico)"
                 },
                 "severityCaption": "Distribuzione per severity dei {{count}} bug effettivi",
                 "openSeverityCaption": "Distribuzione per severity dei {{count}} bug ancora aperti",
                 "kpis": {
-                    "totalTestCases": "Casi di Test Totali",
-                    "passRate": "Pass Rate",
+                    "totalTestCases": "Casi di Test Totali\n(Test Factory, Business, Agenti)",
+                    "passRate": "Pass Rate\n(Test Factory, Business, Agenti)",
                     "bugsClosed": "Bug Chiusi ({{percent}}%)",
                     "criticalBugs": "Bug Critici",
                     "reopenedBugs": "Bug riaperti ({{percent}}%)",
-                    "avgClosureTime": "TM chiusura bug (gg)"
+                    "avgClosureTime": "Tempo medio chiusura bug (gg)"
                 },
                 "originBreakdown": {
                     "title": "Bug per Suite",
@@ -467,6 +469,10 @@
         "suite": "Suite di Test",
         "allSuites": "Tutte le Suite di Test",
         "selectedSuites": "{{count}} selezionate"
+    },
+    "iterationFilter": {
+        "label": "Sprint/Iterazione (Azure)",
+        "all": "Tutte le Iterazioni"
     },
     "suiteCard": {
         "total": "Totale: {{count}}",
@@ -613,6 +619,10 @@
                 "requirementsCoverage": {
                     "label": "Copertura dei Requisiti Funzionali",
                     "description": "Percentuale dei requisiti funzionali coperti da almeno un test case."
+                },
+                "testCaseRelevance": {
+                    "label": "Pertinenza Casi Test",
+                    "description": "Percentuale di casi di test manuali con esito Non Applicabile, ossia fuori scope per il rilascio corrente."
                 },
                 "criticalDefectsOpen": {
                     "label": "Defect Critici Aperti",

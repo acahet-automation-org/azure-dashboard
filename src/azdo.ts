@@ -561,6 +561,55 @@ export async function getBugWorkItemTypeStates(): Promise<
     return response.data.value;
 }
 
+export interface IterationNode {
+    id: string;
+    name: string;
+    path: string;
+    startDate: string | null;
+    finishDate: string | null;
+}
+
+// Flattens the classification-nodes tree (project root -> area/iteration
+// children, recursively) into one row per node, dropping the project-name
+// root segment from `path` so it reads the same as System.IterationPath
+// values on a work item (e.g. "Sprint 1", not "ProjectName\Sprint 1").
+function flattenIterationTree(
+    node: any,
+    parentPath: string
+): IterationNode[] {
+    const path = parentPath ? `${parentPath}\\${node.name}` : node.name;
+
+    const self: IterationNode = {
+        id: String(node.identifier ?? node.id),
+        name: node.name,
+        path,
+        startDate: node.attributes?.startDate ?? null,
+        finishDate: node.attributes?.finishDate ?? null,
+    };
+
+    const children = (node.children ?? []).flatMap((child: any) =>
+        flattenIterationTree(child, path)
+    );
+
+    return [self, ...children];
+}
+
+// Real Azure DevOps iterations (sprints), independent of what's actually
+// been used on a bug so far - unlike DefectFilterOptions.iterations (derived
+// from System.IterationPath values seen on fetched bugs), this includes
+// empty/future sprints too.
+export async function getIterations(): Promise<IterationNode[]> {
+    const response = await azdo.get(
+        "/wit/classificationnodes/iterations?$depth=20&api-version=7.1"
+    );
+
+    // The root node itself is just the project name, not a real
+    // iteration - only its children are actual sprints.
+    return (response.data.children ?? []).flatMap((child: any) =>
+        flattenIterationTree(child, "")
+    );
+}
+
 export function buildWorkItemUrl(id: number): string {
     const org = process.env.AZDO_ORG;
     const encodedProject = encodeURIComponent(
