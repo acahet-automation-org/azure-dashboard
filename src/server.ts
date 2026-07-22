@@ -2,7 +2,7 @@ import "dotenv/config";
 import express, { type Response } from "express";
 import cors from "cors";
 import { requireAuth } from "./auth.js";
-import { AzdoAuthError } from "./azdo.js";
+import { AzdoAuthError, getIterations } from "./azdo.js";
 import {
     getDashboardData,
     clearDashboardCache,
@@ -136,6 +136,14 @@ app.get("/api/execution-trend", async (_, res) => {
             trend,
             totalTestCases: allTestCases.length,
         });
+    } catch (error: any) {
+        sendApiError(res, error);
+    }
+});
+
+app.get("/api/iterations", async (_, res) => {
+    try {
+        res.json(await getIterations());
     } catch (error: any) {
         sendApiError(res, error);
     }

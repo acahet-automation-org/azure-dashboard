@@ -176,6 +176,9 @@ const useStyles = makeStyles({
         letterSpacing: "0.02em",
         textTransform: "uppercase",
         color: "#c8c6c4",
+        // Lets \n in translation strings (e.g. kpis.totalTestCases) render
+        // as an actual line break instead of collapsing to a space.
+        whiteSpace: "pre-line",
     },
     dashboardButton: {
         display: "flex",
@@ -409,19 +412,20 @@ export const StatusReportCard = forwardRef<
         0
     );
 
-    // Pass rate = decided cases that passed (Passed / (Passed + Failed)),
-    // excluding Blocked/NotApplicable/NotRun - matches the per-suite pass
-    // rate shown in SuiteProgressBar and the reference card's math (e.g.
-    // 109 passed / 119 decided across all suites = 92%, not passed/total).
+    // Pass rate = Passed / everything except NotApplicable - matches the
+    // per-suite pass rate shown in SuiteProgressBar. NotApplicable is
+    // excluded because those cases were never meant to run; every other
+    // outcome (including NotRun/Blocked/InProgress) still counts against
+    // the rate since it isn't a pass yet.
     const totalPassed = suiteGroups.reduce(
         (sum, group) => sum + group.outcomeCounts.Passed,
         0
     );
-    const totalFailed = suiteGroups.reduce(
-        (sum, group) => sum + group.outcomeCounts.Failed,
+    const totalNotApplicable = suiteGroups.reduce(
+        (sum, group) => sum + group.outcomeCounts.NotApplicable,
         0
     );
-    const totalDecided = totalPassed + totalFailed;
+    const totalDecided = totalTestCases - totalNotApplicable;
     const passRate = totalDecided
         ? Math.round((totalPassed / totalDecided) * 100)
         : 0;

@@ -19,6 +19,7 @@ import type {
     DeleteTestCasesResult,
     ReleaseReadinessResponse,
     NavBadgesResponse,
+    IterationNode,
 } from "../types";
 import { loginRequest } from "../authConfig";
 import { msalInstance } from "../msalInstance";
@@ -124,6 +125,10 @@ export function fetchRuns(): Promise<RunCard[]> {
 
 export function fetchPlans(): Promise<TestPlanSummary[]> {
     return getJson("/api/plans");
+}
+
+export function fetchIterations(): Promise<IterationNode[]> {
+    return getJson("/api/iterations");
 }
 
 export function fetchPlanSuites(

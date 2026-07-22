@@ -468,6 +468,7 @@ export type GateCriterionId =
     | "testsExecuted"
     | "testsPassed"
     | "requirementsCoverage"
+    | "testCaseRelevance"
     | "criticalDefectsOpen"
     | "highDefectsOpen"
     | "mediumDefectsOpen"

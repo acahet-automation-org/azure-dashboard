@@ -25,14 +25,34 @@ const useStyles = makeStyles({
     },
 });
 
+export type DefectFilterField =
+    | "iteration"
+    | "area"
+    | "environment"
+    | "suites"
+    | "targetVersion";
+
+const ALL_FIELDS: DefectFilterField[] = [
+    "iteration",
+    "area",
+    "environment",
+    "suites",
+    "targetVersion",
+];
+
 export function DefectFilterBar({
     availableFilters,
     filters,
     onChange,
+    fields = ALL_FIELDS,
 }: {
     availableFilters: DefectFilterOptions;
     filters: DefectFilters;
     onChange: (next: DefectFilters) => void;
+    // Restricts which dropdowns render - e.g. the Sprint Status Card page
+    // only wants Iteration/Area/Suites, not Environment/Target Version.
+    // Defaults to every field, matching the original always-show-all bar.
+    fields?: DefectFilterField[];
 }) {
     const styles = useStyles();
     const { t } = useTranslation();
@@ -41,51 +61,56 @@ export function DefectFilterBar({
     const allEnvironments = t("defectFilterBar.allEnvironments");
     const allTargetVersions = t("defectFilterBar.allTargetVersions");
     const allSuites = t("defectFilterBar.allSuites");
+    const showField = (field: DefectFilterField) => fields.includes(field);
 
     return (
         <div className={styles.bar}>
-            <Field label={t("defectFilterBar.iteration")} className={styles.field}>
-                <Dropdown
-                    expandIcon={<ChevronDownRegular className={styles.chevron} />}
-                    button={{ className: styles.dropdownButton }}
-                    value={filters.iteration || allIterations}
-                    selectedOptions={filters.iteration ? [filters.iteration] : [""]}
-                    onOptionSelect={(_, data) =>
-                        onChange({
-                            ...filters,
-                            iteration: data.optionValue ?? "",
-                        })
-                    }
-                >
-                    <Option value="">{allIterations}</Option>
-                    {availableFilters.iterations.map((iteration) => (
-                        <Option key={iteration} value={iteration}>
-                            {iteration}
-                        </Option>
-                    ))}
-                </Dropdown>
-            </Field>
+            {showField("iteration") && (
+                <Field label={t("defectFilterBar.iteration")} className={styles.field}>
+                    <Dropdown
+                        expandIcon={<ChevronDownRegular className={styles.chevron} />}
+                        button={{ className: styles.dropdownButton }}
+                        value={filters.iteration || allIterations}
+                        selectedOptions={filters.iteration ? [filters.iteration] : [""]}
+                        onOptionSelect={(_, data) =>
+                            onChange({
+                                ...filters,
+                                iteration: data.optionValue ?? "",
+                            })
+                        }
+                    >
+                        <Option value="">{allIterations}</Option>
+                        {availableFilters.iterations.map((iteration) => (
+                            <Option key={iteration} value={iteration}>
+                                {iteration}
+                            </Option>
+                        ))}
+                    </Dropdown>
+                </Field>
+            )}
 
-            <Field label={t("filterBar.areaPath")} className={styles.field}>
-                <Dropdown
-                    expandIcon={<ChevronDownRegular className={styles.chevron} />}
-                    button={{ className: styles.dropdownButton }}
-                    value={filters.area || allAreas}
-                    selectedOptions={filters.area ? [filters.area] : [""]}
-                    onOptionSelect={(_, data) =>
-                        onChange({ ...filters, area: data.optionValue ?? "" })
-                    }
-                >
-                    <Option value="">{allAreas}</Option>
-                    {availableFilters.areas.map((area) => (
-                        <Option key={area} value={area}>
-                            {area}
-                        </Option>
-                    ))}
-                </Dropdown>
-            </Field>
+            {showField("area") && (
+                <Field label={t("filterBar.areaPath")} className={styles.field}>
+                    <Dropdown
+                        expandIcon={<ChevronDownRegular className={styles.chevron} />}
+                        button={{ className: styles.dropdownButton }}
+                        value={filters.area || allAreas}
+                        selectedOptions={filters.area ? [filters.area] : [""]}
+                        onOptionSelect={(_, data) =>
+                            onChange({ ...filters, area: data.optionValue ?? "" })
+                        }
+                    >
+                        <Option value="">{allAreas}</Option>
+                        {availableFilters.areas.map((area) => (
+                            <Option key={area} value={area}>
+                                {area}
+                            </Option>
+                        ))}
+                    </Dropdown>
+                </Field>
+            )}
 
-            {availableFilters.environments.length > 0 && (
+            {showField("environment") && availableFilters.environments.length > 0 && (
                 <Field label={t("defectFilterBar.environment")} className={styles.field}>
                     <Dropdown
                         expandIcon={<ChevronDownRegular className={styles.chevron} />}
@@ -109,7 +134,7 @@ export function DefectFilterBar({
                 </Field>
             )}
 
-            {availableFilters.suites.length > 0 && (
+            {showField("suites") && availableFilters.suites.length > 0 && (
                 <Field label={t("defectFilterBar.suite")} className={styles.field}>
                     <Dropdown
                         multiselect
@@ -139,7 +164,7 @@ export function DefectFilterBar({
                 </Field>
             )}
 
-            {availableFilters.targetVersions.length > 0 && (
+            {showField("targetVersion") && availableFilters.targetVersions.length > 0 && (
                 <Field label={t("defectFilterBar.targetVersion")} className={styles.field}>
                     <Dropdown
                         expandIcon={<ChevronDownRegular className={styles.chevron} />}
