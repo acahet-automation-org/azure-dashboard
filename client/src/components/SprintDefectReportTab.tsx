@@ -14,6 +14,8 @@ import {
 } from "@fluentui/react-components";
 import {
     ArrowDownloadRegular,
+    ClipboardCheckmarkRegular,
+    ClipboardRegular,
     CodeTextRegular,
     MailRegular,
     SlideContentRegular,
@@ -25,6 +27,7 @@ import { fetchPlanOverview, fetchPlans, sendEmailReport } from "../api/client";
 import {
     buildStatusReportCardEmailBodyHtml,
     buildStatusReportCardFilename,
+    copyStatusReportCardEmailHtmlToClipboard,
     downloadStatusReportCardEmailHtml,
     downloadStatusReportCardPptx,
     exportStatusReportCardToPdf,
@@ -179,6 +182,7 @@ export function SprintDefectReportTab({
     );
     const [isExportingCard, setIsExportingCard] = useState(false);
     const [isExportingPptx, setIsExportingPptx] = useState(false);
+    const [isCopied, setIsCopied] = useState(false);
     const [pptxTheme, setPptxTheme] = useState<StatusReportCardTheme>("light");
     // Off by default: the Test Factory/Test Agenti/Business breakdown is
     // still being validated, so regular report sends shouldn't include it
@@ -367,6 +371,25 @@ export function SprintDefectReportTab({
             },
             t
         );
+    };
+
+    const handleCopyStatusCardHtml = async () => {
+        await copyStatusReportCardEmailHtmlToClipboard(
+            {
+                headerTitle,
+                headerSubtitle,
+                suiteGroups,
+                report,
+                alertText,
+                actionsText,
+                dashboardUrl: MONITORING_DASHBOARD_URL,
+                showOriginBreakdown,
+            },
+            t
+        );
+
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
     };
 
     const handleDownloadStatusCardPptx = async () => {
@@ -567,6 +590,24 @@ export function SprintDefectReportTab({
                 >
                     {t(
                         "defectManagementPage.sprintReport.statusCard.downloadHtmlButton"
+                    )}
+                </Button>
+
+                <Button
+                    appearance="secondary"
+                    icon={
+                        isCopied ? (
+                            <ClipboardCheckmarkRegular />
+                        ) : (
+                            <ClipboardRegular />
+                        )
+                    }
+                    onClick={handleCopyStatusCardHtml}
+                >
+                    {t(
+                        isCopied
+                            ? "defectManagementPage.sprintReport.statusCard.copyHtmlButtonCopied"
+                            : "defectManagementPage.sprintReport.statusCard.copyHtmlButton"
                     )}
                 </Button>
 

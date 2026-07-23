@@ -1171,6 +1171,10 @@ export function computeDefectStats(
 
     const totalOpen = records.length - totalClosed;
 
+    const openP2P3Count = records.filter(
+        (r) => r.state !== "Closed" && (r.priority === 2 || r.priority === 3)
+    ).length;
+
     const duplicateCount = records.filter(
         (r) => r.state === "Duplicate"
     ).length;
@@ -1236,6 +1240,7 @@ export function computeDefectStats(
     return {
         totalOpen,
         totalClosed,
+        openP2P3Count,
         bySeverity: groupCount(
             records,
             (r) => r.severity

@@ -272,6 +272,7 @@ export interface DefectFilters {
 export interface DefectStats {
     totalOpen: number;
     totalClosed: number;
+    openP2P3Count: number;
     bySeverity: Record<string, number>;
     byPriority: Record<string, number>;
     byComponent: Record<string, number>;

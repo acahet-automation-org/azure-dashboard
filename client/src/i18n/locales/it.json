@@ -261,6 +261,7 @@
         "stats": {
             "totalOpen": "Bug Aperti",
             "totalClosed": "Bug Chiusi",
+            "openDefects": "Difetti Aperti (P2/P3)",
             "mttr": "Tempo Medio di Risoluzione",
             "reopenedBugs": "Bug Riaperti",
             "reopenRate": "Tasso di Riapertura",
@@ -369,6 +370,8 @@
                 "actionsTitle": "Azioni Richieste",
                 "exportButton": "Esporta Scheda Stato",
                 "downloadHtmlButton": "Scarica HTML",
+                "copyHtmlButton": "Copia per Email/Teams",
+                "copyHtmlButtonCopied": "Copiato!",
                 "downloadPptxButton": "Scarica PPTX",
                 "pptxTheme": {
                     "light": "Tema PPTX: Chiaro",
@@ -378,6 +381,7 @@
                 "casesCount": "{{count}} casi",
                 "executed": "eseguito",
                 "passRate": "Pass rate",
+                "passRateNAFootnote": "* Il pass rate esclude i casi N/A, fuori ambito per questo sprint.",
                 "suiteProgressTitle": "Avanzamento Esecuzione Test",
                 "suiteGroupsLabel": "Etichette righe (le suite vengono unite automaticamente)",
                 "suiteGroupsLoading": "Caricamento dati suite...",

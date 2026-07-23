@@ -131,6 +131,10 @@ export function DefectOverviewTab({ stats }: { stats: DefectStats }) {
                         value={stats.totalClosed}
                     />
                     <StatCard
+                        label={t("defectManagementPage.stats.openDefects")}
+                        value={stats.openP2P3Count}
+                    />
+                    <StatCard
                         label={t("defectManagementPage.stats.mttr")}
                         value={
                             stats.mttrDays != null

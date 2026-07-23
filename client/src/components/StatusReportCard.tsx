@@ -690,6 +690,16 @@ export const StatusReportCard = forwardRef<
                         )}
                     </span>
                 )}
+
+                {suiteGroups.some(
+                    (group) => group.outcomeCounts.NotApplicable > 0
+                ) && (
+                    <span className={styles.emptyNote}>
+                        {t(
+                            "defectManagementPage.sprintReport.statusCard.passRateNAFootnote"
+                        )}
+                    </span>
+                )}
             </div>
 
             <div className={styles.section}>
