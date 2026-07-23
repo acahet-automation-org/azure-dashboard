@@ -1,0 +1,91 @@
+name: OWASP ZAP DAST Scan
+# Boots the app locally on the runner (client + API, auth bypassed via
+# SKIP_AUTH) and runs a passive-only OWASP ZAP baseline scan against it
+# (spider + ajax spider, no active attack payloads). Pass/fail per alert
+# is governed by .zap/rules.tsv.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * 1'   # weekly, Monday 03:00 UTC
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'client/**'
+      - '.zap/**'
+      - '.github/workflows/dast-zap-scan.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  zap-baseline-scan:
+    name: ZAP passive (baseline) scan (local host)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install server dependencies
+        run: npm ci
+
+      - name: Install client dependencies
+        run: npm ci --prefix client
+
+      - name: Start API server (auth bypassed for scanning)
+        run: nohup npx tsx src/server.ts > server.log 2>&1 &
+        env:
+          PORT: 3001
+          SKIP_AUTH: 'true'
+          CORS_ORIGIN: http://localhost:3000
+          AZDO_ORG: 'ItasMutua'
+          AZDO_PROJECT: 'Nuova Frontiera'
+          AZDO_PAT: ${{ secrets.OWASP_READ_ONLY_TOKEN }}
+
+      - name: Start client dev server (auth bypassed for scanning)
+        run: nohup npm run dev --prefix client -- --port 3000 --strictPort > client.log 2>&1 &
+        env:
+          VITE_SKIP_AUTH: 'true'
+
+      - name: Wait for local host to be ready
+        run: |
+          npx wait-on -t 60000 tcp:localhost:3001 http://localhost:3000 \
+            || (echo "--- server.log ---"; cat server.log; echo "--- client.log ---"; cat client.log; exit 1)
+
+      - name: ZAP baseline (passive) scan
+        uses: zaproxy/action-baseline@v0.15.0
+        with:
+          target: 'http://localhost:3000'
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-j'   # ajax spider — needed to crawl a client-rendered SPA
+          fail_action: true
+          allow_issue_writing: false
+
+      - name: Upload ZAP reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: zap-reports
+          path: |
+            report_html.html
+            report_md.md
+            report_json.json
+          retention-days: 5
+          if-no-files-found: ignore
+
+      - name: Upload runtime logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: local-host-logs
+          path: |
+            server.log
+            client.log
+          retention-days: 5

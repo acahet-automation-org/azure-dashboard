@@ -169,7 +169,7 @@ export function SuiteProgressBar({
                 <span className={styles.separator}>{" | "}</span>
                 <span className={styles.passRate}>
                     {t("defectManagementPage.sprintReport.statusCard.passRate")}:{" "}
-                    {passRate}%
+                    {passRate}%{outcomeCounts.NotApplicable > 0 ? "*" : ""}
                 </span>
             </span>
         </div>

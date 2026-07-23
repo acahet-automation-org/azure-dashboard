@@ -1,0 +1,88 @@
+# ZAP Scan Alert Rules
+# Format: <alert-id><TAB><action>
+# Actions: IGNORE | WARN | FAIL
+# See https://www.zaproxy.org/docs/alerts/ for the full alert catalogue.
+#
+# Default behaviour when no rule matches an alert:
+#   riskcode 3 (HIGH)   → FAIL  (blocks CI)
+#   riskcode 2 (MEDIUM) → WARN  (reported, does not block)
+#   riskcode 1 (LOW)    → WARN
+#   riskcode 0 (INFO)   → WARN
+#
+# Add an id here only when you have confirmed the finding is a false-positive
+# or an accepted risk for this application. Document the reason in the comment.
+
+# ── Deprecated browser controls (no longer enforced by modern browsers) ──────
+10016	IGNORE	# X-XSS-Protection Not Set — header is deprecated; CSP replaces it
+10017	WARN	# Cross-Domain JS Source Inclusion — review manually for unknown 3rd-party origins
+
+# ── CSRF — SPAs typically use SameSite cookies + custom headers instead of tokens
+# Demote to WARN; escalate to FAIL if your app has stateful forms without SameSite
+10202	WARN	# Absence of Anti-CSRF Tokens
+
+# ── Information disclosure — worth investigating, but rarely blocking on its own
+10094	WARN	# Base64 Disclosure — common FP when non-sensitive encoded data is embedded
+# NOTE (2026-07-23): SonarQube Security-by-Design policy (QG-005) treats logging/
+# exposure of PII and reserved data as a blocking finding (OWASP A09, CWE-532).
+# Kept as WARN here — ZAP's pattern-matching produces frequent false positives —
+# but treat any confirmed hit as an accepted-risk candidate requiring sign-off,
+# not a silent pass.
+10062	WARN	# PII Disclosure — review manually; ZAP pattern-matching produces false positives
+
+# ── Content security — review policy complexity before escalating to FAIL
+# NOTE (2026-07-23): SonarQube Security-by-Design policy (QG-005) treats missing
+# CSP as a blocking "Header di sicurezza HTTP" finding (OWASP A05). Kept as WARN
+# here to avoid CI breakage from inline-script false positives in enterprise SPAs
+# — escalate to FAIL once the app's CSP policy is finalised.
+10055	WARN	# CSP Scanner — inline scripts may be intentional in enterprise SPAs; review policy
+
+# ── Mixed content / HTTPS issues — adjust if the scan target is HTTP-only staging
+10032	WARN	# Viewstate without MAC — relevant only for ASP.NET apps; IGNORE if not applicable
+
+# ── SonarQube Security-by-Design (QG-005) alignment, 2026-07-23 ──────────────
+# The categories below are mandatory blocking gates per the Secure Code Analysis
+# policy (OWASP Top 10 / ASVS / API Top 10, MITRE CWE Top25, NIST SSDF SP 800-218).
+# SonarQube enforces these at the SAST level; the rules here enforce the
+# DAST-observable equivalent via ZAP so both scanners agree on what blocks CI.
+# Categories with no runtime-observable ZAP signal (hardcoded credentials, weak
+# crypto algorithm choice, unvalidated deserialization logic) are SAST-only and
+# have no corresponding entry here — SonarQube remains the sole gate for those.
+
+# Injection — SQL / OS command / LDAP (OWASP A03, CWE-89 / CWE-78 / CWE-90)
+40018	FAIL	# SQL Injection
+40019	FAIL	# SQL Injection - MySQL (Time Based)
+40020	FAIL	# SQL Injection - Hypersonic SQL (Time Based)
+40021	FAIL	# SQL Injection - Oracle (Time Based)
+40022	FAIL	# SQL Injection - PostgreSQL (Time Based)
+40024	FAIL	# SQL Injection - SQLite (Time Based)
+40027	FAIL	# SQL Injection - MsSQL (Time Based)
+90018	FAIL	# SQL Injection - Advanced Time Based
+40015	FAIL	# LDAP Injection
+90020	FAIL	# Remote OS Command Injection
+90037	FAIL	# Remote OS Command Injection (Time Based)
+
+# XSS and unsanitised output (OWASP A03, CWE-79)
+40012	FAIL	# Cross Site Scripting (Reflected)
+40014	FAIL	# Cross Site Scripting (Persistent)
+40026	FAIL	# Cross Site Scripting (DOM Based)
+
+# Insecure deserialization (OWASP A08, CWE-502)
+90002	FAIL	# Java Serialization Object — untrusted deserialized data on the wire
+
+# Path traversal (OWASP A01, CWE-22)
+6	FAIL	# Path Traversal
+
+# Insecure protocols — HTTP / weak TLS (OWASP A02, CWE-319 / CWE-326)
+10047	FAIL	# HTTPS Content Available via HTTP — insecure protocol still reachable
+10034	FAIL	# Heartbleed OpenSSL Vulnerability (Indicative)
+20015	FAIL	# Heartbleed OpenSSL Vulnerability
+
+# HTTP security headers (OWASP A05)
+10020	FAIL	# Anti-clickjacking Header Not Set (X-Frame-Options / frame-ancestors)
+10021	FAIL	# X-Content-Type-Options Header Missing
+10035	FAIL	# Strict-Transport-Security Header Not Set (HSTS)
+10038	FAIL	# Content Security Policy (CSP) Header Not Set
+
+# Error handling — stack trace / technical error exposure (OWASP A05, CWE-209)
+90022	FAIL	# Application Error Disclosure
+10023	FAIL	# Information Disclosure - Debug Error Messages

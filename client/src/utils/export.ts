@@ -246,6 +246,14 @@ function escapeHtml(value: string): string {
         .replace(/>/g, "&gt;");
 }
 
+// HTML collapses \n to whitespace, but the on-screen card renders actionsText
+// with `white-space: pre-wrap` (StatusReportCard.tsx) so single line breaks
+// within a paragraph are meaningful - convert them explicitly since the
+// emailed HTML can't rely on that CSS behavior in every mail client.
+function escapeHtmlPreservingBreaks(value: string): string {
+    return escapeHtml(value).replace(/\n/g, "<br>");
+}
+
 export function buildEmailReportHtml(
     title: string,
     rows: [string, string | number][],
@@ -1228,16 +1236,25 @@ function lightExecutedColor(pct: number): string {
     return LIGHT_KPI[2].accent;
 }
 
+// The color/border is painted directly on the outer <td> rather than a
+// nested inner table: a nested table's height:100% needs its parent to have
+// an explicit (not auto-computed) height to resolve against, which browsers
+// don't reliably grant here, so the previous nested-table version still
+// rendered each tile's box only as tall as its own label (1 line vs. 3
+// lines). Every <td> in one <tr> is *always* stretched to the row's tallest
+// cell by the browser's table layout - no percentage-height trick needed -
+// so painting the box on the cell itself guarantees all six match the
+// tallest one. Horizontal gaps between tiles come from the wrapping table's
+// border-spacing (see kpiHtml) instead of a per-tile padding <td>.
 function lightKpiTile(value: string, kpiIndex: number, label: string): string {
     const { bg, accent } = LIGHT_KPI[kpiIndex];
 
     return (
-        `<td width="16.66%" style="padding:4px;">` +
-        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${bg}" style="background-color:${bg};border-radius:6px;border-top:3px solid ${accent};">` +
-        `<tr><td align="center" style="padding:10px 4px;font-family:${EMAIL_FONT_FAMILY};">` +
+        `<td width="16.66%" align="center" valign="middle" bgcolor="${bg}" ` +
+        `style="background-color:${bg};border-radius:6px;border-top:3px solid ${accent};padding:10px 4px;font-family:${EMAIL_FONT_FAMILY};">` +
         `<div style="font-size:20px;font-weight:700;color:${accent};line-height:1.2;">${escapeHtml(value)}</div>` +
         `<div style="font-size:10px;letter-spacing:0.02em;text-transform:uppercase;color:${LIGHT_INK_MUTED};margin-top:2px;">${escapeHtml(label)}</div>` +
-        `</td></tr></table></td>`
+        `</td>`
     );
 }
 
@@ -1298,7 +1315,7 @@ function lightSuiteRow(group: SuiteProgressGroup, t: TranslateFn): string {
         `<td style="font-size:12px;font-weight:700;color:${lightExecutedColor(executedPct)};white-space:nowrap;" align="right">${executedPct}% ${escapeHtml(t("defectManagementPage.sprintReport.statusCard.executed"))}</td>` +
         `</tr></table>` +
         `<div style="margin-top:4px;">${lightProgressTrack(segments, 9)}</div>` +
-        `<div style="font-size:12px;color:${LIGHT_INK_MUTED};margin-top:4px;">${legendText}<span style="color:${LIGHT_RULE};"> | </span><strong style="color:${LIGHT_INK};">${escapeHtml(t("defectManagementPage.sprintReport.statusCard.passRate"))}: ${passRate}%</strong></div>` +
+        `<div style="font-size:12px;color:${LIGHT_INK_MUTED};margin-top:4px;">${legendText}<span style="color:${LIGHT_RULE};"> | </span><strong style="color:${LIGHT_INK};">${escapeHtml(t("defectManagementPage.sprintReport.statusCard.passRate"))}: ${passRate}%${outcomeCounts.NotApplicable > 0 ? "*" : ""}</strong></div>` +
         `</div>`
     );
 }
@@ -1538,7 +1555,8 @@ export function buildStatusReportCardEmailBodyHtml(
         : "";
 
     const kpiHtml =
-        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>` +
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" ` +
+        `style="border-collapse:separate;border-spacing:4px 0;"><tr>` +
         lightKpiTile(
             String(totalTestCases),
             0,
@@ -1594,7 +1612,7 @@ export function buildStatusReportCardEmailBodyHtml(
                       `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${palette.bg}" style="background-color:${palette.bg};border-radius:6px;margin-top:8px;">` +
                       `<tr><td style="border-left:4px solid ${palette.border};padding:10px 12px;font-size:13px;line-height:1.4;color:${LIGHT_INK};font-family:${EMAIL_FONT_FAMILY};">` +
                       (lead ? `<strong>${escapeHtml(lead)}</strong> ` : "") +
-                      `${escapeHtml(rest)}</td></tr></table>`
+                      `${escapeHtmlPreservingBreaks(rest)}</td></tr></table>`
                   );
               })
               .join("")
@@ -1604,7 +1622,10 @@ export function buildStatusReportCardEmailBodyHtml(
         `<div style="font-size:14px;font-weight:600;color:${LIGHT_INK};margin-top:18px;font-family:${EMAIL_FONT_FAMILY};">${escapeHtml(t("defectManagementPage.sprintReport.statusCard.suiteProgressTitle"))}</div>` +
         (suiteGroups.length > 0
             ? suiteGroups.map((group) => lightSuiteRow(group, t)).join("")
-            : `<div style="font-size:12px;color:${LIGHT_INK_MUTED};font-style:italic;margin-top:8px;font-family:${EMAIL_FONT_FAMILY};">${escapeHtml(t("defectManagementPage.sprintReport.statusCard.noPlanSelected"))}</div>`);
+            : `<div style="font-size:12px;color:${LIGHT_INK_MUTED};font-style:italic;margin-top:8px;font-family:${EMAIL_FONT_FAMILY};">${escapeHtml(t("defectManagementPage.sprintReport.statusCard.noPlanSelected"))}</div>`) +
+        (suiteGroups.some((group) => group.outcomeCounts.NotApplicable > 0)
+            ? `<div style="font-size:12px;color:${LIGHT_INK_MUTED};font-style:italic;margin-top:6px;font-family:${EMAIL_FONT_FAMILY};">${escapeHtml(t("defectManagementPage.sprintReport.statusCard.passRateNAFootnote"))}</div>`
+            : "");
 
     const statusLegendHtml = statusEntries
         .map(
@@ -1726,6 +1747,26 @@ export function downloadStatusReportCardEmailHtml(
     const documentHtml = buildStatusReportCardEmailDocument(bodyHtml);
     const blob = new Blob([documentHtml], { type: "text/html;charset=utf-8;" });
     downloadBlob(blob, filename);
+}
+
+// Writes the card as a rich-text clipboard entry (text/html, with a
+// text/plain fallback for editors that don't accept rich HTML) so it can be
+// pasted directly into Outlook/Teams/Gmail compose boxes and render as the
+// same formatted table layout as the on-screen card, without the
+// download-then-open-then-select-all-then-copy round trip that
+// downloadStatusReportCardEmailHtml requires.
+export async function copyStatusReportCardEmailHtmlToClipboard(
+    data: StatusReportCardEmailData,
+    t: TranslateFn
+): Promise<void> {
+    const bodyHtml = buildStatusReportCardEmailBodyHtml(data, t);
+
+    await navigator.clipboard.write([
+        new ClipboardItem({
+            "text/html": new Blob([bodyHtml], { type: "text/html" }),
+            "text/plain": new Blob([data.headerTitle], { type: "text/plain" }),
+        }),
+    ]);
 }
 
 // pptxgenjs colors are plain hex without the "#".
