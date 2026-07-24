@@ -1064,37 +1064,13 @@ export interface StatusReportCardEmailData {
 
 const EMAIL_CARD_WIDTH = 900;
 
-// Mirrors StatusReportCard.tsx's SEVERITY_PALETTE/STATUS_COLORS/ACTION_PALETTE
-// and SuiteProgressBar.tsx's OUTCOME_COLORS - kept as its own copy (like the
-// PDF section above already does with severityRank/STATUS_ORDER) since this
-// builder emits raw HTML strings rather than JSX and has no component to
-// import styling constants from without creating a render <-> string-builder
-// coupling.
-const EMAIL_SEVERITY_PALETTE = [
-    { bg: "#442726", border: "#d13438", text: "#ff9b93" },
-    { bg: "#3d3319", border: "#eda100", text: "#f4c669" },
-    { bg: "#26313d", border: "#5b8bb0", text: "#9cc7e6" },
-];
-const EMAIL_SEVERITY_FALLBACK = { bg: "#2d2d2d", border: "#605e5c", text: "#c8c6c4" };
-
 const EMAIL_STATUS_ORDER = ["Closed", "Resolved", "In Progress", "New"];
-const EMAIL_STATUS_COLORS: Record<string, string> = {
-    Closed: "#3fb950",
-    Resolved: "#0078d4",
-    "In Progress": "#eda100",
-    New: "#e8746c",
-};
 const EMAIL_STATUS_LABEL_KEYS: Record<string, string> = {
     Closed: "closed",
     Resolved: "resolved",
     "In Progress": "inProgress",
     New: "new",
 };
-
-const EMAIL_ACTION_PALETTE = [
-    { bg: "#3d3319", border: "#eda100" },
-    { bg: "#1f3550", border: "#3aa0f3" },
-];
 
 const EMAIL_OUTCOME_ORDER: Outcome[] = [
     "Passed",
@@ -1105,15 +1081,6 @@ const EMAIL_OUTCOME_ORDER: Outcome[] = [
     "NotApplicable",
     "NotRun",
 ];
-const EMAIL_OUTCOME_COLORS: Record<Outcome, string> = {
-    Passed: "#3fb950",
-    Failed: "#d13438",
-    Blocked: "#eda100",
-    Paused: "#b180d7",
-    InProgress: "#3aa0f3",
-    NotApplicable: "#8a8886",
-    NotRun: "#8a8886",
-};
 
 function formatEmailTimestamp(date: Date): { datePart: string; timePart: string } {
     const day = String(date.getDate()).padStart(2, "0");
@@ -1130,18 +1097,6 @@ function formatEmailTimestamp(date: Date): { datePart: string; timePart: string 
 function emailSeverityLabel(raw: string): string {
     const match = /^(\d+)\s*-\s*(.+)$/.exec(raw);
     return match ? match[2] : raw;
-}
-
-function emailExecutedColor(pct: number): string {
-    if (pct >= 90) {
-        return "#3fb950";
-    }
-
-    if (pct < 30) {
-        return "#d13438";
-    }
-
-    return "#eda100";
 }
 
 function splitEmailActionLeadIn(paragraph: string): {
