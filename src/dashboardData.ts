@@ -191,6 +191,58 @@ export async function buildTestCaseRow(
     };
 }
 
+interface SuiteTestPointIndex {
+    outcomesByTestCase: Record<number, string[]>;
+    lastRunByTestCase: Record<number, number>;
+}
+
+// Reduces a suite's raw test points down to, per test case: every recorded
+// outcome (for pass/fail history) and the run ID of its most recently
+// completed result (ties broken by dateCompleted, since a test case can be
+// re-run and points don't come back in run order).
+function indexSuiteTestPoints(testPoints: any[]): SuiteTestPointIndex {
+    const outcomesByTestCase: Record<number, string[]> = {};
+    const lastRunByTestCase: Record<number, number> = {};
+    const lastRunDateByTestCase: Record<number, number> = {};
+
+    for (const point of testPoints) {
+        const tcId = point.testCaseReference?.id;
+
+        if (tcId == null) {
+            continue;
+        }
+
+        if (!outcomesByTestCase[tcId]) {
+            outcomesByTestCase[tcId] = [];
+        }
+
+        outcomesByTestCase[tcId].push(
+            resolveTestPointStatus(point)
+        );
+
+        const runId = point.results?.lastTestRunId;
+
+        if (runId == null) {
+            continue;
+        }
+
+        const completedDate = new Date(
+            point.results?.lastResultDetails
+                ?.dateCompleted ?? 0
+        ).getTime();
+
+        if (
+            completedDate >=
+            (lastRunDateByTestCase[tcId] ?? -1)
+        ) {
+            lastRunDateByTestCase[tcId] = completedDate;
+            lastRunByTestCase[tcId] = runId;
+        }
+    }
+
+    return { outcomesByTestCase, lastRunByTestCase };
+}
+
 export async function buildDashboard(): Promise<
     TestCaseRow[]
 > {
@@ -212,58 +264,8 @@ export async function buildDashboard(): Promise<
                 suite.id
             );
 
-            const outcomesByTestCase: Record<
-                number,
-                string[]
-            > = {};
-
-            const lastRunByTestCase: Record<
-                number,
-                number
-            > = {};
-
-            const lastRunDateByTestCase: Record<
-                number,
-                number
-            > = {};
-
-            for (const point of testPoints) {
-                const tcId =
-                    point.testCaseReference?.id;
-
-                if (tcId == null) {
-                    continue;
-                }
-
-                if (!outcomesByTestCase[tcId]) {
-                    outcomesByTestCase[tcId] = [];
-                }
-
-                outcomesByTestCase[tcId].push(
-                    resolveTestPointStatus(point)
-                );
-
-                const runId =
-                    point.results?.lastTestRunId;
-
-                if (runId == null) {
-                    continue;
-                }
-
-                const completedDate = new Date(
-                    point.results?.lastResultDetails
-                        ?.dateCompleted ?? 0
-                ).getTime();
-
-                if (
-                    completedDate >=
-                    (lastRunDateByTestCase[tcId] ?? -1)
-                ) {
-                    lastRunDateByTestCase[tcId] =
-                        completedDate;
-                    lastRunByTestCase[tcId] = runId;
-                }
-            }
+            const { outcomesByTestCase, lastRunByTestCase } =
+                indexSuiteTestPoints(testPoints);
 
             const rows = await Promise.all(
                 testCases.map((tc: any) =>
@@ -361,7 +363,7 @@ export function computeDashboardStats(
                 .map((tc) => tc.areaPath)
                 .filter(Boolean)
         ),
-    ].sort();
+    ].sort((a, b) => a.localeCompare(b));
 
     const suites = [
         ...new Set(
@@ -369,7 +371,7 @@ export function computeDashboardStats(
                 (tc) => tc.suiteName
             )
         ),
-    ].sort();
+    ].sort((a, b) => a.localeCompare(b));
 
     const priorities = [
         ...new Set(
@@ -768,7 +770,7 @@ export async function computeExecutionTrend(): Promise<
     let cumulativeExecuted = 0;
 
     return [...byDate.keys()]
-        .sort()
+        .sort((a, b) => a.localeCompare(b))
         .map((date): TrendPoint => {
             const bucket = byDate.get(date)!;
 

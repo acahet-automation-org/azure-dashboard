@@ -11,7 +11,7 @@ import { EmptyState } from "../components/EmptyState";
 import { WorkItemsTable } from "../components/WorkItemsTable";
 import { Pagination } from "../components/Pagination";
 import { fetchMyWorkItems } from "../api/client";
-import type { MyWorkItemsMode } from "../types";
+import type { MyWorkItemsMode, WorkItemSummary } from "../types";
 
 const EMPTY_MESSAGE_KEY: Record<MyWorkItemsMode, string> = {
     assigned: "myWorkItemsPage.emptyAssigned",
@@ -21,6 +21,69 @@ const EMPTY_MESSAGE_KEY: Record<MyWorkItemsMode, string> = {
 };
 
 const PAGE_SIZE_OPTIONS = [5, 10, 15, 20];
+
+function filterByAssignee(
+    data: WorkItemSummary[],
+    username: string | undefined
+): WorkItemSummary[] {
+    if (!username) return [];
+
+    return data.filter(
+        (item) => item.assignee?.uniqueName?.toLowerCase() === username
+    );
+}
+
+function filterByCreator(
+    data: WorkItemSummary[],
+    username: string | undefined
+): WorkItemSummary[] {
+    if (!username) return [];
+
+    return data.filter(
+        (item) => item.creator?.uniqueName?.toLowerCase() === username
+    );
+}
+
+function filterByMention(
+    data: WorkItemSummary[],
+    displayName: string | undefined
+): WorkItemSummary[] {
+    if (!displayName) return [];
+
+    return data.filter((item) =>
+        item.mentions?.some((mention) => mention.toLowerCase() === displayName)
+    );
+}
+
+// The backend returns all active items (it can't resolve "me" since it talks
+// to Azure DevOps with a shared PAT). The real logged-in identity only exists
+// here in the browser, so "assigned to me", "created by me", and "mentioned"
+// filter client-side, against each item's assignee, creator, or extracted
+// comment mentions respectively. In SKIP_AUTH dev mode there's no logged-in
+// identity to filter by, but the backend already narrowed "assigned"/"created"
+// to the PAT owner's own items via @Me, so use the data as-is for those
+// modes. "Following" can't be filtered client-side at all (Azure DevOps
+// doesn't expose a "followed by" field per work item) - it always reflects
+// whichever identity the backend's PAT belongs to.
+function computeMyItems(
+    data: WorkItemSummary[] | undefined,
+    mode: MyWorkItemsMode,
+    skipAuth: boolean,
+    activeAccount: { username?: string | null; name?: string | null } | undefined
+): WorkItemSummary[] {
+    if (!data) return [];
+    if (mode === "following" || skipAuth) return data;
+
+    if (mode === "assigned") {
+        return filterByAssignee(data, activeAccount?.username?.toLowerCase());
+    }
+
+    if (mode === "created") {
+        return filterByCreator(data, activeAccount?.username?.toLowerCase());
+    }
+
+    return filterByMention(data, activeAccount?.name?.toLowerCase());
+}
 
 export function MyWorkItemsPage() {
     const { t } = useTranslation();
@@ -37,72 +100,10 @@ export function MyWorkItemsPage() {
 
     const skipAuth = import.meta.env.VITE_SKIP_AUTH === "true";
 
-    // The backend returns all active items (it can't resolve "me" since it
-    // talks to Azure DevOps with a shared PAT). The real logged-in identity
-    // only exists here in the browser, so "assigned to me", "created by me",
-    // and "mentioned" filter client-side, against each item's assignee,
-    // creator, or extracted comment mentions respectively. In SKIP_AUTH dev
-    // mode there's no logged-in identity to filter by, but the backend
-    // already narrowed "assigned"/"created" to the PAT owner's own items via
-    // @Me, so use the data as-is for those modes.
-    // "Following" can't be filtered client-side at all (Azure DevOps doesn't
-    // expose a "followed by" field per work item) - it always reflects
-    // whichever identity the backend's PAT belongs to.
-    const myItems = useMemo(() => {
-        if (!data) return [];
-
-        let items: typeof data;
-
-        if (mode === "following") {
-            items = data;
-        } else if (mode === "assigned") {
-            if (skipAuth) {
-                items = data;
-            } else {
-                const username = activeAccount?.username?.toLowerCase();
-
-                items = username
-                    ? data.filter(
-                        (item) =>
-                            item.assignee?.uniqueName?.toLowerCase() ===
-                            username
-                    )
-                    : [];
-            }
-        } else if (mode === "created") {
-            if (skipAuth) {
-                items = data;
-            } else {
-                const username = activeAccount?.username?.toLowerCase();
-
-                items = username
-                    ? data.filter(
-                        (item) =>
-                            item.creator?.uniqueName?.toLowerCase() ===
-                            username
-                    )
-                    : [];
-            }
-        } else {
-            // mode === "mentioned"
-            if (skipAuth) {
-                items = data;
-            } else {
-                const displayName = activeAccount?.name?.toLowerCase();
-
-                items = displayName
-                    ? data.filter((item) =>
-                        item.mentions?.some(
-                            (mention) =>
-                                mention.toLowerCase() === displayName
-                        )
-                    )
-                    : [];
-            }
-        }
-
-        return items;
-    }, [data, activeAccount, skipAuth, mode]);
+    const myItems = useMemo(
+        () => computeMyItems(data, mode, skipAuth, activeAccount),
+        [data, activeAccount, skipAuth, mode]
+    );
 
     const pageCount = Math.max(1, Math.ceil(myItems.length / pageSize));
     const currentPage = Math.min(page, pageCount);

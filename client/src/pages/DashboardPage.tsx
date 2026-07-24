@@ -28,7 +28,7 @@ import {
     exportToPdf,
     type ExportableRow,
 } from "../utils/export";
-import type { TestCaseRow } from "../types";
+import type { BugInfo, TestCaseRow } from "../types";
 
 const useStyles = makeStyles({
     statsRow: {
@@ -82,6 +82,12 @@ function matchesFilters(
     }
 
     return true;
+}
+
+function formatLinkedDefects(bugs: BugInfo[]): string {
+    return bugs
+        .map((bug) => `#${bug.id}: ${bug.title} (${bug.state})`)
+        .join("\n");
 }
 
 export function DashboardPage() {
@@ -184,9 +190,7 @@ export function DashboardPage() {
                 ...(includeSuiteColumn ? { suiteName: tc.suiteName } : {}),
                 testCaseTitle: tc.testCaseTitle,
                 outcome: t(`outcome.${tc.outcome}`),
-                linkedDefects: tc.bugs
-                    .map((bug) => `#${bug.id}: ${bug.title} (${bug.state})`)
-                    .join("\n"),
+                linkedDefects: formatLinkedDefects(tc.bugs),
             }));
         const suiteBugTotals = buildSuiteBugTotals(filteredTestCases);
         const filename = `dashboard-export-${Date.now()}`;
