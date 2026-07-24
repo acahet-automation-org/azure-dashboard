@@ -50,7 +50,11 @@ import {
 } from "../utils/export";
 import type { ChartImage } from "../utils/export";
 import { categoryAxisWidth } from "../utils/chartAxis";
-import type { Outcome } from "../types";
+import type {
+    Outcome,
+    PlanOverviewResponse,
+    PlanOverviewSuiteDetail,
+} from "../types";
 
 const emailReportEnabled =
     import.meta.env.VITE_ENABLE_EMAIL_REPORT === "true";
@@ -198,6 +202,139 @@ function PieColorLegend({ items }: { items: PieLegendItem[] }) {
     );
 }
 
+interface SuiteBugSlice {
+    suiteName: string;
+    count: number;
+    color: string;
+}
+
+interface OverviewRates {
+    passRate: number;
+    passRateExclNA: number;
+    executionRate: number;
+}
+
+const ZERO_RATES: OverviewRates = {
+    passRate: 0,
+    passRateExclNA: 0,
+    executionRate: 0,
+};
+
+function outcomeCountsToChartData(
+    counts: Record<Outcome, number>
+): { outcome: Outcome; count: number }[] {
+    return (Object.keys(counts) as Outcome[]).map((outcome) => ({
+        outcome,
+        count: counts[outcome],
+    }));
+}
+
+// Not Applicable cases are neither a pass nor a fail, so they shouldn't
+// dilute the pass rate - same convention as CoverageSection's
+// suitePassRateExcludingNA.
+function computeRates(
+    totalTestCases: number,
+    outcomeCounts: Record<Outcome, number>
+): OverviewRates {
+    const passRate = totalTestCases
+        ? Math.round((outcomeCounts.Passed / totalTestCases) * 1000) / 10
+        : 0;
+
+    const applicable = totalTestCases - outcomeCounts.NotApplicable;
+    const passRateExclNA = applicable
+        ? Math.round((outcomeCounts.Passed / applicable) * 1000) / 10
+        : 0;
+
+    const executionRate = totalTestCases
+        ? Math.round(
+              ((totalTestCases -
+                  outcomeCounts.NotRun -
+                  outcomeCounts.NotApplicable) /
+                  totalTestCases) *
+                  1000
+          ) / 10
+        : 0;
+
+    return { passRate, passRateExclNA, executionRate };
+}
+
+// Fixed-order categorical palette (validated for CVD-safe adjacent contrast).
+// Suites beyond SUITE_BUG_COLORS.length are folded into a single "Other"
+// slice rather than generating additional hues.
+function computeBugsBySuiteData(
+    suites: PlanOverviewSuiteDetail[],
+    otherSuitesLabel: string
+): SuiteBugSlice[] {
+    const withBugs = suites
+        .filter((suite) => suite.bugs.length > 0)
+        .map((suite) => ({
+            suiteName: suite.suiteName,
+            count: suite.bugs.length,
+        }))
+        .sort((a, b) => b.count - a.count);
+
+    if (withBugs.length <= SUITE_BUG_COLORS.length) {
+        return withBugs.map((suite, index) => ({
+            ...suite,
+            color: SUITE_BUG_COLORS[index],
+        }));
+    }
+
+    const top = withBugs
+        .slice(0, SUITE_BUG_COLORS.length - 1)
+        .map((suite, index) => ({
+            ...suite,
+            color: SUITE_BUG_COLORS[index],
+        }));
+    const otherCount = withBugs
+        .slice(SUITE_BUG_COLORS.length - 1)
+        .reduce((sum, suite) => sum + suite.count, 0);
+
+    return [
+        ...top,
+        { suiteName: otherSuitesLabel, count: otherCount, color: OTHER_SUITE_COLOR },
+    ];
+}
+
+interface OverviewChartRefs {
+    outcome: HTMLDivElement | null;
+    suite: HTMLDivElement | null;
+    bugState: HTMLDivElement | null;
+    bugsBySuite: HTMLDivElement | null;
+}
+
+async function captureOverviewCharts(
+    refs: OverviewChartRefs,
+    data: PlanOverviewResponse,
+    bugsBySuiteData: SuiteBugSlice[],
+    t: (key: string) => string
+): Promise<ChartImage[]> {
+    const captured = await Promise.all([
+        captureChartImage(
+            refs.outcome,
+            t("planOverviewPage.charts.outcomeBreakdown")
+        ),
+        captureChartImage(
+            refs.suite,
+            t("planOverviewPage.charts.testsBySuite")
+        ),
+        data.bugsByState.length > 0
+            ? captureChartImage(
+                  refs.bugState,
+                  t("planOverviewPage.charts.bugsByState")
+              )
+            : Promise.resolve(null),
+        bugsBySuiteData.length > 0
+            ? captureChartImage(
+                  refs.bugsBySuite,
+                  t("planOverviewPage.charts.bugsBySuite")
+              )
+            : Promise.resolve(null),
+    ]);
+
+    return captured.filter((chart): chart is ChartImage => chart !== null);
+}
+
 export function PlanOverviewPage() {
     const styles = useStyles();
     const { t } = useTranslation();
@@ -236,132 +373,34 @@ export function PlanOverviewPage() {
     )?.name;
 
     const outcomeChartData = data
-        ? (Object.keys(data.outcomeCounts) as Outcome[]).map(
-              (outcome) => ({
-                  outcome,
-                  count: data.outcomeCounts[outcome],
-              })
-          )
+        ? outcomeCountsToChartData(data.outcomeCounts)
         : [];
 
     const bugsBySuiteData = data
-        ? (() => {
-              const withBugs = data.suites
-                  .filter((suite) => suite.bugs.length > 0)
-                  .map((suite) => ({
-                      suiteName: suite.suiteName,
-                      count: suite.bugs.length,
-                  }))
-                  .sort((a, b) => b.count - a.count);
-
-              if (withBugs.length <= SUITE_BUG_COLORS.length) {
-                  return withBugs.map((suite, index) => ({
-                      ...suite,
-                      color: SUITE_BUG_COLORS[index],
-                  }));
-              }
-
-              const top = withBugs
-                  .slice(0, SUITE_BUG_COLORS.length - 1)
-                  .map((suite, index) => ({
-                      ...suite,
-                      color: SUITE_BUG_COLORS[index],
-                  }));
-              const otherCount = withBugs
-                  .slice(SUITE_BUG_COLORS.length - 1)
-                  .reduce((sum, suite) => sum + suite.count, 0);
-
-              return [
-                  ...top,
-                  {
-                      suiteName: t("planOverviewPage.charts.otherSuites"),
-                      count: otherCount,
-                      color: OTHER_SUITE_COLOR,
-                  },
-              ];
-          })()
+        ? computeBugsBySuiteData(
+              data.suites,
+              t("planOverviewPage.charts.otherSuites")
+          )
         : [];
 
-    const passRate =
-        data && data.totalTestCases
-            ? Math.round(
-                  (data.outcomeCounts.Passed / data.totalTestCases) * 1000
-              ) / 10
-            : 0;
-
-    // Not Applicable cases are neither a pass nor a fail, so they shouldn't
-    // dilute the pass rate - same convention as CoverageSection's
-    // suitePassRateExcludingNA.
-    const passRateExclNA = (() => {
-        if (!data) {
-            return 0;
-        }
-
-        const applicable = data.totalTestCases - data.outcomeCounts.NotApplicable;
-
-        return applicable
-            ? Math.round((data.outcomeCounts.Passed / applicable) * 1000) / 10
-            : 0;
-    })();
-
-    const executionRate =
-        data && data.totalTestCases
-            ? Math.round(
-                  ((data.totalTestCases -
-                      data.outcomeCounts.NotRun -
-                      data.outcomeCounts.NotApplicable) /
-                      data.totalTestCases) *
-                      1000
-              ) / 10
-            : 0;
+    const { passRate, passRateExclNA, executionRate } = data
+        ? computeRates(data.totalTestCases, data.outcomeCounts)
+        : ZERO_RATES;
 
     const selectedSuite = data?.suites.find(
         (s) => s.suiteName === selectedSuiteName
     );
 
-    const suitePassRate =
-        selectedSuite && selectedSuite.totalTestCases
-            ? Math.round(
-                  (selectedSuite.outcomeCounts.Passed /
-                      selectedSuite.totalTestCases) *
-                      1000
-              ) / 10
-            : 0;
-
-    const suitePassRateExclNA = (() => {
-        if (!selectedSuite) {
-            return 0;
-        }
-
-        const applicable =
-            selectedSuite.totalTestCases -
-            selectedSuite.outcomeCounts.NotApplicable;
-
-        return applicable
-            ? Math.round(
-                  (selectedSuite.outcomeCounts.Passed / applicable) * 1000
-              ) / 10
-            : 0;
-    })();
-
-    const suiteExecutionRate =
-        selectedSuite && selectedSuite.totalTestCases
-            ? Math.round(
-                  ((selectedSuite.totalTestCases -
-                      selectedSuite.outcomeCounts.NotRun -
-                      selectedSuite.outcomeCounts.NotApplicable) /
-                      selectedSuite.totalTestCases) *
-                      1000
-              ) / 10
-            : 0;
+    const {
+        passRate: suitePassRate,
+        passRateExclNA: suitePassRateExclNA,
+        executionRate: suiteExecutionRate,
+    } = selectedSuite
+        ? computeRates(selectedSuite.totalTestCases, selectedSuite.outcomeCounts)
+        : ZERO_RATES;
 
     const selectedSuiteOutcomeChartData = selectedSuite
-        ? (Object.keys(selectedSuite.outcomeCounts) as Outcome[]).map(
-              (outcome) => ({
-                  outcome,
-                  count: selectedSuite.outcomeCounts[outcome],
-              })
-          )
+        ? outcomeCountsToChartData(selectedSuite.outcomeCounts)
         : [];
 
     const handleExportPdf = async () => {
@@ -372,31 +411,16 @@ export function PlanOverviewPage() {
         setIsExporting(true);
 
         try {
-            const captured = await Promise.all([
-                captureChartImage(
-                    outcomeChartRef.current,
-                    t("planOverviewPage.charts.outcomeBreakdown")
-                ),
-                captureChartImage(
-                    suiteChartRef.current,
-                    t("planOverviewPage.charts.testsBySuite")
-                ),
-                data.bugsByState.length > 0
-                    ? captureChartImage(
-                          bugStateChartRef.current,
-                          t("planOverviewPage.charts.bugsByState")
-                      )
-                    : Promise.resolve(null),
-                bugsBySuiteData.length > 0
-                    ? captureChartImage(
-                          bugsBySuiteChartRef.current,
-                          t("planOverviewPage.charts.bugsBySuite")
-                      )
-                    : Promise.resolve(null),
-            ]);
-
-            const charts = captured.filter(
-                (chart): chart is ChartImage => chart !== null
+            const charts = await captureOverviewCharts(
+                {
+                    outcome: outcomeChartRef.current,
+                    suite: suiteChartRef.current,
+                    bugState: bugStateChartRef.current,
+                    bugsBySuite: bugsBySuiteChartRef.current,
+                },
+                data,
+                bugsBySuiteData,
+                t
             );
 
             if (selectedSuite) {
@@ -492,31 +516,16 @@ export function PlanOverviewPage() {
             return;
         }
 
-        const captured = await Promise.all([
-            captureChartImage(
-                outcomeChartRef.current,
-                t("planOverviewPage.charts.outcomeBreakdown")
-            ),
-            captureChartImage(
-                suiteChartRef.current,
-                t("planOverviewPage.charts.testsBySuite")
-            ),
-            data.bugsByState.length > 0
-                ? captureChartImage(
-                      bugStateChartRef.current,
-                      t("planOverviewPage.charts.bugsByState")
-                  )
-                : Promise.resolve(null),
-            bugsBySuiteData.length > 0
-                ? captureChartImage(
-                      bugsBySuiteChartRef.current,
-                      t("planOverviewPage.charts.bugsBySuite")
-                  )
-                : Promise.resolve(null),
-        ]);
-
-        const charts = captured.filter(
-            (chart): chart is ChartImage => chart !== null
+        const charts = await captureOverviewCharts(
+            {
+                outcome: outcomeChartRef.current,
+                suite: suiteChartRef.current,
+                bugState: bugStateChartRef.current,
+                bugsBySuite: bugsBySuiteChartRef.current,
+            },
+            data,
+            bugsBySuiteData,
+            t
         );
 
         const pdfBase64 = buildPlanOverviewPdfBase64(data, charts);

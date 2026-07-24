@@ -369,11 +369,8 @@
                 "actionsTitle": "Actions Required",
                 "exportButton": "Export Status Card",
                 "downloadHtmlButton": "Download HTML",
-                "downloadPptxButton": "Download PPTX",
-                "pptxTheme": {
-                    "light": "PPTX theme: Light",
-                    "dark": "PPTX theme: Dark"
-                },
+                "copyHtmlButton": "Copy for Email/Teams",
+                "copyHtmlButtonCopied": "Copied!",
                 "openDashboard": "Open monitoring dashboard",
                 "casesCount": "{{count}} cases",
                 "executed": "executed",

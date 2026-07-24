@@ -14,9 +14,10 @@ import {
 } from "@fluentui/react-components";
 import {
     ArrowDownloadRegular,
+    ClipboardCheckmarkRegular,
+    ClipboardRegular,
     CodeTextRegular,
     MailRegular,
-    SlideContentRegular,
 } from "@fluentui/react-icons";
 import { ChartCard } from "./ChartCard";
 import { StatusReportCard } from "./StatusReportCard";
@@ -25,11 +26,10 @@ import { fetchPlanOverview, fetchPlans, sendEmailReport } from "../api/client";
 import {
     buildStatusReportCardEmailBodyHtml,
     buildStatusReportCardFilename,
+    copyStatusReportCardEmailHtmlToClipboard,
     downloadStatusReportCardEmailHtml,
-    downloadStatusReportCardPptx,
     exportStatusReportCardToPdf,
 } from "../utils/export";
-import type { StatusReportCardTheme } from "../utils/export";
 import type { DefectStats, Outcome } from "../types";
 
 const MONITORING_DASHBOARD_URL =
@@ -178,8 +178,7 @@ export function SprintDefectReportTab({
         AUTO_SUITE_GROUP_DEFS.map((def) => def.label)
     );
     const [isExportingCard, setIsExportingCard] = useState(false);
-    const [isExportingPptx, setIsExportingPptx] = useState(false);
-    const [pptxTheme, setPptxTheme] = useState<StatusReportCardTheme>("light");
+    const [isCopied, setIsCopied] = useState(false);
     // Off by default: the Test Factory/Test Agenti/Business breakdown is
     // still being validated, so regular report sends shouldn't include it
     // until someone opts in for a given card.
@@ -369,28 +368,23 @@ export function SprintDefectReportTab({
         );
     };
 
-    const handleDownloadStatusCardPptx = async () => {
-        setIsExportingPptx(true);
+    const handleCopyStatusCardHtml = async () => {
+        await copyStatusReportCardEmailHtmlToClipboard(
+            {
+                headerTitle,
+                headerSubtitle,
+                suiteGroups,
+                report,
+                alertText,
+                actionsText,
+                dashboardUrl: MONITORING_DASHBOARD_URL,
+                showOriginBreakdown,
+            },
+            t
+        );
 
-        try {
-            await downloadStatusReportCardPptx(
-                buildStatusReportCardFilename(headerTitle, "pptx"),
-                {
-                    headerTitle,
-                    headerSubtitle,
-                    suiteGroups,
-                    report,
-                    alertText,
-                    actionsText,
-                    dashboardUrl: MONITORING_DASHBOARD_URL,
-                    showOriginBreakdown,
-                },
-                t,
-                pptxTheme
-            );
-        } finally {
-            setIsExportingPptx(false);
-        }
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
     };
 
     const emailReportMutation = useMutation({
@@ -572,26 +566,21 @@ export function SprintDefectReportTab({
 
                 <Button
                     appearance="secondary"
-                    icon={<SlideContentRegular />}
-                    disabled={isExportingPptx}
-                    onClick={handleDownloadStatusCardPptx}
-                >
-                    {isExportingPptx
-                        ? t("planOverviewPage.exporting")
-                        : t(
-                            "defectManagementPage.sprintReport.statusCard.downloadPptxButton"
-                        )}
-                </Button>
-
-                <Switch
-                    checked={pptxTheme === "dark"}
-                    onChange={(_, data) =>
-                        setPptxTheme(data.checked ? "dark" : "light")
+                    icon={
+                        isCopied ? (
+                            <ClipboardCheckmarkRegular />
+                        ) : (
+                            <ClipboardRegular />
+                        )
                     }
-                    label={t(
-                        `defectManagementPage.sprintReport.statusCard.pptxTheme.${pptxTheme}`
+                    onClick={handleCopyStatusCardHtml}
+                >
+                    {t(
+                        isCopied
+                            ? "defectManagementPage.sprintReport.statusCard.copyHtmlButtonCopied"
+                            : "defectManagementPage.sprintReport.statusCard.copyHtmlButton"
                     )}
-                />
+                </Button>
 
                 <Switch
                     checked={showOriginBreakdown}

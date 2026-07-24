@@ -491,7 +491,7 @@ function computeTrend(
             (week) =>
                 new Date(week) >= twelveWeeksAgo
         )
-        .sort();
+        .sort((a, b) => a.localeCompare(b));
 
     let openTotal = 0;
 
@@ -1091,11 +1091,11 @@ function computeAvailableFilters(
     }
 
     return {
-        iterations: [...iterations].sort(),
-        areas: [...areas].sort(),
-        environments: [...environments].sort(),
+        iterations: [...iterations].sort((a, b) => a.localeCompare(b)),
+        areas: [...areas].sort((a, b) => a.localeCompare(b)),
+        environments: [...environments].sort((a, b) => a.localeCompare(b)),
         targetVersions: [],
-        suites: [...suites].sort(),
+        suites: [...suites].sort((a, b) => a.localeCompare(b)),
     };
 }
 
@@ -1151,7 +1151,7 @@ export async function getAllSuiteNames(): Promise<string[]> {
         }
     }
 
-    const data = [...suites].sort();
+    const data = [...suites].sort((a, b) => a.localeCompare(b));
 
     suiteNamesCache = { data, timestamp: now };
 
