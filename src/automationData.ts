@@ -295,7 +295,7 @@ export function computeAutomationDashboard(
                 .filter(
                     (d): d is string => Boolean(d)
                 )
-                .sort()
+                .sort((a, b) => a.localeCompare(b))
                 .pop();
 
             flakyTestRanking.push({
