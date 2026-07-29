@@ -1,0 +1,7 @@
+# GHSA-qwww-vcr4-c8h2 (react-router, via react-router-dom@7.18.0): CSRF bypass
+# in "unstable RSC" (React Server Components) code paths only. This app is a
+# Vite SPA using react-router-dom with BrowserRouter and does not use any
+# unstable_RSC APIs, so it is not exploitable here. Fixed version (8.3.0)
+# requires migrating off react-router-dom (merged into react-router in v8).
+# Revisit when doing a planned react-router major-version upgrade.
+GHSA-qwww-vcr4-c8h2
