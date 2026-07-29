@@ -446,6 +446,9 @@ export const StatusReportCard = forwardRef<
     const passRate = totalDecided
         ? Math.round((totalPassed / totalDecided) * 100)
         : 0;
+    const notApplicableRate = totalTestCases
+        ? Math.round((totalNotApplicable / totalTestCases) * 100)
+        : 0;
 
     // Bug status covers ALL detected bugs (including out-of-scope ones -
     // they still need to be tracked to closure), so this and "still open"
@@ -674,6 +677,16 @@ export const StatusReportCard = forwardRef<
                     <span className={styles.kpiLabel}>
                         {t(
                             "defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"
+                        )}
+                    </span>
+                </div>
+                <div className={styles.kpiTile}>
+                    <span className={styles.kpiValue} style={{ color: "#8a8886" }}>
+                        {notApplicableRate}%
+                    </span>
+                    <span className={styles.kpiLabel}>
+                        {t(
+                            "defectManagementPage.sprintReport.statusCard.kpis.notApplicableRate"
                         )}
                     </span>
                 </div>

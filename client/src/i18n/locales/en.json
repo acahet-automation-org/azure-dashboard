@@ -405,7 +405,8 @@
                     "avgClosureTime": "Average Bug Closure Time",
                     "effectiveBugsDetected": "Effective Bugs Detected",
                     "outOfScopeBugsDetected": "Out of Scope Bugs",
-                    "withoutResolutionDate": "Bugs Without Resolution Date"
+                    "withoutResolutionDate": "Bugs Without Resolution Date",
+                    "notApplicableRate": "N/A Test Cases"
                 },
                 "originBreakdown": {
                     "title": "Bugs by Suite",

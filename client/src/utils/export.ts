@@ -1034,6 +1034,7 @@ const LIGHT_KPI = [
     { bg: "#f6effa", accent: "#6b3fa0" },
     { bg: "#f3f4f6", accent: "#4b5563" },
     { bg: "#eceef0", accent: "#78716c" },
+    { bg: "#eef1f2", accent: "#5f6b7a" },
 ];
 const LIGHT_ACTION_PALETTE = [
     { bg: "#fff8e6", border: "#f0a500" },
@@ -1053,6 +1054,7 @@ const PPTX_KPI = [
     { bg: "#e9d9f2", accent: "#6b3fa0" },
     { bg: "#e2e4e8", accent: "#4b5563" },
     { bg: "#e5e3e0", accent: "#78716c" },
+    { bg: "#d9dee3", accent: "#5f6b7a" },
 ];
 const PPTX_ACTION_PALETTE = [
     { bg: "#fceeba", border: "#f0a500" },
@@ -1290,6 +1292,9 @@ export function buildStatusReportCardEmailBodyHtml(
     const passRate = totalDecided
         ? Math.round((totalPassed / totalDecided) * 100)
         : 0;
+    const notApplicableRate = totalTestCases
+        ? Math.round((totalNotApplicable / totalTestCases) * 100)
+        : 0;
 
     const bugsClosed = report.byStatusAll.Closed ?? 0;
     const bugsClosedPct = report.total
@@ -1489,7 +1494,12 @@ export function buildStatusReportCardEmailBodyHtml(
                 t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected")
             )
             : "") +
-        `<td width="16.66%"></td><td width="16.66%"></td><td width="16.66%"></td>` +
+        lightKpiTile(
+            `${notApplicableRate}%`,
+            9,
+            t("defectManagementPage.sprintReport.statusCard.kpis.notApplicableRate")
+        ) +
+        `<td width="16.66%"></td><td width="16.66%"></td>` +
         (report.outOfScopeCount > 0 ? "" : `<td width="16.66%"></td>`) +
         `</tr></table>`;
 
@@ -1625,11 +1635,23 @@ export function buildStatusReportCardEmailBodyHtml(
 // in a browser - the intended flow is: open the file, select-all, copy, then
 // paste into the email client's rich-text compose box, which carries the
 // table markup/inline styles over as real HTML rather than plain text.
-function buildStatusReportCardEmailDocument(bodyHtml: string): string {
+//
+// The color-scheme/supported-color-schemes meta pair is what actually keeps
+// this light-palette card light once it lands in an inbox: Gmail and
+// Outlook.com both auto-recolor HTML email that doesn't declare a scheme,
+// repainting the near-white backgrounds/dark text here as if they were
+// unstyled - inline bgcolor/style alone (all this markup had before) doesn't
+// stop that. Declaring "light" opts the whole message out of that
+// auto-darkening. This must wrap whatever HTML actually gets sent/saved, not
+// just the in-app preview - buildStatusReportCardEmailBodyHtml's return value
+// is a bare <table> fragment with no <head> of its own to carry these tags.
+export function buildStatusReportCardEmailDocument(bodyHtml: string): string {
     return (
         `<!doctype html>` +
         `<html><head><meta charset="utf-8" />` +
         `<meta name="viewport" content="width=device-width, initial-scale=1" />` +
+        `<meta name="color-scheme" content="light" />` +
+        `<meta name="supported-color-schemes" content="light" />` +
         `<title>Sprint Status Card</title></head>` +
         `<body style="margin:0;padding:0;">${bodyHtml}</body></html>`
     );
@@ -1790,6 +1812,9 @@ export function buildStatusReportCardPdfDocument(
     const passRate = totalDecided
         ? Math.round((totalPassed / totalDecided) * 100)
         : 0;
+    const notApplicableRate = totalTestCases
+        ? Math.round((totalNotApplicable / totalTestCases) * 100)
+        : 0;
 
     const bugsClosed = report.byStatusAll.Closed ?? 0;
     const bugsClosedPct = report.total
@@ -1873,6 +1898,11 @@ export function buildStatusReportCardPdfDocument(
                 },
             ]
             : []),
+        {
+            kpi: LIGHT_KPI[9],
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.notApplicableRate"),
+            value: `${notApplicableRate}%`,
+        },
     ];
 
     autoTable(doc, {
@@ -2691,6 +2721,9 @@ export async function exportStatusReportCardToPptx(
     );
     const totalDecided = totalTestCases - totalNotApplicable;
     const passRate = totalDecided ? Math.round((totalPassed / totalDecided) * 100) : 0;
+    const notApplicableRate = totalTestCases
+        ? Math.round((totalNotApplicable / totalTestCases) * 100)
+        : 0;
 
     const bugsClosed = report.byStatusAll.Closed ?? 0;
     const bugsClosedPct = report.total ? Math.round((bugsClosed / report.total) * 100) : 0;
@@ -2782,6 +2815,10 @@ export async function exportStatusReportCardToPptx(
                 },
             ]
             : []),
+        {
+            value: `${notApplicableRate}%`,
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.notApplicableRate"),
+        },
     ];
 
     row2KpiDefs.forEach((kpi, index) => {

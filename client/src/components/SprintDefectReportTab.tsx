@@ -26,6 +26,7 @@ import type { SuiteProgressGroup } from "./StatusReportCard";
 import { fetchPlanOverview, fetchPlans, sendEmailReport } from "../api/client";
 import {
     buildStatusReportCardEmailBodyHtml,
+    buildStatusReportCardEmailDocument,
     buildStatusReportCardFilename,
     copyStatusReportCardEmailHtmlToClipboard,
     downloadStatusReportCardEmailHtml,
@@ -452,7 +453,9 @@ export function SprintDefectReportTab({
             includeDsiSource,
         };
 
-        const bodyHtml = buildStatusReportCardEmailBodyHtml(cardData, t);
+        const bodyHtml = buildStatusReportCardEmailDocument(
+            buildStatusReportCardEmailBodyHtml(cardData, t)
+        );
 
         emailReportMutation.mutate({
             subject: headerTitle,

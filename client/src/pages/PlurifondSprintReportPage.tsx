@@ -87,7 +87,10 @@ export function PlurifondSprintReportPage() {
                         defaultHeaderTitle="Test Funzionali - Plurifonds"
                         defaultHeaderSubtitle="Stato avanzamento test funzionali – Plurifonds"
                         defaultActionsText={(report) =>
-                            `System Integrator: inserire entro la giornata di oggi le date di risoluzione previste per i ${report.total} bug aperti.\n\n` +
+                            `System Integrator: inserire entro la giornata di oggi le date di risoluzione previste per i ${report.effectiveCount} bug aperti.\n` +
+                            (report.outOfScopeCount > 0
+                                ? `* escluso${report.outOfScopeCount > 1 ? "i" : ""} ${report.outOfScopeCount} bug segnalat${report.outOfScopeCount > 1 ? "i" : "o"} come fuori ambito.\n\n`
+                                : "") +
                             "Test funzionali: Avviati i test funzionali per Plurifonds in data 27/07: Rilevato un numero significativo di test case non eseguibili, poiché associati a funzionalità non ancora rilasciate ma incluse nel piano di test condiviso.\n\n"
                         }
                         includeDsiSource={false}
