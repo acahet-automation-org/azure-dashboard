@@ -23,6 +23,7 @@ import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { ProgressSummaryCards } from "../components/ProgressSummaryCards";
 import { BugsTable } from "../components/BugsTable";
+import { IterationFilter } from "../components/IterationFilter";
 import {
     fetchPlans,
     fetchPlanProgress,
@@ -92,6 +93,7 @@ export function PlanProgressPage() {
         number | undefined
     >(undefined);
     const [selectedSuiteIds, setSelectedSuiteIds] = useState<number[]>([]);
+    const [iteration, setIteration] = useState("");
     const [isExporting, setIsExporting] = useState(false);
 
     const runChartRef = useRef<HTMLDivElement>(null);
@@ -118,6 +120,10 @@ export function PlanProgressPage() {
             fetchPlanProgressBugs(selectedPlanId!, selectedSuiteIds),
         enabled: selectedPlanId != null,
     });
+
+    const plansInIteration = iteration
+        ? plans?.filter((p) => p.iteration === iteration)
+        : plans;
 
     const selectedPlanName = plans?.find(
         (p) => p.id === selectedPlanId
@@ -268,6 +274,17 @@ export function PlanProgressPage() {
             )}
 
             <div className={styles.toolbar}>
+                <IterationFilter
+                    value={iteration}
+                    onChange={(value) => {
+                        setIteration(value);
+                        setSelectedPlanId(undefined);
+                        setSelectedSuiteIds([]);
+                        emailReportMutation.reset();
+                    }}
+                    className={styles.filterField}
+                />
+
                 <Field
                     label={t("planProgressPage.planFilter.label")}
                     className={styles.filterField}
@@ -293,7 +310,7 @@ export function PlanProgressPage() {
                             emailReportMutation.reset();
                         }}
                     >
-                        {plans?.map((plan) => (
+                        {plansInIteration?.map((plan) => (
                             <Option key={plan.id} value={String(plan.id)}>
                                 {plan.name}
                             </Option>

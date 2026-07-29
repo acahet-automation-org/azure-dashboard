@@ -232,11 +232,11 @@ interface TestCaseLookups {
     suiteByTitle: Map<string, string>;
 }
 
-// Bugs are rarely tagged with a real sprint themselves (System.IterationPath
-// mostly defaults to the project/team root), so the sprint shown for a bug
-// is instead borrowed from the Test Plan of the test case it's linked to -
-// that's where this project's actual sprint assignments live. Also builds
-// the title/suite lookups buildDefectRecord uses to resolve a Test
+// A bug's own System.IterationPath is preferred (see isSpecificIterationPath
+// in buildDefectRecord) - this lookup only backs the fallback for a bug left
+// on the project/team root with no sprint set, borrowing the sprint from the
+// Test Plan of the test case it's linked to instead. Also builds the
+// title/suite lookups buildDefectRecord uses to resolve a Test
 // Agenti/Business bug's real suite (see DUPLICATE_SUITE_ORIGINS).
 //
 // Keyed by test case ID rather than bug ID so lookups can be driven off the
@@ -277,6 +277,14 @@ async function getTestCaseLookups(): Promise<TestCaseLookups> {
     return { iterationByTestCase, titleByTestCase, suiteByTitle };
 }
 
+// A root-only value (just the project/team name, no "\" segment beneath it)
+// means the bug was never actually assigned to a sprint - anything deeper is
+// a real, specific sprint assignment Azure DevOps put there directly on the
+// bug, which is more trustworthy than borrowing one from a linked test case.
+function isSpecificIterationPath(path: unknown): path is string {
+    return typeof path === "string" && path.includes("\\");
+}
+
 async function buildDefectRecord(
     bug: any,
     lookups: TestCaseLookups
@@ -286,8 +294,6 @@ async function buildDefectRecord(
             getWorkItemRevisions(bug.id),
             getLinkedTestCaseIds(bug.id),
         ]);
-
-    let iterationPath: string | undefined;
 
     // Custom.Suite is the sole source for a bug's suite - no more borrowing
     // from a linked test case's suite, since that fallback used a different
@@ -299,8 +305,19 @@ async function buildDefectRecord(
         bug.fields["Custom.Suite"]
     );
 
-    for (const tcId of linkedTestCaseIds) {
-        iterationPath ??= lookups.iterationByTestCase.get(tcId);
+    // Prefer the bug's own System.IterationPath - only fall back to the
+    // linked test case's Test Plan iteration when the bug itself was left
+    // untagged (see isSpecificIterationPath).
+    let iterationPath: string | undefined = isSpecificIterationPath(
+        bug.fields["System.IterationPath"]
+    )
+        ? bug.fields["System.IterationPath"]
+        : undefined;
+
+    if (!iterationPath) {
+        for (const tcId of linkedTestCaseIds) {
+            iterationPath ??= lookups.iterationByTestCase.get(tcId);
+        }
     }
 
     // Test Agenti/Business test cases are duplicates of Test Factory ones
@@ -356,6 +373,8 @@ async function buildDefectRecord(
             ],
         changedDate:
             bug.fields["System.ChangedDate"],
+        estimatedResolutionDate:
+            bug.fields["Custom.EstimatedResolutionDate"],
         reopenedCount: countReopenings(revisions),
         hasLinkedTestCase: linkedTestCaseIds.length > 0,
         url: buildWorkItemUrl(bug.id),
@@ -859,6 +878,9 @@ export function computeSprintDefectReport(
         })),
         reopenedCount: records.filter((r) => r.reopenedCount > 0).length,
         mttrDays: computeMttrDays(records),
+        withoutResolutionDateCount: records.filter(
+            (r) => !r.estimatedResolutionDate
+        ).length,
     };
 }
 

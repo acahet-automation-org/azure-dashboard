@@ -100,14 +100,24 @@ app.get("/api/suites", async (_, res) => {
     }
 });
 
-app.get("/api/dashboard", async (_, res) => {
+app.get("/api/dashboard", async (req, res) => {
     try {
         const allTestCases =
             await getDashboardData();
 
+        const iteration = req.query.iteration as
+            | string
+            | undefined;
+
+        const scoped = iteration
+            ? allTestCases.filter(
+                  (tc) => tc.iteration === iteration
+              )
+            : allTestCases;
+
         res.json({
             stats: computeDashboardStats(
-                allTestCases
+                scoped
             ),
             cacheTimestamp: getCacheTimestamp(),
         });
@@ -204,7 +214,7 @@ app.get("/api/plans/:planId/progress/bugs", async (req, res) => {
     }
 });
 
-app.get("/api/release-readiness", async (_, res) => {
+app.get("/api/release-readiness", async (req, res) => {
     if (process.env.ENABLE_RELEASE_READINESS !== "true") {
         res.status(403).json({
             message: "Release readiness is disabled.",
@@ -214,7 +224,11 @@ app.get("/api/release-readiness", async (_, res) => {
     }
 
     try {
-        res.json(await computeReleaseReadiness());
+        res.json(
+            await computeReleaseReadiness(
+                req.query.iteration as string | undefined
+            )
+        );
     } catch (error: any) {
         console.error(error);
 
@@ -285,12 +299,16 @@ app.post("/api/test-cases/delete", async (req, res) => {
 app.get("/api/automation", async (req, res) => {
     try {
         const planId = Number(req.query.planId);
+        const iteration = req.query.iteration as
+            | string
+            | undefined;
 
         res.json(
             await getAutomationDashboard(
                 Number.isFinite(planId)
                     ? planId
-                    : undefined
+                    : undefined,
+                iteration
             )
         );
     } catch (error: any) {

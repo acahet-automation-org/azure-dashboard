@@ -115,8 +115,14 @@ export function fetchSuites(): Promise<
     return getJson("/api/suites");
 }
 
-export function fetchDashboard(): Promise<DashboardResponse> {
-    return getJson("/api/dashboard");
+export function fetchDashboard(
+    iteration?: string
+): Promise<DashboardResponse> {
+    const qs = iteration
+        ? `?iteration=${encodeURIComponent(iteration)}`
+        : "";
+
+    return getJson(`/api/dashboard${qs}`);
 }
 
 export function fetchRuns(): Promise<RunCard[]> {
@@ -159,11 +165,17 @@ export function fetchPlanProgressBugs(
 }
 
 export function fetchAutomationDashboard(
-    planId?: number
+    planId?: number,
+    iteration?: string
 ): Promise<AutomationDashboardResponse> {
-    const qs = planId != null ? `?planId=${planId}` : "";
+    const params = new URLSearchParams();
 
-    return getJson(`/api/automation${qs}`);
+    if (planId != null) params.set("planId", String(planId));
+    if (iteration) params.set("iteration", iteration);
+
+    const qs = params.toString();
+
+    return getJson(`/api/automation${qs ? `?${qs}` : ""}`);
 }
 
 export function fetchExecutionTrend(): Promise<ExecutionTrendResponse> {
@@ -186,8 +198,14 @@ export function fetchDefects(
     return getJson(`/api/defects${qs ? `?${qs}` : ""}`);
 }
 
-export function fetchReleaseReadiness(): Promise<ReleaseReadinessResponse> {
-    return getJson("/api/release-readiness");
+export function fetchReleaseReadiness(
+    iteration?: string
+): Promise<ReleaseReadinessResponse> {
+    const qs = iteration
+        ? `?iteration=${encodeURIComponent(iteration)}`
+        : "";
+
+    return getJson(`/api/release-readiness${qs}`);
 }
 
 export function fetchNavBadges(): Promise<NavBadgesResponse> {

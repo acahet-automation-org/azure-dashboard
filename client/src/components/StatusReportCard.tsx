@@ -161,8 +161,15 @@ const useStyles = makeStyles({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
+        justifyContent: "center",
         gap: "2px",
         padding: "10px 6px",
+        // Fixed rather than content-sized so the second-row tile (alone,
+        // with a single-line label) matches the height that row 1's grid
+        // row is stretched to by its tallest tile (avgClosureTime's
+        // two-line label) - otherwise it'd render visibly shorter.
+        minHeight: "64px",
+        boxSizing: "border-box",
         borderRadius: "6px",
         backgroundColor: "#2d2d2d",
         textAlign: "center",
@@ -182,6 +189,8 @@ const useStyles = makeStyles({
     },
     dashboardButton: {
         display: "flex",
+        width: "100%",
+        boxSizing: "border-box",
         alignItems: "center",
         justifyContent: "center",
         gap: "6px",
@@ -377,6 +386,10 @@ export interface StatusReportCardProps {
     // still being validated, so existing report sends stay unaffected
     // unless someone opts in for a given card.
     showOriginBreakdown?: boolean;
+    // On by default (bugs are tracked in DSI org-wide) - Plurifond has no
+    // DSI-sourced bugs yet, so its report sets this to false to keep the
+    // subtitle from claiming a source that doesn't apply.
+    includeDsiSource?: boolean;
 }
 
 export const StatusReportCard = forwardRef<
@@ -393,6 +406,7 @@ export const StatusReportCard = forwardRef<
         dashboardUrl,
         dashboardLinkRef,
         showOriginBreakdown = false,
+        includeDsiSource = true,
     },
     ref
 ) {
@@ -498,7 +512,7 @@ export const StatusReportCard = forwardRef<
 
     const bugSources = [
         ...suiteGroups.map((group) => group.label),
-        "DSI",
+        ...(includeDsiSource ? ["DSI"] : []),
     ].join(", ");
 
     const originPanels = [
@@ -622,6 +636,26 @@ export const StatusReportCard = forwardRef<
                         )}
                     </span>
                 </div>
+                <div className={styles.kpiTile}>
+                    <span className={styles.kpiValue} style={{ color: "#b180d7" }}>
+                        {report.total}
+                    </span>
+                    <span className={styles.kpiLabel}>
+                        {t(
+                            "defectManagementPage.sprintReport.statusCard.kpis.totalBugsDetected"
+                        )}
+                    </span>
+                </div>
+                <div className={styles.kpiTile}>
+                    <span className={styles.kpiValue} style={{ color: "#8a8886" }}>
+                        {report.withoutResolutionDateCount}
+                    </span>
+                    <span className={styles.kpiLabel}>
+                        {t(
+                            "defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"
+                        )}
+                    </span>
+                </div>
             </div>
 
             {dashboardUrl && (
@@ -641,6 +675,7 @@ export const StatusReportCard = forwardRef<
             {actionParagraphs.length > 0 && (
                 <div className={styles.section}>
                     <span className={styles.sectionTitle}>
+                        📌{" "}
                         {t(
                             "defectManagementPage.sprintReport.statusCard.actionsTitle"
                         )}
@@ -669,6 +704,7 @@ export const StatusReportCard = forwardRef<
 
             <div className={styles.section}>
                 <span className={styles.sectionTitle}>
+                    📈{" "}
                     {t(
                         "defectManagementPage.sprintReport.statusCard.suiteProgressTitle"
                     )}

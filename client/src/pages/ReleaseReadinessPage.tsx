@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
@@ -15,6 +16,7 @@ import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { StatCard } from "../components/StatCard";
 import { BugsTable } from "../components/BugsTable";
+import { IterationFilter } from "../components/IterationFilter";
 import { fetchReleaseReadiness } from "../api/client";
 import type { RagStatus, ReleaseGateCriterion } from "../types";
 
@@ -151,14 +153,17 @@ function PassRateDeltaValue({
 export function ReleaseReadinessPage() {
     const styles = useStyles();
     const { t } = useTranslation();
+    const [iteration, setIteration] = useState("");
 
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["release-readiness"],
-        queryFn: fetchReleaseReadiness,
+        queryKey: ["release-readiness", iteration],
+        queryFn: () => fetchReleaseReadiness(iteration || undefined),
     });
 
     return (
         <PageLayout title={t("releaseReadinessPage.title")}>
+            <IterationFilter value={iteration} onChange={setIteration} />
+
             {isLoading && <LoadingCardGrid count={3} />}
 
             {isError && <ErrorState message={error.message} onRetry={refetch} />}
@@ -287,6 +292,18 @@ export function ReleaseReadinessPage() {
                                           )
                                 }
                                 value={data.completion.notExecutedCount}
+                            />
+                            <StatCard
+                                label={t(
+                                    "releaseReadinessPage.stats.notApplicable"
+                                )}
+                                value={data.completion.notApplicableCount}
+                            />
+                            <StatCard
+                                label={t(
+                                    "releaseReadinessPage.gate.criteria.testCaseRelevance.label"
+                                )}
+                                value={`${data.completion.testCaseRelevancePct}%`}
                             />
                             <StatCard
                                 label={t(

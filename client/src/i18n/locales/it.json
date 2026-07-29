@@ -16,6 +16,7 @@
         "execution": "Esecuzione Test",
         "defects": "Gestione Difetti",
         "sprintReport": "Report Sprint",
+        "plurifondSprintReport": "Report Sprint Plurifond",
         "commonErrors": "Errori Comuni",
         "myWorkItems": "I Miei Elementi",
         "removeTestCases": "Rimuovi Test Case",
@@ -366,8 +367,9 @@
                 "alertTemplate_other": "Chiusura finestra UAT: {{date}} - restano {{count}} giorni lavorativi. È richiesto al System Integrator il piano date di risoluzione dei bug aperti (dettaglio sotto).",
                 "actionsLabel": "Azioni richieste (opzionale)",
                 "actionsPlaceholder": "Un'azione per paragrafo, separate da una riga vuota",
-                "actionsTitle": "Azioni Richieste",
+                "actionsTitle": "Azioni Richieste - evidenze",
                 "exportButton": "Esporta Scheda Stato",
+                "exportPptxButton": "Esporta come PPTX",
                 "downloadHtmlButton": "Scarica HTML",
                 "copyHtmlButton": "Copia per Email/Teams",
                 "copyHtmlButtonCopied": "Copiato!",
@@ -394,12 +396,14 @@
                 "severityCaption": "Distribuzione per severity dei {{count}} bug effettivi",
                 "openSeverityCaption": "Distribuzione per severity dei {{count}} bug ancora aperti",
                 "kpis": {
-                    "totalTestCases": "Casi di Test Totali\n(Test Factory, Business, Agenti)",
-                    "passRate": "Pass Rate\n(Test Factory, Business, Agenti)",
+                    "totalTestCases": "Casi di Test Totali",
+                    "passRate": "Pass Rate",
                     "bugsClosed": "Bug Chiusi ({{percent}}%)",
                     "criticalBugs": "Bug Critici",
                     "reopenedBugs": "Bug riaperti ({{percent}}%)",
-                    "avgClosureTime": "Tempo medio chiusura bug (gg)"
+                    "avgClosureTime": "Tempo medio chiusura\nbug (gg)",
+                    "totalBugsDetected": "Totale Bug Rilevati",
+                    "withoutResolutionDate": "Bug Senza Data di Risoluzione"
                 },
                 "originBreakdown": {
                     "title": "Bug per Suite",
@@ -414,6 +418,9 @@
     },
     "sprintReportPage": {
         "title": "Report Sprint"
+    },
+    "plurifondSprintReportPage": {
+        "title": "Report Sprint Plurifond"
     },
     "commonErrorsPage": {
         "title": "Errori Comuni",
@@ -645,6 +652,7 @@
             "executedOfPlanned": "Eseguiti / Pianificati",
             "carryOver": "Test Case Riportati allo Sprint Successivo",
             "notYetExecuted": "Non Ancora Eseguiti",
+            "notApplicable": "Non Applicabili",
             "passRateDelta": "Tasso di Successo vs. Sprint Precedente",
             "blockingDefects": "Difetti Bloccanti (Critici/Alti)"
         },

@@ -111,6 +111,7 @@ export interface AutomationTestCaseRow {
     planId: number;
     planName: string;
     areaPath: string;
+    iteration?: string;
     suiteName: string;
     isAutomated: boolean;
 }
@@ -249,6 +250,7 @@ export interface DefectRecord {
     createdDate: string;
     closedDate?: string;
     changedDate: string;
+    estimatedResolutionDate?: string;
     reopenedCount: number;
     hasLinkedTestCase: boolean;
     tags: string[];
@@ -316,6 +318,9 @@ export interface SprintDefectReport {
     // out-of-scope bugs too.
     reopenedCount: number;
     mttrDays: number | null;
+    // Also scoped to ALL detected bugs (like total/byStatusAll) - a bug
+    // still needs an estimated resolution date whether or not it's in-scope.
+    withoutResolutionDateCount: number;
 }
 
 export interface DefectFilterOptions {
@@ -450,7 +455,10 @@ export interface DeleteTestCasesResult {
 }
 
 export interface SprintInfo {
-    id: number;
+    // A hand-maintained sprint from sprints.ts has a numeric id; a sprint
+    // derived from a real Azure DevOps iteration (see releaseReadinessData's
+    // iteration-scoped path) uses its iteration path as an opaque id instead.
+    id: number | string;
     name: string;
     startDate: string;
     endDate: string;
@@ -496,8 +504,19 @@ export interface ReleaseGateSummary {
 
 export interface SprintCompletion {
     plannedCount: number;
+    // Includes notApplicableCount below - a Not Applicable test case was
+    // still assessed by a tester, just found out-of-scope, so it counts as
+    // executed the same as a Passed/Failed/Blocked one. Only notExecutedCount
+    // (never run at all) is excluded, so plannedCount == executedCount +
+    // notExecutedCount.
     executedCount: number;
     notExecutedCount: number;
+    // Subset of executedCount marked out-of-scope for the release.
+    notApplicableCount: number;
+    // notApplicableCount as a % of plannedCount - same figure as the
+    // testCaseRelevance gate criterion's `actual`, surfaced here too for the
+    // Sprint Metrics stat row.
+    testCaseRelevancePct: number;
     completionRatePct: number;
     carryOverCount: number;
 }
@@ -517,6 +536,7 @@ export interface BlockingDefect {
     state: string;
     url?: string;
     creator?: string;
+    assignee?: { displayName: string; uniqueName: string };
 }
 
 export interface BlockingDefectsSummary {
