@@ -952,12 +952,13 @@ export interface StatusReportCardEmailData {
 
 const EMAIL_CARD_WIDTH = 900;
 
-const EMAIL_STATUS_ORDER = ["Closed", "Resolved", "In Progress", "New"];
+const EMAIL_STATUS_ORDER = ["Closed", "Resolved", "In Progress", "New", "Not Applicable"];
 const EMAIL_STATUS_LABEL_KEYS: Record<string, string> = {
     Closed: "closed",
     Resolved: "resolved",
     "In Progress": "inProgress",
     New: "new",
+    "Not Applicable": "notApplicable",
 };
 
 const EMAIL_OUTCOME_ORDER: Outcome[] = [
@@ -1032,6 +1033,7 @@ const LIGHT_KPI = [
     { bg: "#eef0fa", accent: "#3730a3" },
     { bg: "#f6effa", accent: "#6b3fa0" },
     { bg: "#f3f4f6", accent: "#4b5563" },
+    { bg: "#eceef0", accent: "#78716c" },
 ];
 const LIGHT_ACTION_PALETTE = [
     { bg: "#fff8e6", border: "#f0a500" },
@@ -1050,6 +1052,7 @@ const PPTX_KPI = [
     { bg: "#dcdff6", accent: "#3730a3" },
     { bg: "#e9d9f2", accent: "#6b3fa0" },
     { bg: "#e2e4e8", accent: "#4b5563" },
+    { bg: "#e5e3e0", accent: "#78716c" },
 ];
 const PPTX_ACTION_PALETTE = [
     { bg: "#fceeba", border: "#f0a500" },
@@ -1069,6 +1072,7 @@ const LIGHT_STATUS_COLORS: Record<string, string> = {
     Resolved: "#1565c0",
     "In Progress": "#f0a500",
     New: "#e53935",
+    "Not Applicable": "#9e9e9e",
 };
 const LIGHT_SEVERITY_PALETTE = [
     { bg: "#fdecea", border: "#f0c7c3", text: "#7a1f1f" },
@@ -1302,7 +1306,13 @@ export function buildStatusReportCardEmailBodyHtml(
     const avgClosureDays = Math.round(report.mttrDays ?? 0);
 
     const statusEntries = EMAIL_STATUS_ORDER.map(
-        (name) => [name, report.byStatusAll[name] ?? 0] as const
+        (name) =>
+            [
+                name,
+                name === "Not Applicable"
+                    ? report.outOfScopeCount
+                    : report.byStatus[name] ?? 0,
+            ] as const
     ).filter(([, count]) => count > 0);
 
     const severityTotal = Object.values(report.bySeverity).reduce(
@@ -1463,16 +1473,24 @@ export function buildStatusReportCardEmailBodyHtml(
         // instead of spanning full width.
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;"><tr>` +
         lightKpiTile(
-            String(report.total),
+            `${report.effectiveCount}/${report.total}`,
             6,
-            t("defectManagementPage.sprintReport.statusCard.kpis.totalBugsDetected")
+            t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected")
         ) +
         lightKpiTile(
             String(report.withoutResolutionDateCount),
             7,
             t("defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate")
         ) +
-        `<td width="16.66%"></td><td width="16.66%"></td><td width="16.66%"></td><td width="16.66%"></td>` +
+        (report.outOfScopeCount > 0
+            ? lightKpiTile(
+                `${report.outOfScopeCount}/${report.total}`,
+                8,
+                t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected")
+            )
+            : "") +
+        `<td width="16.66%"></td><td width="16.66%"></td><td width="16.66%"></td>` +
+        (report.outOfScopeCount > 0 ? "" : `<td width="16.66%"></td>`) +
         `</tr></table>`;
 
     const dashboardHtml = dashboardUrl
@@ -1835,32 +1853,47 @@ export function buildStatusReportCardPdfDocument(
 
     y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 2;
 
-    const row2Kpi = [LIGHT_KPI[6], LIGHT_KPI[7]];
+    const row2Defs = [
+        {
+            kpi: LIGHT_KPI[6],
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"),
+            value: `${report.effectiveCount}/${report.total}`,
+        },
+        {
+            kpi: LIGHT_KPI[7],
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"),
+            value: String(report.withoutResolutionDateCount),
+        },
+        ...(report.outOfScopeCount > 0
+            ? [
+                {
+                    kpi: LIGHT_KPI[8],
+                    label: t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"),
+                    value: `${report.outOfScopeCount}/${report.total}`,
+                },
+            ]
+            : []),
+    ];
 
     autoTable(doc, {
         startY: y,
         theme: "plain",
-        tableWidth: (innerWidth / 6) * 2,
+        tableWidth: (innerWidth / 6) * row2Defs.length,
         margin: { left: PDF_MARGIN },
-        head: [
-            [
-                t("defectManagementPage.sprintReport.statusCard.kpis.totalBugsDetected"),
-                t("defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"),
-            ],
-        ],
-        body: [[String(report.total), String(report.withoutResolutionDateCount)]],
+        head: [row2Defs.map((d) => d.label)],
+        body: [row2Defs.map((d) => d.value)],
         styles: { fontSize: 7, halign: "center", cellPadding: 2, textColor: LIGHT_INK_MUTED },
         headStyles: { textColor: LIGHT_INK_MUTED, fontStyle: "normal" },
         bodyStyles: { fontSize: 12, fontStyle: "bold" },
         columnStyles: Object.fromEntries(
-            row2Kpi.map((kpi, index) => [
+            row2Defs.map((d, index) => [
                 index,
-                { fillColor: kpi.bg, textColor: kpi.accent, cellWidth: innerWidth / 6 },
+                { fillColor: d.kpi.bg, textColor: d.kpi.accent, cellWidth: innerWidth / 6 },
             ])
         ),
         didParseCell: (hookData) => {
             if (hookData.section === "head") {
-                hookData.cell.styles.fillColor = row2Kpi[hookData.column.index].bg;
+                hookData.cell.styles.fillColor = row2Defs[hookData.column.index].kpi.bg;
                 hookData.cell.styles.textColor = LIGHT_INK_MUTED;
             }
         },
@@ -2067,7 +2100,13 @@ export function buildStatusReportCardPdfDocument(
     y += 4;
 
     const statusEntries = EMAIL_STATUS_ORDER.map(
-        (name) => [name, report.byStatusAll[name] ?? 0] as const
+        (name) =>
+            [
+                name,
+                name === "Not Applicable"
+                    ? report.outOfScopeCount
+                    : report.byStatus[name] ?? 0,
+            ] as const
     ).filter(([, count]) => count > 0);
     const statusSegments = statusEntries.map(([name, count]) => ({
         color: LIGHT_STATUS_COLORS[name],
@@ -2728,13 +2767,21 @@ export async function exportStatusReportCardToPptx(
 
     const row2KpiDefs = [
         {
-            value: String(report.total),
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.totalBugsDetected"),
+            value: `${report.effectiveCount}/${report.total}`,
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"),
         },
         {
             value: String(report.withoutResolutionDateCount),
             label: t("defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"),
         },
+        ...(report.outOfScopeCount > 0
+            ? [
+                {
+                    value: `${report.outOfScopeCount}/${report.total}`,
+                    label: t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"),
+                },
+            ]
+            : []),
     ];
 
     row2KpiDefs.forEach((kpi, index) => {
@@ -2987,7 +3034,13 @@ export async function exportStatusReportCardToPptx(
         ...(includeDsiSource ? ["DSI"] : []),
     ].join(", ");
     const statusEntries = EMAIL_STATUS_ORDER.map(
-        (name) => [name, report.byStatusAll[name] ?? 0] as const
+        (name) =>
+            [
+                name,
+                name === "Not Applicable"
+                    ? report.outOfScopeCount
+                    : report.byStatus[name] ?? 0,
+            ] as const
     ).filter(([, count]) => count > 0);
     const statusSegments = statusEntries.map(([name, count]) => ({
         color: LIGHT_STATUS_COLORS[name],

@@ -391,7 +391,8 @@
                     "closed": "Closed",
                     "resolved": "To verify (DSI retest)",
                     "inProgress": "In progress",
-                    "new": "New (to be picked up)"
+                    "new": "New (to be picked up)",
+                    "notApplicable": "Not applicable (out of scope)"
                 },
                 "severityCaption": "Severity distribution of the {{count}} effective bugs",
                 "openSeverityCaption": "Severity distribution of the {{count}} bugs still open",
@@ -402,7 +403,8 @@
                     "criticalBugs": "Critical Bugs",
                     "reopenedBugs": "Reopened Bugs ({{percent}}%)",
                     "avgClosureTime": "Average Bug Closure Time",
-                    "totalBugsDetected": "Total Bugs Detected",
+                    "effectiveBugsDetected": "Effective Bugs Detected",
+                    "outOfScopeBugsDetected": "Out of Scope Bugs",
                     "withoutResolutionDate": "Bugs Without Resolution Date"
                 },
                 "originBreakdown": {

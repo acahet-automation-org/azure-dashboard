@@ -163,14 +163,19 @@ export function SprintDefectReportTab({
     suiteGroupDefs = AUTO_SUITE_GROUP_DEFS,
     defaultHeaderTitle = "UAT Sprint 1 – Auto",
     defaultHeaderSubtitle = "Stato avanzamento test funzionali / UAT – Progetto Nuova Frontiera",
+    defaultActionsText,
     includeDsiSource = true,
+    includeDeadline = true,
 }: {
     stats: DefectStats;
     suiteGroupDefs?: SuiteGroupDef[];
     defaultHeaderTitle?: string;
     defaultHeaderSubtitle?: string;
+    defaultActionsText?: (report: SprintDefectReport) => string;
     // Off for Plurifond (no DSI-sourced bugs yet) - see StatusReportCard.tsx.
     includeDsiSource?: boolean;
+    // Off for Plurifond (no shared UAT deadline for this report yet).
+    includeDeadline?: boolean;
 }) {
     const { t } = useTranslation();
     const styles = useStyles();
@@ -180,8 +185,10 @@ export function SprintDefectReportTab({
     const [headerSubtitle, setHeaderSubtitle] = useState(defaultHeaderSubtitle);
     const [uatDeadline, setUatDeadline] = useState("2026-07-20");
     const [actionsText, setActionsText] = useState(
-        "Yellow section text content\n\n" +
-        "Blue section text content\n\n"
+        defaultActionsText
+            ? defaultActionsText(report)
+            : "Yellow section text content\n\n" +
+              "Blue section text content\n\n"
     );
     const [groupLabels, setGroupLabels] = useState<string[]>(
         suiteGroupDefs.map((def) => def.label)
@@ -201,7 +208,7 @@ export function SprintDefectReportTab({
     // whatever date the deadline field was last edited.
     const deadlineDate = uatDeadline ? new Date(`${uatDeadline}T00:00:00`) : null;
     const alertText =
-        deadlineDate && !Number.isNaN(deadlineDate.getTime())
+        includeDeadline && deadlineDate && !Number.isNaN(deadlineDate.getTime())
             ? t("defectManagementPage.sprintReport.statusCard.alertTemplate", {
                 date: formatDDMM(deadlineDate),
                 count: countBusinessDaysRemaining(new Date(), deadlineDate),
@@ -489,20 +496,22 @@ export function SprintDefectReportTab({
             </div>
 
             <div className={styles.statusCardControls}>
-                <Field
-                    label={t(
-                        "defectManagementPage.sprintReport.statusCard.uatDeadlineLabel"
-                    )}
-                    className={styles.statusCardField}
-                >
-                    <Input
-                        type="date"
-                        value={uatDeadline}
-                        onChange={(_, data) =>
-                            setUatDeadline(data.value)
-                        }
-                    />
-                </Field>
+                {includeDeadline && (
+                    <Field
+                        label={t(
+                            "defectManagementPage.sprintReport.statusCard.uatDeadlineLabel"
+                        )}
+                        className={styles.statusCardField}
+                    >
+                        <Input
+                            type="date"
+                            value={uatDeadline}
+                            onChange={(_, data) =>
+                                setUatDeadline(data.value)
+                            }
+                        />
+                    </Field>
+                )}
 
                 <Field
                     label={t(

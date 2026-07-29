@@ -91,6 +91,7 @@ export function PlurifondSprintReportPage() {
                             "Test funzionali: Avviati i test funzionali per Plurifonds in data 27/07: Rilevato un numero significativo di test case non eseguibili, poiché associati a funzionalità non ancora rilasciate ma incluse nel piano di test condiviso.\n\n"
                         }
                         includeDsiSource={false}
+                        includeDeadline={false}
                     />
                 </>
             )}

@@ -52,19 +52,22 @@ const SEVERITY_PALETTE = [
 const SEVERITY_FALLBACK = { bg: "#2d2d2d", border: "#605e5c", text: "#c8c6c4" };
 
 // Order/colors match the reference status card: most-done to least-done,
-// left to right (green -> blue -> amber -> salmon).
-const STATUS_ORDER = ["Closed", "Resolved", "In Progress", "New"];
+// left to right (green -> blue -> amber -> salmon), with the out-of-scope
+// "Not Applicable" bucket trailing at the end.
+const STATUS_ORDER = ["Closed", "Resolved", "In Progress", "New", "Not Applicable"];
 const STATUS_COLORS: Record<string, string> = {
     Closed: "#3fb950",
     Resolved: "#0078d4",
     "In Progress": "#eda100",
     New: "#e8746c",
+    "Not Applicable": "#8a8886",
 };
 const STATUS_LABEL_KEYS: Record<string, string> = {
     Closed: "closed",
     Resolved: "resolved",
     "In Progress": "inProgress",
     New: "new",
+    "Not Applicable": "notApplicable",
 };
 
 // Matches the server-side fallback bucket in computeDuplicateSuiteBySuite
@@ -465,9 +468,15 @@ export const StatusReportCard = forwardRef<
         .filter(([key]) => severityRank(key) === 1)
         .reduce((sum, [, count]) => sum + count, 0);
 
+    // Closed/Resolved/In Progress/New are scoped to effective (in-scope)
+    // bugs via byStatus - out-of-scope bugs are pulled into their own "Not
+    // Applicable" bucket instead, so the two together still sum to
+    // report.total like byStatusAll used to.
     const statusEntries = STATUS_ORDER.map((name) => [
         name,
-        report.byStatusAll[name] ?? 0,
+        name === "Not Applicable"
+            ? report.outOfScopeCount
+            : report.byStatus[name] ?? 0,
     ] as const).filter(([, count]) => count > 0);
 
     // Severity distribution stays scoped to effective (in-scope) bugs only,
@@ -638,14 +647,26 @@ export const StatusReportCard = forwardRef<
                 </div>
                 <div className={styles.kpiTile}>
                     <span className={styles.kpiValue} style={{ color: "#b180d7" }}>
-                        {report.total}
+                        {report.effectiveCount}/{report.total}
                     </span>
                     <span className={styles.kpiLabel}>
                         {t(
-                            "defectManagementPage.sprintReport.statusCard.kpis.totalBugsDetected"
+                            "defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"
                         )}
                     </span>
                 </div>
+                {report.outOfScopeCount > 0 && (
+                    <div className={styles.kpiTile}>
+                        <span className={styles.kpiValue} style={{ color: "#9e9e9e" }}>
+                            {report.outOfScopeCount}/{report.total}
+                        </span>
+                        <span className={styles.kpiLabel}>
+                            {t(
+                                "defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"
+                            )}
+                        </span>
+                    </div>
+                )}
                 <div className={styles.kpiTile}>
                     <span className={styles.kpiValue} style={{ color: "#8a8886" }}>
                         {report.withoutResolutionDateCount}
