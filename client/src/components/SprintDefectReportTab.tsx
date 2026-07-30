@@ -24,7 +24,12 @@ import { ChartCard } from "./ChartCard";
 import { StatusReportCard } from "./StatusReportCard";
 import type { SuiteProgressGroup } from "./StatusReportCard";
 import { fetchPlanOverview, fetchPlans } from "../api/client";
-import { sendGraphMailReport } from "../api/graphMail";
+import {
+    DEFAULT_REPORT_CC,
+    DEFAULT_REPORT_RECIPIENTS,
+    parseAddressList,
+    sendGraphMailReport,
+} from "../api/graphMail";
 import {
     buildStatusReportCardEmailBodyHtml,
     buildStatusReportCardEmailDocument,
@@ -110,6 +115,17 @@ const useStyles = makeStyles({
     statusCardFieldWide: {
         minWidth: "260px",
         flex: "2 1 320px",
+    },
+    statusCardFieldFull: {
+        minWidth: "260px",
+        flex: "1 1 100%",
+    },
+    emailCardActions: {
+        display: "flex",
+        flexWrap: "wrap",
+        gap: tokens.spacingHorizontalM,
+        alignItems: "flex-end",
+        justifyContent: "space-between",
     },
     statusCardPreviewRow: {
         display: "flex",
@@ -202,6 +218,9 @@ export function SprintDefectReportTab({
     // still being validated, so regular report sends shouldn't include it
     // until someone opts in for a given card.
     const [showOriginBreakdown, setShowOriginBreakdown] = useState(false);
+    const [toInput, setToInput] = useState(DEFAULT_REPORT_RECIPIENTS.join(", "));
+    const [ccInput, setCcInput] = useState(DEFAULT_REPORT_CC.join(", "));
+    const [fromDisplayName, setFromDisplayName] = useState("");
     const statusCardRef = useRef<HTMLDivElement>(null);
     const dashboardLinkRef = useRef<HTMLAnchorElement>(null);
 
@@ -441,6 +460,9 @@ export function SprintDefectReportTab({
         mutationFn: sendGraphMailReport,
     });
 
+    const toAddresses = parseAddressList(toInput);
+    const ccAddresses = parseAddressList(ccInput);
+
     const handleSendStatusCardEmail = () => {
         const cardData = {
             headerTitle,
@@ -461,13 +483,112 @@ export function SprintDefectReportTab({
         emailReportMutation.mutate({
             subject: headerTitle,
             bodyHtml,
+            to: toAddresses,
+            cc: ccAddresses,
+            fromDisplayName: fromDisplayName.trim() || undefined,
         });
     };
 
     return (
-        <ChartCard
-            title={t("defectManagementPage.sprintReport.statusCard.title")}
-        >
+        <>
+            {emailReportEnabled && (
+                <ChartCard
+                    title={t(
+                        "defectManagementPage.sprintReport.statusCard.emailSectionTitle"
+                    )}
+                >
+                    <Text className={styles.note}>
+                        {t(
+                            "defectManagementPage.sprintReport.statusCard.emailSectionDescription"
+                        )}
+                    </Text>
+
+                    <div className={styles.statusCardControls}>
+                        <Field
+                            label={t(
+                                "defectManagementPage.sprintReport.statusCard.emailToLabel"
+                            )}
+                            className={styles.statusCardFieldFull}
+                        >
+                            <Input
+                                value={toInput}
+                                placeholder={t(
+                                    "defectManagementPage.sprintReport.statusCard.emailAddressPlaceholder"
+                                )}
+                                onChange={(_, data) => setToInput(data.value)}
+                            />
+                        </Field>
+                    </div>
+
+                    <div className={styles.statusCardControls}>
+                        <Field
+                            label={t(
+                                "defectManagementPage.sprintReport.statusCard.emailCcLabel"
+                            )}
+                            className={styles.statusCardFieldFull}
+                        >
+                            <Input
+                                value={ccInput}
+                                placeholder={t(
+                                    "defectManagementPage.sprintReport.statusCard.emailAddressPlaceholder"
+                                )}
+                                onChange={(_, data) => setCcInput(data.value)}
+                            />
+                        </Field>
+                    </div>
+
+                    <div className={styles.emailCardActions}>
+                        <Field
+                            label={t(
+                                "defectManagementPage.sprintReport.statusCard.emailFromNameLabel"
+                            )}
+                            className={styles.statusCardField}
+                        >
+                            <Input
+                                value={fromDisplayName}
+                                placeholder={t(
+                                    "defectManagementPage.sprintReport.statusCard.emailFromNamePlaceholder"
+                                )}
+                                onChange={(_, data) =>
+                                    setFromDisplayName(data.value)
+                                }
+                            />
+                        </Field>
+
+                        <Button
+                            appearance="primary"
+                            icon={<MailRegular />}
+                            disabled={
+                                emailReportMutation.isPending ||
+                                toAddresses.length === 0
+                            }
+                            onClick={handleSendStatusCardEmail}
+                        >
+                            {emailReportMutation.isPending
+                                ? t("planOverviewPage.emailSending")
+                                : t("planOverviewPage.sendEmail")}
+                        </Button>
+                    </div>
+
+                    {emailReportMutation.isSuccess && (
+                        <Text className={styles.note}>
+                            {t("planOverviewPage.emailSent")}
+                        </Text>
+                    )}
+
+                    {emailReportMutation.isError && (
+                        <Text className={styles.warningText}>
+                            {t("planOverviewPage.emailFailed", {
+                                message: emailReportMutation.error.message,
+                            })}
+                        </Text>
+                    )}
+                </ChartCard>
+            )}
+
+            <ChartCard
+                title={t("defectManagementPage.sprintReport.statusCard.title")}
+            >
             <div className={styles.statusCardControls}>
                 <Field
                     label={t(
@@ -658,34 +779,8 @@ export function SprintDefectReportTab({
                         "defectManagementPage.sprintReport.statusCard.originBreakdown.toggleLabel"
                     )}
                 />
-
-                {emailReportEnabled && (
-                    <Button
-                        appearance="secondary"
-                        icon={<MailRegular />}
-                        disabled={emailReportMutation.isPending}
-                        onClick={handleSendStatusCardEmail}
-                    >
-                        {emailReportMutation.isPending
-                            ? t("planOverviewPage.emailSending")
-                            : t("planOverviewPage.sendEmail")}
-                    </Button>
-                )}
             </div>
-
-            {emailReportEnabled && emailReportMutation.isSuccess && (
-                <Text className={styles.note}>
-                    {t("planOverviewPage.emailSent")}
-                </Text>
-            )}
-
-            {emailReportEnabled && emailReportMutation.isError && (
-                <Text className={styles.warningText}>
-                    {t("planOverviewPage.emailFailed", {
-                        message: emailReportMutation.error.message,
-                    })}
-                </Text>
-            )}
-        </ChartCard>
+            </ChartCard>
+        </>
     );
 }
