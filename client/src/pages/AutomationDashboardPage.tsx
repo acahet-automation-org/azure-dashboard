@@ -28,6 +28,7 @@ import { ChartCard } from "../components/ChartCard";
 import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
+import { IterationFilter } from "../components/IterationFilter";
 import { fetchAutomationDashboard, fetchPlans } from "../api/client";
 import { categoryAxisWidth } from "../utils/chartAxis";
 
@@ -45,6 +46,12 @@ const useStyles = makeStyles({
     filterField: {
         maxWidth: "280px",
     },
+    filterRow: {
+        display: "flex",
+        flexWrap: "wrap",
+        gap: tokens.spacingHorizontalM,
+        alignItems: "flex-end",
+    },
 });
 
 export function AutomationDashboardPage() {
@@ -54,6 +61,7 @@ export function AutomationDashboardPage() {
     const [selectedPlanId, setSelectedPlanId] = useState<
         number | undefined
     >(undefined);
+    const [iteration, setIteration] = useState("");
 
     const { data: plans } = useQuery({
         queryKey: ["plans"],
@@ -61,8 +69,12 @@ export function AutomationDashboardPage() {
     });
 
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["automation", selectedPlanId ?? "all"],
-        queryFn: () => fetchAutomationDashboard(selectedPlanId),
+        queryKey: ["automation", selectedPlanId ?? "all", iteration],
+        queryFn: () =>
+            fetchAutomationDashboard(
+                selectedPlanId,
+                iteration || undefined
+            ),
     });
 
     const automatedPlanIds = new Set(
@@ -82,37 +94,47 @@ export function AutomationDashboardPage() {
 
     return (
         <PageLayout title={t("automationDashboardPage.title")}>
-            <Field
-                label={t("automationDashboardPage.planFilter.label")}
-                className={styles.filterField}
-            >
-                <Dropdown
-                    expandIcon={<ChevronDownRegular />}
-                    value={selectedPlanName}
-                    selectedOptions={[
-                        selectedPlanId != null
-                            ? String(selectedPlanId)
-                            : "",
-                    ]}
-                    onOptionSelect={(_, option) => {
-                        const value = option.optionValue;
-
-                        setSelectedPlanId(
-                            value ? Number(value) : undefined
-                        );
+            <div className={styles.filterRow}>
+                <IterationFilter
+                    value={iteration}
+                    onChange={(value) => {
+                        setIteration(value);
+                        setSelectedPlanId(undefined);
                     }}
+                />
+
+                <Field
+                    label={t("automationDashboardPage.planFilter.label")}
+                    className={styles.filterField}
                 >
-                    <Option value="">{allPlansLabel}</Option>
-                    {automatedPlans?.map((plan) => (
-                        <Option
-                            key={plan.id}
-                            value={String(plan.id)}
-                        >
-                            {plan.name}
-                        </Option>
-                    ))}
-                </Dropdown>
-            </Field>
+                    <Dropdown
+                        expandIcon={<ChevronDownRegular />}
+                        value={selectedPlanName}
+                        selectedOptions={[
+                            selectedPlanId != null
+                                ? String(selectedPlanId)
+                                : "",
+                        ]}
+                        onOptionSelect={(_, option) => {
+                            const value = option.optionValue;
+
+                            setSelectedPlanId(
+                                value ? Number(value) : undefined
+                            );
+                        }}
+                    >
+                        <Option value="">{allPlansLabel}</Option>
+                        {automatedPlans?.map((plan) => (
+                            <Option
+                                key={plan.id}
+                                value={String(plan.id)}
+                            >
+                                {plan.name}
+                            </Option>
+                        ))}
+                    </Dropdown>
+                </Field>
+            </div>
 
             {isLoading && <LoadingCardGrid />}
 

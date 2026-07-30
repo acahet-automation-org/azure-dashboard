@@ -18,6 +18,7 @@ import {
     ClipboardRegular,
     CodeTextRegular,
     MailRegular,
+    SlideTextRegular,
 } from "@fluentui/react-icons";
 import { ChartCard } from "./ChartCard";
 import { StatusReportCard } from "./StatusReportCard";
@@ -25,15 +26,17 @@ import type { SuiteProgressGroup } from "./StatusReportCard";
 import { fetchPlanOverview, fetchPlans, sendEmailReport } from "../api/client";
 import {
     buildStatusReportCardEmailBodyHtml,
+    buildStatusReportCardEmailDocument,
     buildStatusReportCardFilename,
     copyStatusReportCardEmailHtmlToClipboard,
     downloadStatusReportCardEmailHtml,
     exportStatusReportCardToPdf,
+    exportStatusReportCardToPptx,
 } from "../utils/export";
-import type { DefectStats, Outcome } from "../types";
+import type { DefectStats, Outcome, SprintDefectReport } from "../types";
 
 const MONITORING_DASHBOARD_URL =
-    "https://dev.azure.com/ItasMutua/Nuova%20Frontiera/_dashboards/dashboard/c17b9c2a-8465-4e76-9092-3c892e1b060d";
+    "https://dev.azure.com/ItasMutua/Nuova%20Frontiera/_dashboards/dashboard/4665852c-cb39-4a89-ac4f-1dca396b539a";
 
 const emailReportEnabled =
     import.meta.env.VITE_ENABLE_EMAIL_REPORT === "true";
@@ -48,7 +51,7 @@ const ZERO_OUTCOME_COUNTS: Record<Outcome, number> = {
     NotRun: 0,
 };
 
-interface SuiteGroupDef {
+export interface SuiteGroupDef {
     label: string;
     // Plan identity is resolved by ID when given directly (bypasses the
     // name-lookup step entirely - used for "Test Factory", whose plan name
@@ -158,26 +161,41 @@ function formatDDMM(date: Date): string {
 
 export function SprintDefectReportTab({
     stats,
+    suiteGroupDefs = AUTO_SUITE_GROUP_DEFS,
+    defaultHeaderTitle = "UAT Sprint 1 – Auto",
+    defaultHeaderSubtitle = "Stato avanzamento test funzionali / UAT – Progetto Nuova Frontiera",
+    defaultActionsText,
+    includeDsiSource = true,
+    includeDeadline = true,
 }: {
     stats: DefectStats;
+    suiteGroupDefs?: SuiteGroupDef[];
+    defaultHeaderTitle?: string;
+    defaultHeaderSubtitle?: string;
+    defaultActionsText?: (report: SprintDefectReport) => string;
+    // Off for Plurifond (no DSI-sourced bugs yet) - see StatusReportCard.tsx.
+    includeDsiSource?: boolean;
+    // Off for Plurifond (no shared UAT deadline for this report yet).
+    includeDeadline?: boolean;
 }) {
     const { t } = useTranslation();
     const styles = useStyles();
     const report = stats.sprintDefectReport;
 
-    const [headerTitle, setHeaderTitle] = useState("UAT Sprint 1 – Auto");
-    const [headerSubtitle, setHeaderSubtitle] = useState(
-        "Stato avanzamento test funzionali / UAT – Progetto Nuova Frontiera"
-    );
+    const [headerTitle, setHeaderTitle] = useState(defaultHeaderTitle);
+    const [headerSubtitle, setHeaderSubtitle] = useState(defaultHeaderSubtitle);
     const [uatDeadline, setUatDeadline] = useState("2026-07-20");
     const [actionsText, setActionsText] = useState(
-        "Yellow section text content\n\n" +
-        "Blue section text content\n\n"
+        defaultActionsText
+            ? defaultActionsText(report)
+            : "Yellow section text content\n\n" +
+              "Blue section text content\n\n"
     );
     const [groupLabels, setGroupLabels] = useState<string[]>(
-        AUTO_SUITE_GROUP_DEFS.map((def) => def.label)
+        suiteGroupDefs.map((def) => def.label)
     );
     const [isExportingCard, setIsExportingCard] = useState(false);
+    const [isExportingPptx, setIsExportingPptx] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
     // Off by default: the Test Factory/Test Agenti/Business breakdown is
     // still being validated, so regular report sends shouldn't include it
@@ -191,7 +209,7 @@ export function SprintDefectReportTab({
     // whatever date the deadline field was last edited.
     const deadlineDate = uatDeadline ? new Date(`${uatDeadline}T00:00:00`) : null;
     const alertText =
-        deadlineDate && !Number.isNaN(deadlineDate.getTime())
+        includeDeadline && deadlineDate && !Number.isNaN(deadlineDate.getTime())
             ? t("defectManagementPage.sprintReport.statusCard.alertTemplate", {
                 date: formatDDMM(deadlineDate),
                 count: countBusinessDaysRemaining(new Date(), deadlineDate),
@@ -213,7 +231,7 @@ export function SprintDefectReportTab({
     // Each def's plan is identified either directly by planId (bypasses
     // name lookup entirely) or by resolving planName against the plans
     // list. Queried by the distinct resolved IDs, in parallel.
-    const resolvedPlanIds = AUTO_SUITE_GROUP_DEFS.map(
+    const resolvedPlanIds = suiteGroupDefs.map(
         (def) => def.planId ?? planIdByName.get(def.planName ?? "")
     );
     const distinctPlanIds = [
@@ -254,7 +272,7 @@ export function SprintDefectReportTab({
     // e.g. "Test Factory" is just an alias for the whole plan, using its
     // own pre-aggregated totals) or specific suites within it (summed from
     // the plan's suite list).
-    const resolvedGroups = AUTO_SUITE_GROUP_DEFS.map((def, index) => {
+    const resolvedGroups = suiteGroupDefs.map((def, index) => {
         const planId = resolvedPlanIds[index];
         const overview = planId != null ? overviewByPlanId.get(planId) : undefined;
 
@@ -332,22 +350,51 @@ export function SprintDefectReportTab({
                 : `plan not found (id ${resolvedPlanIds[resolvedGroups.indexOf(group)] ?? "unresolved"}); available plans: ${(plans ?? []).map((plan) => `${plan.name} (id ${plan.id})`).join(", ") || "(none)"}`,
         }));
 
-    const handleExportStatusCard = async () => {
+    const handleExportStatusCard = () => {
         setIsExportingCard(true);
 
         try {
-            await exportStatusReportCardToPdf(
+            exportStatusReportCardToPdf(
                 buildStatusReportCardFilename(headerTitle, "pdf"),
-                statusCardRef.current,
-                [
-                    {
-                        element: dashboardLinkRef.current,
-                        url: MONITORING_DASHBOARD_URL,
-                    },
-                ]
+                {
+                    headerTitle,
+                    headerSubtitle,
+                    suiteGroups,
+                    report,
+                    alertText,
+                    actionsText,
+                    dashboardUrl: MONITORING_DASHBOARD_URL,
+                    showOriginBreakdown,
+                    includeDsiSource,
+                },
+                t
             );
         } finally {
             setIsExportingCard(false);
+        }
+    };
+
+    const handleExportStatusCardPptx = async () => {
+        setIsExportingPptx(true);
+
+        try {
+            await exportStatusReportCardToPptx(
+                buildStatusReportCardFilename(headerTitle, "pptx"),
+                {
+                    headerTitle,
+                    headerSubtitle,
+                    suiteGroups,
+                    report,
+                    alertText,
+                    actionsText,
+                    dashboardUrl: MONITORING_DASHBOARD_URL,
+                    showOriginBreakdown,
+                    includeDsiSource,
+                },
+                t
+            );
+        } finally {
+            setIsExportingPptx(false);
         }
     };
 
@@ -363,6 +410,7 @@ export function SprintDefectReportTab({
                 actionsText,
                 dashboardUrl: MONITORING_DASHBOARD_URL,
                 showOriginBreakdown,
+                includeDsiSource,
             },
             t
         );
@@ -379,6 +427,7 @@ export function SprintDefectReportTab({
                 actionsText,
                 dashboardUrl: MONITORING_DASHBOARD_URL,
                 showOriginBreakdown,
+                includeDsiSource,
             },
             t
         );
@@ -392,18 +441,20 @@ export function SprintDefectReportTab({
     });
 
     const handleSendStatusCardEmail = () => {
-        const bodyHtml = buildStatusReportCardEmailBodyHtml(
-            {
-                headerTitle,
-                headerSubtitle,
-                suiteGroups,
-                report,
-                alertText,
-                actionsText,
-                dashboardUrl: MONITORING_DASHBOARD_URL,
-                showOriginBreakdown,
-            },
-            t
+        const cardData = {
+            headerTitle,
+            headerSubtitle,
+            suiteGroups,
+            report,
+            alertText,
+            actionsText,
+            dashboardUrl: MONITORING_DASHBOARD_URL,
+            showOriginBreakdown,
+            includeDsiSource,
+        };
+
+        const bodyHtml = buildStatusReportCardEmailDocument(
+            buildStatusReportCardEmailBodyHtml(cardData, t)
         );
 
         emailReportMutation.mutate({
@@ -448,20 +499,22 @@ export function SprintDefectReportTab({
             </div>
 
             <div className={styles.statusCardControls}>
-                <Field
-                    label={t(
-                        "defectManagementPage.sprintReport.statusCard.uatDeadlineLabel"
-                    )}
-                    className={styles.statusCardField}
-                >
-                    <Input
-                        type="date"
-                        value={uatDeadline}
-                        onChange={(_, data) =>
-                            setUatDeadline(data.value)
-                        }
-                    />
-                </Field>
+                {includeDeadline && (
+                    <Field
+                        label={t(
+                            "defectManagementPage.sprintReport.statusCard.uatDeadlineLabel"
+                        )}
+                        className={styles.statusCardField}
+                    >
+                        <Input
+                            type="date"
+                            value={uatDeadline}
+                            onChange={(_, data) =>
+                                setUatDeadline(data.value)
+                            }
+                        />
+                    </Field>
+                )}
 
                 <Field
                     label={t(
@@ -537,6 +590,7 @@ export function SprintDefectReportTab({
                     dashboardUrl={MONITORING_DASHBOARD_URL}
                     dashboardLinkRef={dashboardLinkRef}
                     showOriginBreakdown={showOriginBreakdown}
+                    includeDsiSource={includeDsiSource}
                 />
             </div>
 
@@ -551,6 +605,19 @@ export function SprintDefectReportTab({
                         ? t("planOverviewPage.exporting")
                         : t(
                             "defectManagementPage.sprintReport.statusCard.exportButton"
+                        )}
+                </Button>
+
+                <Button
+                    appearance="secondary"
+                    icon={<SlideTextRegular />}
+                    disabled={isExportingPptx}
+                    onClick={handleExportStatusCardPptx}
+                >
+                    {isExportingPptx
+                        ? t("planOverviewPage.exporting")
+                        : t(
+                            "defectManagementPage.sprintReport.statusCard.exportPptxButton"
                         )}
                 </Button>
 

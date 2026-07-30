@@ -16,6 +16,7 @@
         "execution": "Test Execution",
         "defects": "Defect Management",
         "sprintReport": "Sprint Report",
+        "plurifondSprintReport": "Plurifond Sprint Report",
         "commonErrors": "Common Errors",
         "myWorkItems": "My Work Items",
         "removeTestCases": "Remove Test Cases",
@@ -368,6 +369,7 @@
                 "actionsPlaceholder": "One action per paragraph, separated by a blank line",
                 "actionsTitle": "Actions Required",
                 "exportButton": "Export Status Card",
+                "exportPptxButton": "Export as PPTX",
                 "downloadHtmlButton": "Download HTML",
                 "copyHtmlButton": "Copy for Email/Teams",
                 "copyHtmlButtonCopied": "Copied!",
@@ -389,7 +391,8 @@
                     "closed": "Closed",
                     "resolved": "To verify (DSI retest)",
                     "inProgress": "In progress",
-                    "new": "New (to be picked up)"
+                    "new": "New (to be picked up)",
+                    "notApplicable": "Not applicable (out of scope)"
                 },
                 "severityCaption": "Severity distribution of the {{count}} effective bugs",
                 "openSeverityCaption": "Severity distribution of the {{count}} bugs still open",
@@ -399,7 +402,11 @@
                     "bugsClosed": "Bugs Closed ({{percent}}%)",
                     "criticalBugs": "Critical Bugs",
                     "reopenedBugs": "Reopened Bugs ({{percent}}%)",
-                    "avgClosureTime": "Average Bug Closure Time"
+                    "avgClosureTime": "Average Bug Closure Time",
+                    "effectiveBugsDetected": "Effective Bugs Detected",
+                    "outOfScopeBugsDetected": "Out of Scope Bugs",
+                    "withoutResolutionDate": "Bugs Without Resolution Date",
+                    "notApplicableRate": "N/A Test Cases"
                 },
                 "originBreakdown": {
                     "title": "Bugs by Suite",
@@ -414,6 +421,9 @@
     },
     "sprintReportPage": {
         "title": "Sprint Report"
+    },
+    "plurifondSprintReportPage": {
+        "title": "Plurifond Sprint Report"
     },
     "commonErrorsPage": {
         "title": "Common Errors",
@@ -645,6 +655,7 @@
             "executedOfPlanned": "Executed / Planned",
             "carryOver": "Carry-Over Test Cases",
             "notYetExecuted": "Not Yet Executed",
+            "notApplicable": "Not Applicable",
             "passRateDelta": "Pass Rate vs. Previous Sprint",
             "blockingDefects": "Blocking Defects (Critical/High)"
         },

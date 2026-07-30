@@ -29,7 +29,7 @@ export function TestExecutionPage() {
 
     const dashboardQuery = useQuery({
         queryKey: ["dashboard"],
-        queryFn: fetchDashboard,
+        queryFn: () => fetchDashboard(),
     });
 
     const suitesQuery = useQuery({

@@ -12,6 +12,7 @@ import {
 import { PageLayout } from "../components/PageLayout";
 import { StatCard } from "../components/StatCard";
 import { FilterBar, type DashboardFilters } from "../components/FilterBar";
+import { IterationFilter } from "../components/IterationFilter";
 import { SuiteGroup } from "../components/SuiteGroup";
 import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
@@ -94,10 +95,11 @@ export function DashboardPage() {
     const styles = useStyles();
     const { t, i18n } = useTranslation();
     const [searchParams] = useSearchParams();
+    const [iteration, setIteration] = useState("");
 
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["dashboard"],
-        queryFn: fetchDashboard,
+        queryKey: ["dashboard", iteration],
+        queryFn: () => fetchDashboard(iteration || undefined),
     });
 
     const initialSuite = searchParams.get("suite");
@@ -245,6 +247,8 @@ export function DashboardPage() {
 
     return (
         <PageLayout title={t("dashboardPage.title")}>
+            <IterationFilter value={iteration} onChange={setIteration} />
+
             {isLoading && <LoadingCardGrid />}
 
             {isError && (

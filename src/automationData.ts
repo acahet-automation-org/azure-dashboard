@@ -75,6 +75,7 @@ async function buildAutomationRows(): Promise<
                     planName: plan.name,
                     areaPath:
                         fields[AREA_PATH_FIELD] ?? "",
+                    iteration: plan.iteration,
                     suiteName: suite.name,
                     isAutomated:
                         fields[AUTOMATION_STATUS_FIELD] ===
@@ -205,16 +206,25 @@ function getPipelineSuccessTrend() {
 export function computeAutomationDashboard(
     rows: AutomationTestCaseRow[],
     occurrences: AutomationResultOccurrence[],
-    planId?: number
+    planId?: number,
+    iteration?: string
 ): Omit<AutomationDashboardResponse, "cacheTimestamp"> {
+    // `iteration` narrows which plans are even eligible (so the plan
+    // dropdown itself shrinks to the selected sprint); `planId` then picks
+    // one of those, so it's applied on top rather than combined into the
+    // same predicate.
+    const rowsInIteration = iteration
+        ? rows.filter((r) => r.iteration === iteration)
+        : rows;
+
     const filteredRows =
         planId == null
-            ? rows
-            : rows.filter((r) => r.planId === planId);
+            ? rowsInIteration
+            : rowsInIteration.filter((r) => r.planId === planId);
 
     const automatedPlanIds = [
         ...new Set(
-            rows
+            rowsInIteration
                 .filter((r) => r.isAutomated)
                 .map((r) => r.planId)
         ),
@@ -389,7 +399,8 @@ export function computeAutomationDashboard(
 }
 
 export async function getAutomationDashboard(
-    planId?: number
+    planId?: number,
+    iteration?: string
 ): Promise<AutomationDashboardResponse> {
     const { rows, occurrences } =
         await getAutomationData();
@@ -398,7 +409,8 @@ export async function getAutomationDashboard(
         ...computeAutomationDashboard(
             rows,
             occurrences,
-            planId
+            planId,
+            iteration
         ),
         cacheTimestamp: getAutomationCacheTimestamp(),
     };

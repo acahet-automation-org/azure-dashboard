@@ -357,6 +357,7 @@ const BUG_FIELDS = [
     "Microsoft.VSTS.Build.FoundIn",
     "System.Tags",
     "Custom.Suite",
+    "Custom.EstimatedResolutionDate",
 ];
 
 export async function getAllBugFields(): Promise<any[]> {
@@ -570,9 +571,12 @@ export interface IterationNode {
 }
 
 // Flattens the classification-nodes tree (project root -> area/iteration
-// children, recursively) into one row per node, dropping the project-name
-// root segment from `path` so it reads the same as System.IterationPath
-// values on a work item (e.g. "Sprint 1", not "ProjectName\Sprint 1").
+// children, recursively) into one row per node. `parentPath` seeds the walk
+// so the resulting `path` includes the project-name root segment, matching
+// the full path Azure DevOps actually puts in a work item's
+// System.IterationPath / a test plan's `iteration` field (confirmed against
+// live data: both are e.g. "Nuova Frontiera\Front Office Auto\Sprint 2", not
+// "Front Office Auto\Sprint 2").
 function flattenIterationTree(
     node: any,
     parentPath: string
@@ -597,16 +601,18 @@ function flattenIterationTree(
 // Real Azure DevOps iterations (sprints), independent of what's actually
 // been used on a bug so far - unlike DefectFilterOptions.iterations (derived
 // from System.IterationPath values seen on fetched bugs), this includes
-// empty/future sprints too.
+// empty/future sprints too. Same path format as DefectFilterOptions though,
+// so either can be used to filter the same iterationPath/iteration fields.
 export async function getIterations(): Promise<IterationNode[]> {
     const response = await azdo.get(
         "/wit/classificationnodes/iterations?$depth=20&api-version=7.1"
     );
 
-    // The root node itself is just the project name, not a real
-    // iteration - only its children are actual sprints.
+    // The root node itself is just the project name, not a real iteration -
+    // only its children are actual sprints - but its name still seeds every
+    // child's path (see flattenIterationTree).
     return (response.data.children ?? []).flatMap((child: any) =>
-        flattenIterationTree(child, "")
+        flattenIterationTree(child, response.data.name ?? "")
     );
 }
 

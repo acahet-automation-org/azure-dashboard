@@ -234,6 +234,7 @@ const MAIN_ITEMS: NavItem[] = [
     { key: "execution", labelKey: "nav.execution", to: "/test-execution", icon: PlayRegular },
     { key: "defects", labelKey: "nav.defects", to: "/defects", icon: BugRegular },
     { key: "sprint-report", labelKey: "nav.sprintReport", to: "/sprint-report", icon: DocumentTextRegular },
+    { key: "plurifond-sprint-report", labelKey: "nav.plurifondSprintReport", to: "/plurifond-sprint-report", icon: DocumentTextRegular },
     { key: "my-work-items", labelKey: "nav.myWorkItems", to: "/my-work-items", icon: PersonRegular },
     { key: "remove-test-cases", labelKey: "nav.removeTestCases", to: "/remove-test-cases", icon: DeleteRegular },
 ];

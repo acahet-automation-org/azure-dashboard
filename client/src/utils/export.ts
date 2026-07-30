@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import html2canvas from "html2canvas";
+import PptxGenJS from "pptxgenjs";
 import type {
     BugInfo,
     Outcome,
@@ -179,49 +180,6 @@ export async function captureChartImage(
         dataUrl: canvas.toDataURL("image/png"),
         width: canvas.width,
         height: canvas.height,
-    };
-}
-
-// Unlike captureChartImage, this does NOT force a white background/dark
-// text - it's used for StatusReportCard, which is deliberately styled as a
-// fixed dark "shareable card" (independent of the app's own theme) and the
-// whole point of the export is to preserve that look as-is.
-//
-// scale/jpegQuality are overridable because the same capture feeds two very
-// different size budgets: the standalone "Export Status Card" PDF (no size
-// limit, so it defaults to a crisp scale-2 PNG) versus the emailed PDF
-// attachment, which has to fit under the mail relay's message-size cap (e.g.
-// Mailtrap's default 5MB) - a scale-2 PNG of this multi-section card
-// comfortably blows past that once SMTP's base64 attachment encoding adds
-// its own ~37% overhead, so the email path asks for a smaller, JPEG-encoded
-// capture instead.
-export async function captureFullCanvas(
-    element: HTMLElement | null,
-    options: { scale?: number; jpegQuality?: number } = {}
-): Promise<ChartImage | null> {
-    if (!element) {
-        return null;
-    }
-
-    const { scale = 2, jpegQuality } = options;
-    const canvas = await html2canvas(element, { scale });
-
-    if (jpegQuality != null) {
-        return {
-            title: "",
-            dataUrl: canvas.toDataURL("image/jpeg", jpegQuality),
-            width: canvas.width,
-            height: canvas.height,
-            format: "JPEG",
-        };
-    }
-
-    return {
-        title: "",
-        dataUrl: canvas.toDataURL("image/png"),
-        width: canvas.width,
-        height: canvas.height,
-        format: "PNG",
     };
 }
 
@@ -973,78 +931,6 @@ export function buildStatusReportCardFilename(
     return `${sanitizeFilenamePart(headerTitle)}_${formatDateDDMMYYYY(new Date())}.${extension}`;
 }
 
-export interface StatusReportCardLink {
-    element: HTMLElement | null;
-    url: string;
-}
-
-// Renders the captured card at 1:1 pixel size by sizing the PDF page to the
-// canvas itself, rather than fitting/scaling it into a fixed A4 page - this
-// guarantees the exported PDF looks exactly like the on-screen card with no
-// cropping or rescaling artifacts.
-function buildStatusReportCardPdfDoc(
-    capture: ChartImage,
-    element: HTMLElement,
-    links: StatusReportCardLink[]
-): jsPDF {
-    const doc = new jsPDF({
-        unit: "px",
-        format: [capture.width, capture.height],
-    });
-
-    doc.addImage(
-        capture.dataUrl,
-        capture.format ?? "PNG",
-        0,
-        0,
-        capture.width,
-        capture.height
-    );
-
-    // The card is rendered at its natural CSS size but captured at a higher
-    // pixel scale (see captureFullCanvas), and the PDF page is sized to the
-    // capture's pixel dimensions - so link regions have to be scaled from
-    // on-screen CSS px to capture px using that same ratio, not assumed to
-    // be 1:1 or hardcoded to the capture scale factor.
-    const containerRect = element.getBoundingClientRect();
-    const scale = containerRect.width
-        ? capture.width / containerRect.width
-        : 1;
-
-    for (const link of links) {
-        if (!link.element) {
-            continue;
-        }
-
-        const rect = link.element.getBoundingClientRect();
-
-        doc.link(
-            (rect.left - containerRect.left) * scale,
-            (rect.top - containerRect.top) * scale,
-            rect.width * scale,
-            rect.height * scale,
-            { url: link.url }
-        );
-    }
-
-    return doc;
-}
-
-export async function exportStatusReportCardToPdf(
-    filename: string,
-    element: HTMLElement | null,
-    links: StatusReportCardLink[] = []
-): Promise<void> {
-    const capture = await captureFullCanvas(element);
-
-    if (!capture || !element) {
-        return;
-    }
-
-    const doc = buildStatusReportCardPdfDoc(capture, element, links);
-    doc.save(filename);
-}
-
 export type TranslateFn = (
     key: string,
     options?: Record<string, unknown>
@@ -1060,16 +946,19 @@ export interface StatusReportCardEmailData {
     dashboardUrl?: string;
     // Off by default - see StatusReportCard.tsx's prop of the same name.
     showOriginBreakdown?: boolean;
+    // On by default - see StatusReportCard.tsx's prop of the same name.
+    includeDsiSource?: boolean;
 }
 
 const EMAIL_CARD_WIDTH = 900;
 
-const EMAIL_STATUS_ORDER = ["Closed", "Resolved", "In Progress", "New"];
+const EMAIL_STATUS_ORDER = ["Closed", "Resolved", "In Progress", "New", "Not Applicable"];
 const EMAIL_STATUS_LABEL_KEYS: Record<string, string> = {
     Closed: "closed",
     Resolved: "resolved",
     "In Progress": "inProgress",
     New: "new",
+    "Not Applicable": "notApplicable",
 };
 
 const EMAIL_OUTCOME_ORDER: Outcome[] = [
@@ -1081,6 +970,18 @@ const EMAIL_OUTCOME_ORDER: Outcome[] = [
     "NotApplicable",
     "NotRun",
 ];
+
+function outcomeCountLabel(t: TranslateFn, outcome: Outcome, count: number): string {
+    const label = t(`outcome.${outcome}`);
+    return `${count} ${label}`;
+}
+
+function statusCountLabel(t: TranslateFn, name: string, count: number): string {
+    const label = t(
+        `defectManagementPage.sprintReport.statusCard.statusLabels.${EMAIL_STATUS_LABEL_KEYS[name]}`
+    );
+    return `${count} ${label}`;
+}
 
 function formatEmailTimestamp(date: Date): { datePart: string; timePart: string } {
     const day = String(date.getDate()).padStart(2, "0");
@@ -1126,7 +1027,10 @@ const LIGHT_RULE = "#e3e7ee";
 const LIGHT_INK = "#262626";
 const LIGHT_INK_MUTED = "#5a6a85";
 const LIGHT_HEADER_BG = "#1f3864";
-const LIGHT_HEADER_SUB = "#5a6a85";
+// Sits on the dark LIGHT_HEADER_BG bar (subtitle + "Aggiornato" timestamp),
+// unlike every other *_SUB/_MUTED color here which sits on a light card
+// background - so it needs a light tint, not LIGHT_INK_MUTED's dark one.
+const LIGHT_HEADER_SUB = "#c3c9d9";
 const LIGHT_ALERT_BG = "#fdecea";
 const LIGHT_ALERT_BORDER = "#c62828";
 const LIGHT_ALERT_TEXT = "#7a1f1f";
@@ -1139,10 +1043,34 @@ const LIGHT_KPI = [
     { bg: "#fdecea", accent: "#c62828" },
     { bg: "#eef7f6", accent: "#0e7c72" },
     { bg: "#eef0fa", accent: "#3730a3" },
+    { bg: "#f6effa", accent: "#6b3fa0" },
+    { bg: "#f3f4f6", accent: "#4b5563" },
+    { bg: "#eceef0", accent: "#78716c" },
+    { bg: "#eef1f2", accent: "#5f6b7a" },
 ];
 const LIGHT_ACTION_PALETTE = [
     { bg: "#fff8e6", border: "#f0a500" },
     { bg: "#eef3fb", border: "#1f3864" },
+];
+
+// PPT-only richer variants of LIGHT_KPI/LIGHT_ACTION_PALETTE - the near-white
+// email/PDF tints read as too flat once printed on an actual slide, so the
+// PPT export uses more saturated backgrounds plus a matching outline instead.
+const PPTX_KPI = [
+    { bg: "#dbe6f6", accent: "#1f3864" },
+    { bg: "#daf0dd", accent: "#2e7d32" },
+    { bg: "#fbe7bf", accent: "#b45309" },
+    { bg: "#fad9d5", accent: "#c62828" },
+    { bg: "#d2ece8", accent: "#0e7c72" },
+    { bg: "#dcdff6", accent: "#3730a3" },
+    { bg: "#e9d9f2", accent: "#6b3fa0" },
+    { bg: "#e2e4e8", accent: "#4b5563" },
+    { bg: "#e5e3e0", accent: "#78716c" },
+    { bg: "#d9dee3", accent: "#5f6b7a" },
+];
+const PPTX_ACTION_PALETTE = [
+    { bg: "#fceeba", border: "#f0a500" },
+    { bg: "#d7e2f4", border: "#1f3864" },
 ];
 const LIGHT_OUTCOME_COLORS: Record<Outcome, string> = {
     Passed: "#2e7d32",
@@ -1158,6 +1086,7 @@ const LIGHT_STATUS_COLORS: Record<string, string> = {
     Resolved: "#1565c0",
     "In Progress": "#f0a500",
     New: "#e53935",
+    "Not Applicable": "#9e9e9e",
 };
 const LIGHT_SEVERITY_PALETTE = [
     { bg: "#fdecea", border: "#f0c7c3", text: "#7a1f1f" },
@@ -1188,7 +1117,11 @@ function lightKpiTile(value: string, kpiIndex: number, label: string): string {
     return (
         `<td width="16.66%" style="padding:4px;">` +
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${bg}" style="background-color:${bg};border-radius:6px;border-top:3px solid ${accent};">` +
-        `<tr><td align="center" style="padding:10px 4px;font-family:${EMAIL_FONT_FAMILY};">` +
+        // Fixed height (rather than content-sized) so a tile with a
+        // one-line label - like the standalone 2nd-row "total bugs" tile -
+        // still matches row 1's height, which is set by its tallest label
+        // (avgClosureTime wraps to 2 lines).
+        `<tr><td align="center" height="64" style="padding:10px 4px;font-family:${EMAIL_FONT_FAMILY};">` +
         `<div style="font-size:20px;font-weight:700;color:${accent};line-height:1.2;">${escapeHtml(value)}</div>` +
         `<div style="font-size:10px;letter-spacing:0.02em;text-transform:uppercase;color:${LIGHT_INK_MUTED};margin-top:2px;">${escapeHtml(label)}</div>` +
         `</td></tr></table></td>`
@@ -1218,6 +1151,16 @@ function lightProgressTrack(
     );
 }
 
+// A plain colored glyph rather than a `display:inline-block` sized box:
+// Outlook's forward/reply path re-renders HTML through its Word engine,
+// which doesn't support inline-block sizing - the box collapses and the
+// legend item it's attached to drops onto its own line (this is what was
+// happening to the "N Passed | N Failed | ..." legend once forwarded). A
+// character sized only via font-size/color has no layout box to break on.
+function lightSwatch(color: string): string {
+    return `<span style="color:${color};font-size:14px;line-height:1;">■</span> `;
+}
+
 function lightSuiteRow(group: SuiteProgressGroup, t: TranslateFn): string {
     const { totalTestCases, outcomeCounts, label } = group;
     const executed = totalTestCases - outcomeCounts.NotRun;
@@ -1240,7 +1183,7 @@ function lightSuiteRow(group: SuiteProgressGroup, t: TranslateFn): string {
     const legendText = legendEntries
         .map(
             (outcome) =>
-                `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background-color:${LIGHT_OUTCOME_COLORS[outcome]};margin-right:3px;">&nbsp;</span>` +
+                lightSwatch(LIGHT_OUTCOME_COLORS[outcome]) +
                 `${outcomeCounts[outcome]} ${escapeHtml(t(`outcome.${outcome}`))}`
         )
         .join(`<span style="color:${LIGHT_RULE};"> | </span>`);
@@ -1340,6 +1283,7 @@ export function buildStatusReportCardEmailBodyHtml(
         actionsText,
         dashboardUrl,
         showOriginBreakdown = false,
+        includeDsiSource = true,
     } = data;
 
     const { datePart, timePart } = formatEmailTimestamp(new Date());
@@ -1360,6 +1304,9 @@ export function buildStatusReportCardEmailBodyHtml(
     const passRate = totalDecided
         ? Math.round((totalPassed / totalDecided) * 100)
         : 0;
+    const notApplicableRate = totalTestCases
+        ? Math.round((totalNotApplicable / totalTestCases) * 100)
+        : 0;
 
     const bugsClosed = report.byStatusAll.Closed ?? 0;
     const bugsClosedPct = report.total
@@ -1376,7 +1323,13 @@ export function buildStatusReportCardEmailBodyHtml(
     const avgClosureDays = Math.round(report.mttrDays ?? 0);
 
     const statusEntries = EMAIL_STATUS_ORDER.map(
-        (name) => [name, report.byStatusAll[name] ?? 0] as const
+        (name) =>
+            [
+                name,
+                name === "Not Applicable"
+                    ? report.outOfScopeCount
+                    : report.byStatus[name] ?? 0,
+            ] as const
     ).filter(([, count]) => count > 0);
 
     const severityTotal = Object.values(report.bySeverity).reduce(
@@ -1413,9 +1366,10 @@ export function buildStatusReportCardEmailBodyHtml(
         .map((paragraph) => paragraph.trim())
         .filter(Boolean);
 
-    const bugSources = [...suiteGroups.map((group) => group.label), "DSI"].join(
-        ", "
-    );
+    const bugSources = [
+        ...suiteGroups.map((group) => group.label),
+        ...(includeDsiSource ? ["DSI"] : []),
+    ].join(", ");
 
     const emailOriginPanelDefs = showOriginBreakdown
         ? [
@@ -1527,17 +1481,49 @@ export function buildStatusReportCardEmailBodyHtml(
             5,
             t("defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime")
         ) +
+        `</tr></table>` +
+        // A couple of <td width="16.66%"> in an otherwise-empty row have
+        // nothing to divide the row's width with, so most renderers just
+        // stretch them to fill the full table instead of honoring the
+        // percentage - hence 4 empty filler cells matching row 1's
+        // 6-column split, keeping these tiles the same size as the others
+        // instead of spanning full width.
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;"><tr>` +
+        lightKpiTile(
+            `${report.effectiveCount}/${report.total}`,
+            6,
+            t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected")
+        ) +
+        lightKpiTile(
+            String(report.withoutResolutionDateCount),
+            7,
+            t("defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate")
+        ) +
+        (report.outOfScopeCount > 0
+            ? lightKpiTile(
+                `${report.outOfScopeCount}/${report.total}`,
+                8,
+                t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected")
+            )
+            : "") +
+        lightKpiTile(
+            `${notApplicableRate}%`,
+            9,
+            t("defectManagementPage.sprintReport.statusCard.kpis.notApplicableRate")
+        ) +
+        `<td width="16.66%"></td><td width="16.66%"></td>` +
+        (report.outOfScopeCount > 0 ? "" : `<td width="16.66%"></td>`) +
         `</tr></table>`;
 
     const dashboardHtml = dashboardUrl
-        ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:14px auto 0;"><tr>` +
+        ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;"><tr>` +
           `<td bgcolor="${LIGHT_BUTTON_BG}" style="background-color:${LIGHT_BUTTON_BG};border-radius:6px;">` +
-          `<a href="${escapeHtml(dashboardUrl)}" target="_blank" rel="noreferrer" style="display:block;padding:10px 16px;color:#ffffff;font-size:13px;font-weight:600;text-decoration:none;font-family:${EMAIL_FONT_FAMILY};">${escapeHtml(t("defectManagementPage.sprintReport.statusCard.openDashboard"))}</a>` +
+          `<a href="${escapeHtml(dashboardUrl)}" target="_blank" rel="noreferrer" style="display:inline-block;padding:10px 16px;color:#ffffff;font-size:13px;font-weight:600;text-decoration:none;text-align:center;white-space:nowrap;font-family:${EMAIL_FONT_FAMILY};">${escapeHtml(t("defectManagementPage.sprintReport.statusCard.openDashboard"))}</a>` +
           `</td></tr></table>`
         : "";
 
     const actionsHtml = actionParagraphs.length
-        ? `<div style="font-size:14px;font-weight:600;color:${LIGHT_INK};margin-top:18px;font-family:${EMAIL_FONT_FAMILY};">${escapeHtml(t("defectManagementPage.sprintReport.statusCard.actionsTitle"))}</div>` +
+        ? `<div style="font-size:14px;font-weight:600;color:${LIGHT_INK};margin-top:18px;font-family:${EMAIL_FONT_FAMILY};">📌 ${escapeHtml(t("defectManagementPage.sprintReport.statusCard.actionsTitle"))}</div>` +
           actionParagraphs
               .map((paragraph, index) => {
                   const palette =
@@ -1555,7 +1541,7 @@ export function buildStatusReportCardEmailBodyHtml(
         : "";
 
     const suiteProgressHtml =
-        `<div style="font-size:14px;font-weight:600;color:${LIGHT_INK};margin-top:18px;font-family:${EMAIL_FONT_FAMILY};">${escapeHtml(t("defectManagementPage.sprintReport.statusCard.suiteProgressTitle"))}</div>` +
+        `<div style="font-size:14px;font-weight:600;color:${LIGHT_INK};margin-top:18px;font-family:${EMAIL_FONT_FAMILY};">📈 ${escapeHtml(t("defectManagementPage.sprintReport.statusCard.suiteProgressTitle"))}</div>` +
         (suiteGroups.length > 0
             ? suiteGroups.map((group) => lightSuiteRow(group, t)).join("")
             : `<div style="font-size:12px;color:${LIGHT_INK_MUTED};font-style:italic;margin-top:8px;font-family:${EMAIL_FONT_FAMILY};">${escapeHtml(t("defectManagementPage.sprintReport.statusCard.noPlanSelected"))}</div>`);
@@ -1563,7 +1549,7 @@ export function buildStatusReportCardEmailBodyHtml(
     const statusLegendHtml = statusEntries
         .map(
             ([name, count]) =>
-                `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background-color:${LIGHT_STATUS_COLORS[name]};margin-right:3px;">&nbsp;</span>` +
+                lightSwatch(LIGHT_STATUS_COLORS[name]) +
                 `${count} ${escapeHtml(t(`defectManagementPage.sprintReport.statusCard.statusLabels.${EMAIL_STATUS_LABEL_KEYS[name]}`))}`
         )
         .join(`<span style="color:${LIGHT_RULE};"> | </span>`);
@@ -1661,14 +1647,776 @@ export function buildStatusReportCardEmailBodyHtml(
 // in a browser - the intended flow is: open the file, select-all, copy, then
 // paste into the email client's rich-text compose box, which carries the
 // table markup/inline styles over as real HTML rather than plain text.
-function buildStatusReportCardEmailDocument(bodyHtml: string): string {
+//
+// The color-scheme/supported-color-schemes meta pair is what actually keeps
+// this light-palette card light once it lands in an inbox: Gmail and
+// Outlook.com both auto-recolor HTML email that doesn't declare a scheme,
+// repainting the near-white backgrounds/dark text here as if they were
+// unstyled - inline bgcolor/style alone (all this markup had before) doesn't
+// stop that. Declaring "light" opts the whole message out of that
+// auto-darkening. This must wrap whatever HTML actually gets sent/saved, not
+// just the in-app preview - buildStatusReportCardEmailBodyHtml's return value
+// is a bare <table> fragment with no <head> of its own to carry these tags.
+export function buildStatusReportCardEmailDocument(bodyHtml: string): string {
     return (
         `<!doctype html>` +
         `<html><head><meta charset="utf-8" />` +
         `<meta name="viewport" content="width=device-width, initial-scale=1" />` +
+        `<meta name="color-scheme" content="light" />` +
+        `<meta name="supported-color-schemes" content="light" />` +
         `<title>Sprint Status Card</title></head>` +
         `<body style="margin:0;padding:0;">${bodyHtml}</body></html>`
     );
+}
+
+function pdfProgressTrack(
+    doc: jsPDF,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    segments: { color: string; pct: number }[]
+): void {
+    doc.setFillColor(LIGHT_RULE);
+    doc.roundedRect(x, y, width, height, height / 2, height / 2, "F");
+
+    let cursor = x;
+
+    for (const segment of segments) {
+        const segmentWidth = (segment.pct / 100) * width;
+
+        if (segmentWidth <= 0) {
+            continue;
+        }
+
+        doc.setFillColor(segment.color);
+        doc.rect(cursor, y, segmentWidth, height, "F");
+        cursor += segmentWidth;
+    }
+}
+
+function pdfSeverityChipsRow(
+    doc: jsPDF,
+    x: number,
+    y: number,
+    width: number,
+    entries: readonly (readonly [string, number])[],
+    total: number,
+    caption: string
+): number {
+    const gap = 3;
+    const chipWidth = (width - gap * (entries.length - 1)) / entries.length;
+    const chipHeight = 18;
+
+    entries.forEach(([raw, count], index) => {
+        const rank = severityRank(raw);
+        const palette = LIGHT_SEVERITY_PALETTE[rank - 1] ?? LIGHT_SEVERITY_FALLBACK;
+        const percent = total ? Math.round((count / total) * 100) : 0;
+        const chipX = x + index * (chipWidth + gap);
+
+        doc.setFillColor(palette.bg);
+        doc.setDrawColor(palette.border);
+        doc.roundedRect(chipX, y, chipWidth, chipHeight, 1.5, 1.5, "FD");
+
+        doc.setTextColor(palette.text);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.text(String(count), chipX + chipWidth / 2, y + 7, { align: "center" });
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.text(`${percent}%`, chipX + chipWidth / 2, y + 11.5, { align: "center" });
+        doc.text(emailSeverityLabel(raw), chipX + chipWidth / 2, y + 15.5, {
+            align: "center",
+        });
+    });
+
+    const rowBottom = y + chipHeight + 4;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(LIGHT_INK_MUTED);
+    doc.text(caption, x + width / 2, rowBottom, { align: "center" });
+
+    return rowBottom + 6;
+}
+
+interface StatusCardKpis {
+    totalTestCases: number;
+    totalPassed: number;
+    totalNotApplicable: number;
+    totalDecided: number;
+    passRate: number;
+    notApplicableRate: number;
+    bugsClosed: number;
+    bugsClosedPct: number;
+    stillOpen: number;
+    reopenedPct: number;
+    avgClosureDays: number;
+}
+
+// Shared by the PDF and PPTX status card exports so the two renderings never
+// drift apart on how a rate/percentage is derived from the raw report.
+function computeStatusCardKpis(
+    suiteGroups: SuiteProgressGroup[],
+    report: SprintDefectReport
+): StatusCardKpis {
+    const totalTestCases = suiteGroups.reduce((sum, group) => sum + group.totalTestCases, 0);
+    const totalPassed = suiteGroups.reduce((sum, group) => sum + group.outcomeCounts.Passed, 0);
+    const totalNotApplicable = suiteGroups.reduce(
+        (sum, group) => sum + group.outcomeCounts.NotApplicable,
+        0
+    );
+    const totalDecided = totalTestCases - totalNotApplicable;
+    const passRate = totalDecided ? Math.round((totalPassed / totalDecided) * 100) : 0;
+    const notApplicableRate = totalTestCases
+        ? Math.round((totalNotApplicable / totalTestCases) * 100)
+        : 0;
+
+    const bugsClosed = report.byStatusAll.Closed ?? 0;
+    const bugsClosedPct = report.total ? Math.round((bugsClosed / report.total) * 100) : 0;
+    const stillOpen = report.total - bugsClosed;
+    const reopenedPct = report.total
+        ? Math.round((report.reopenedCount / report.total) * 1000) / 10
+        : 0;
+    const avgClosureDays = Math.round(report.mttrDays ?? 0);
+
+    return {
+        totalTestCases,
+        totalPassed,
+        totalNotApplicable,
+        totalDecided,
+        passRate,
+        notApplicableRate,
+        bugsClosed,
+        bugsClosedPct,
+        stillOpen,
+        reopenedPct,
+        avgClosureDays,
+    };
+}
+
+interface BugStatusData {
+    statusEntries: (readonly [string, number])[];
+    statusSegments: { color: string; pct: number }[];
+    severityTotal: number;
+    severityEntries: (readonly [string, number])[];
+    openSeverityTotal: number;
+    openSeverityEntries: (readonly [string, number])[];
+}
+
+// Shared by the PDF and PPTX bug status sections - both render the same
+// status/severity breakdown, just with a different renderer underneath.
+function computeBugStatusData(report: SprintDefectReport): BugStatusData {
+    const statusEntries = EMAIL_STATUS_ORDER.map(
+        (name) =>
+            [
+                name,
+                name === "Not Applicable" ? report.outOfScopeCount : report.byStatus[name] ?? 0,
+            ] as const
+    ).filter(([, count]) => count > 0);
+    const statusSegments = statusEntries.map(([name, count]) => ({
+        color: LIGHT_STATUS_COLORS[name],
+        pct: report.total ? (count / report.total) * 100 : 0,
+    }));
+
+    const severityTotal = Object.values(report.bySeverity).reduce((sum, count) => sum + count, 0);
+    const severityEntries = EMAIL_SEVERITY_KEYS.map(
+        (key) => [key, report.bySeverity[key] ?? 0] as const
+    );
+
+    const openSeverityCounts = report.effectiveDefects.reduce<Record<string, number>>(
+        (acc, bug) => {
+            if (bug.state === "Closed") {
+                return acc;
+            }
+
+            const key = bug.severity ?? "Unspecified";
+            acc[key] = (acc[key] ?? 0) + 1;
+            return acc;
+        },
+        {}
+    );
+    const openSeverityTotal = Object.values(openSeverityCounts).reduce(
+        (sum, count) => sum + count,
+        0
+    );
+    const openSeverityEntries = EMAIL_SEVERITY_KEYS.map(
+        (key) => [key, openSeverityCounts[key] ?? 0] as const
+    );
+
+    return {
+        statusEntries,
+        statusSegments,
+        severityTotal,
+        severityEntries,
+        openSeverityTotal,
+        openSeverityEntries,
+    };
+}
+
+interface SuiteProgressRowData {
+    executedPct: number;
+    groupPassRate: number;
+    segments: { color: string; pct: number }[];
+    legendEntries: Outcome[];
+}
+
+// Shared by the PDF and PPTX suite-progress rows - both render the same
+// executed/pass-rate figures, just with a different renderer underneath.
+function computeSuiteProgressRowData(group: SuiteProgressGroup): SuiteProgressRowData {
+    const executed = group.totalTestCases - group.outcomeCounts.NotRun;
+    const executedPct = group.totalTestCases
+        ? Math.round((executed / group.totalTestCases) * 100)
+        : 0;
+    const decided = group.totalTestCases - group.outcomeCounts.NotApplicable;
+    const groupPassRate = decided
+        ? Math.round((group.outcomeCounts.Passed / decided) * 100)
+        : 0;
+
+    const legendEntries = EMAIL_OUTCOME_ORDER.filter(
+        (outcome) => group.outcomeCounts[outcome] > 0
+    );
+    const segments = legendEntries.map((outcome) => ({
+        color: LIGHT_OUTCOME_COLORS[outcome],
+        pct: group.totalTestCases
+            ? (group.outcomeCounts[outcome] / group.totalTestCases) * 100
+            : 0,
+    }));
+
+    return { executedPct, groupPassRate, segments, legendEntries };
+}
+
+interface PdfDrawCtx {
+    doc: jsPDF;
+    pageWidth: number;
+    innerWidth: number;
+    t: TranslateFn;
+}
+
+function pdfDrawAlertBanner(ctx: PdfDrawCtx, y: number, alertText: string): number {
+    if (!alertText) {
+        return y;
+    }
+
+    const { doc, innerWidth } = ctx;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const lines = doc.splitTextToSize(alertText, innerWidth - 10);
+    const boxHeight = lines.length * 5 + 6;
+    const boxY = ensurePdfSpace(doc, y, boxHeight + 8);
+
+    doc.setFillColor(LIGHT_ALERT_BG);
+    doc.rect(PDF_MARGIN, boxY, innerWidth, boxHeight, "F");
+    doc.setFillColor(LIGHT_ALERT_BORDER);
+    doc.rect(PDF_MARGIN, boxY, 1.2, boxHeight, "F");
+    doc.setTextColor(LIGHT_ALERT_TEXT);
+    doc.text(lines, PDF_MARGIN + 6, boxY + 5);
+
+    return boxY + boxHeight + 8;
+}
+
+function buildPdfRow2KpiDefs(
+    kpis: StatusCardKpis,
+    report: SprintDefectReport,
+    t: TranslateFn
+): { kpi: (typeof LIGHT_KPI)[number]; label: string; value: string }[] {
+    return [
+        {
+            kpi: LIGHT_KPI[6],
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"),
+            value: `${report.effectiveCount}/${report.total}`,
+        },
+        {
+            kpi: LIGHT_KPI[7],
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"),
+            value: String(report.withoutResolutionDateCount),
+        },
+        ...(report.outOfScopeCount > 0
+            ? [
+                {
+                    kpi: LIGHT_KPI[8],
+                    label: t(
+                        "defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"
+                    ),
+                    value: `${report.outOfScopeCount}/${report.total}`,
+                },
+            ]
+            : []),
+        {
+            kpi: LIGHT_KPI[9],
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.notApplicableRate"),
+            value: `${kpis.notApplicableRate}%`,
+        },
+    ];
+}
+
+function pdfDrawDashboardButton(
+    ctx: PdfDrawCtx,
+    y: number,
+    dashboardUrl: string | undefined
+): number {
+    if (!dashboardUrl) {
+        return y;
+    }
+
+    const { doc, pageWidth, innerWidth, t } = ctx;
+    const buttonY = ensurePdfSpace(doc, y, 14);
+    const label = t("defectManagementPage.sprintReport.statusCard.openDashboard");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+
+    const buttonHeight = 9;
+
+    doc.setFillColor(LIGHT_BUTTON_BG);
+    doc.roundedRect(PDF_MARGIN, buttonY, innerWidth, buttonHeight, 2, 2, "F");
+    doc.setTextColor("#ffffff");
+    doc.text(label, pageWidth / 2, buttonY + buttonHeight / 2 + 1.2, { align: "center" });
+    doc.link(PDF_MARGIN, buttonY, innerWidth, buttonHeight, { url: dashboardUrl });
+
+    return buttonY + buttonHeight + 8;
+}
+
+function pdfDrawActionsSection(ctx: PdfDrawCtx, y: number, actionsText: string): number {
+    const actionParagraphs = actionsText
+        .split(/\n\s*\n/)
+        .map((paragraph) => paragraph.trim())
+        .filter(Boolean);
+
+    if (actionParagraphs.length === 0) {
+        return y;
+    }
+
+    const { doc, innerWidth, t } = ctx;
+    let cursorY = ensurePdfSpace(doc, y, 10);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(LIGHT_INK);
+    doc.text(t("defectManagementPage.sprintReport.statusCard.actionsTitle"), PDF_MARGIN, cursorY);
+    cursorY += 6;
+
+    for (const [index, paragraph] of actionParagraphs.entries()) {
+        const palette = LIGHT_ACTION_PALETTE[index % LIGHT_ACTION_PALETTE.length];
+        const { lead, rest } = splitEmailActionLeadIn(paragraph);
+        const bodyText = lead ? `${lead} ${rest}` : rest;
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        const lines = doc.splitTextToSize(bodyText, innerWidth - 10);
+        const boxHeight = lines.length * 4.5 + 5;
+
+        cursorY = ensurePdfSpace(doc, cursorY, boxHeight + 4);
+
+        doc.setFillColor(palette.bg);
+        doc.rect(PDF_MARGIN, cursorY, innerWidth, boxHeight, "F");
+        doc.setFillColor(palette.border);
+        doc.rect(PDF_MARGIN, cursorY, 1.2, boxHeight, "F");
+        doc.setTextColor(LIGHT_INK);
+        doc.text(lines, PDF_MARGIN + 6, cursorY + 4.5);
+
+        cursorY += boxHeight + 4;
+    }
+
+    return cursorY + 4;
+}
+
+function pdfDrawSuiteProgressRow(ctx: PdfDrawCtx, y: number, group: SuiteProgressGroup): number {
+    const { doc, pageWidth, innerWidth, t } = ctx;
+    const { executedPct, groupPassRate, segments, legendEntries } =
+        computeSuiteProgressRowData(group);
+    const legendText = legendEntries
+        .map((outcome) => outcomeCountLabel(t, outcome, group.outcomeCounts[outcome]))
+        .join("   |   ");
+
+    let cursorY = ensurePdfSpace(doc, y, 18);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(LIGHT_INK);
+    doc.text(
+        `${group.label} – ${t("defectManagementPage.sprintReport.statusCard.casesCount", {
+            count: group.totalTestCases,
+        })}`,
+        PDF_MARGIN,
+        cursorY
+    );
+    doc.text(
+        `${executedPct}% ${t("defectManagementPage.sprintReport.statusCard.executed")}`,
+        pageWidth - PDF_MARGIN,
+        cursorY,
+        { align: "right" }
+    );
+    cursorY += 3;
+
+    pdfProgressTrack(doc, PDF_MARGIN, cursorY, innerWidth, 3, segments);
+    cursorY += 6;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(LIGHT_INK_MUTED);
+    doc.text(
+        `${legendText}   |   ${t("defectManagementPage.sprintReport.statusCard.passRate")}: ${groupPassRate}%`,
+        PDF_MARGIN,
+        cursorY
+    );
+    cursorY += 8;
+
+    return cursorY;
+}
+
+function pdfDrawSuiteProgressSection(
+    ctx: PdfDrawCtx,
+    y: number,
+    suiteGroups: SuiteProgressGroup[]
+): number {
+    const { doc, t } = ctx;
+    let cursorY = ensurePdfSpace(doc, y, 10);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(LIGHT_INK);
+    doc.text(
+        t("defectManagementPage.sprintReport.statusCard.suiteProgressTitle"),
+        PDF_MARGIN,
+        cursorY
+    );
+    cursorY += 6;
+
+    if (suiteGroups.length === 0) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(LIGHT_INK_MUTED);
+        doc.text(
+            t("defectManagementPage.sprintReport.statusCard.noPlanSelected"),
+            PDF_MARGIN,
+            cursorY
+        );
+        return cursorY + 6;
+    }
+
+    for (const group of suiteGroups) {
+        cursorY = pdfDrawSuiteProgressRow(ctx, cursorY, group);
+    }
+
+    return cursorY;
+}
+
+function pdfDrawBugStatusSection(
+    ctx: PdfDrawCtx,
+    y: number,
+    report: SprintDefectReport,
+    kpis: StatusCardKpis,
+    suiteGroups: SuiteProgressGroup[],
+    includeDsiSource: boolean
+): number {
+    const { doc, pageWidth, innerWidth, t } = ctx;
+    const {
+        statusEntries,
+        statusSegments,
+        severityTotal,
+        severityEntries,
+        openSeverityTotal,
+        openSeverityEntries,
+    } = computeBugStatusData(report);
+
+    let cursorY = ensurePdfSpace(doc, y, 10);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(LIGHT_INK);
+    doc.text(
+        t("defectManagementPage.sprintReport.statusCard.bugStatusTitle"),
+        PDF_MARGIN,
+        cursorY
+    );
+    cursorY += 5;
+
+    const bugSources = [
+        ...suiteGroups.map((group) => group.label),
+        ...(includeDsiSource ? ["DSI"] : []),
+    ].join(", ");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(LIGHT_INK_MUTED);
+    doc.text(
+        t("defectManagementPage.sprintReport.statusCard.bugStatusSubtitle", {
+            sources: bugSources,
+        }),
+        PDF_MARGIN,
+        cursorY
+    );
+    cursorY += 6;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(LIGHT_INK);
+    doc.text(
+        t("defectManagementPage.sprintReport.statusCard.bugsDetected", {
+            count: report.total,
+        }),
+        PDF_MARGIN,
+        cursorY
+    );
+    doc.setFont("helvetica", "normal");
+    doc.text(
+        ` – ${t("defectManagementPage.sprintReport.statusCard.bugStatusSummary", {
+            effective: report.effectiveCount,
+            outOfScope: report.outOfScopeCount,
+        })}`,
+        PDF_MARGIN +
+            doc.getTextWidth(
+                t("defectManagementPage.sprintReport.statusCard.bugsDetected", {
+                    count: report.total,
+                })
+            ),
+        cursorY
+    );
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(LIGHT_STILL_OPEN);
+    doc.text(
+        t("defectManagementPage.sprintReport.statusCard.stillOpen", { count: kpis.stillOpen }),
+        pageWidth - PDF_MARGIN,
+        cursorY,
+        { align: "right" }
+    );
+    cursorY += 4;
+
+    pdfProgressTrack(doc, PDF_MARGIN, cursorY, innerWidth, 3.5, statusSegments);
+    cursorY += 6;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(LIGHT_INK_MUTED);
+    doc.text(
+        statusEntries.map(([name, count]) => statusCountLabel(t, name, count)).join("   |   "),
+        PDF_MARGIN,
+        cursorY
+    );
+    cursorY += 6;
+
+    cursorY = ensurePdfSpace(doc, cursorY, 24);
+    cursorY = pdfSeverityChipsRow(
+        doc,
+        PDF_MARGIN,
+        cursorY,
+        innerWidth,
+        severityEntries,
+        severityTotal,
+        t("defectManagementPage.sprintReport.statusCard.severityCaption", {
+            count: report.effectiveCount,
+        })
+    );
+
+    cursorY = ensurePdfSpace(doc, cursorY, 24);
+    cursorY = pdfSeverityChipsRow(
+        doc,
+        PDF_MARGIN,
+        cursorY,
+        innerWidth,
+        openSeverityEntries,
+        openSeverityTotal,
+        t("defectManagementPage.sprintReport.statusCard.openSeverityCaption", {
+            count: openSeverityTotal,
+        })
+    );
+
+    return cursorY;
+}
+
+function pdfDrawOriginBreakdownSection(
+    ctx: PdfDrawCtx,
+    y: number,
+    report: SprintDefectReport,
+    showOriginBreakdown: boolean
+): void {
+    const { doc, t } = ctx;
+    const { originDefs, originRowsData } = computeOriginBreakdown(report, showOriginBreakdown, t);
+
+    if (originDefs.length === 0) {
+        return;
+    }
+
+    const titleY = ensurePdfSpace(doc, y, 10);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(LIGHT_INK);
+    doc.text(
+        t("defectManagementPage.sprintReport.statusCard.originBreakdown.title"),
+        PDF_MARGIN,
+        titleY
+    );
+
+    autoTable(doc, {
+        startY: titleY + 4,
+        head: [["Origin", "Suite", "Count"]],
+        body: originRowsData,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: LIGHT_HEADER_BG },
+    });
+}
+
+// Real jsPDF text/tables (like every other report PDF in this file), not a
+// screenshot of the on-screen card - so the exported text is selectable,
+// copyable and searchable. Deliberately reuses the card's light palette
+// (see buildStatusReportCardEmailBodyHtml) since a screen-accurate dark
+// capture isn't the point here; a legible, quotable document is.
+export function buildStatusReportCardPdfDocument(
+    data: StatusReportCardEmailData,
+    t: TranslateFn
+): jsPDF {
+    const {
+        headerTitle,
+        headerSubtitle,
+        suiteGroups,
+        report,
+        alertText,
+        actionsText,
+        dashboardUrl,
+        showOriginBreakdown = false,
+        includeDsiSource = true,
+    } = data;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const innerWidth = pageWidth - PDF_MARGIN * 2;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(LIGHT_INK);
+    doc.text(headerTitle, PDF_MARGIN, 16);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(LIGHT_INK_MUTED);
+    doc.text(headerSubtitle, PDF_MARGIN, 22);
+
+    const { datePart, timePart } = formatEmailTimestamp(new Date());
+    doc.setFontSize(8);
+    doc.text(
+        t("defectManagementPage.sprintReport.statusCard.updatedAt", {
+            date: datePart,
+            time: timePart,
+        }),
+        pageWidth - PDF_MARGIN,
+        12,
+        { align: "right" }
+    );
+
+    const ctx: PdfDrawCtx = { doc, pageWidth, innerWidth, t };
+
+    let y = pdfDrawAlertBanner(ctx, 30, alertText);
+
+    const kpis = computeStatusCardKpis(suiteGroups, report);
+
+    y = ensurePdfSpace(doc, y, 24);
+
+    autoTable(doc, {
+        startY: y,
+        theme: "plain",
+        head: [
+            [
+                t("defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"),
+                t("defectManagementPage.sprintReport.statusCard.kpis.passRate"),
+                t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosed", {
+                    percent: kpis.bugsClosedPct,
+                }),
+                t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"),
+                t("defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs", {
+                    percent: kpis.reopenedPct,
+                }),
+                t("defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime"),
+            ],
+        ],
+        body: [
+            [
+                String(kpis.totalTestCases),
+                `${kpis.passRate}%`,
+                `${kpis.bugsClosed}/${report.total}`,
+                String(report.bySeverity["1 - Critical"] ?? 0),
+                String(report.reopenedCount),
+                t("defectManagementPage.stats.days", { value: kpis.avgClosureDays }),
+            ],
+        ],
+        tableWidth: innerWidth,
+        styles: { fontSize: 7, halign: "center", cellPadding: 2, textColor: LIGHT_INK_MUTED },
+        headStyles: { textColor: LIGHT_INK_MUTED, fontStyle: "normal" },
+        bodyStyles: { fontSize: 12, fontStyle: "bold" },
+        // Explicit equal cellWidth (rather than autoTable's content-based
+        // default) so all 6 tiles are exactly innerWidth/6 wide - matching
+        // the standalone 7th tile below, which uses that same width.
+        columnStyles: Object.fromEntries(
+            LIGHT_KPI.slice(0, 6).map((kpi, index) => [
+                index,
+                { fillColor: kpi.bg, textColor: kpi.accent, cellWidth: innerWidth / 6 },
+            ])
+        ),
+        didParseCell: (hookData) => {
+            if (hookData.section === "head") {
+                hookData.cell.styles.fillColor = LIGHT_KPI[hookData.column.index].bg;
+                hookData.cell.styles.textColor = LIGHT_INK_MUTED;
+            }
+        },
+    });
+
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 2;
+
+    const row2Defs = buildPdfRow2KpiDefs(kpis, report, t);
+
+    autoTable(doc, {
+        startY: y,
+        theme: "plain",
+        tableWidth: (innerWidth / 6) * row2Defs.length,
+        margin: { left: PDF_MARGIN },
+        head: [row2Defs.map((d) => d.label)],
+        body: [row2Defs.map((d) => d.value)],
+        styles: { fontSize: 7, halign: "center", cellPadding: 2, textColor: LIGHT_INK_MUTED },
+        headStyles: { textColor: LIGHT_INK_MUTED, fontStyle: "normal" },
+        bodyStyles: { fontSize: 12, fontStyle: "bold" },
+        columnStyles: Object.fromEntries(
+            row2Defs.map((d, index) => [
+                index,
+                { fillColor: d.kpi.bg, textColor: d.kpi.accent, cellWidth: innerWidth / 6 },
+            ])
+        ),
+        didParseCell: (hookData) => {
+            if (hookData.section === "head") {
+                hookData.cell.styles.fillColor = row2Defs[hookData.column.index].kpi.bg;
+                hookData.cell.styles.textColor = LIGHT_INK_MUTED;
+            }
+        },
+    });
+
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
+
+    y = pdfDrawDashboardButton(ctx, y, dashboardUrl);
+    y = pdfDrawActionsSection(ctx, y, actionsText);
+    y = pdfDrawSuiteProgressSection(ctx, y, suiteGroups);
+    y = pdfDrawBugStatusSection(ctx, y, report, kpis, suiteGroups, includeDsiSource);
+    pdfDrawOriginBreakdownSection(ctx, y, report, showOriginBreakdown);
+
+    return doc;
+}
+
+export function exportStatusReportCardToPdf(
+    filename: string,
+    data: StatusReportCardEmailData,
+    t: TranslateFn
+): void {
+    const doc = buildStatusReportCardPdfDocument(data, t);
+    doc.save(filename);
+}
+
+// Same document exportStatusReportCardToPdf saves to disk, base64-encoded
+// for attaching to the status card email (see sendEmailReport's pdfBase64
+// field) - the recipient gets the identical file, dashboard link included,
+// as a real attachment rather than anything embedded in the HTML body
+// itself (no email client renders a PDF inline in the message body).
+export function buildStatusReportCardPdfBase64(
+    data: StatusReportCardEmailData,
+    t: TranslateFn
+): string {
+    const doc = buildStatusReportCardPdfDocument(data, t);
+    return pdfDocToBase64(doc);
 }
 
 export function downloadStatusReportCardEmailHtml(
@@ -1680,6 +2428,1007 @@ export function downloadStatusReportCardEmailHtml(
     const documentHtml = buildStatusReportCardEmailDocument(bodyHtml);
     const blob = new Blob([documentHtml], { type: "text/html;charset=utf-8;" });
     downloadBlob(blob, filename);
+}
+
+// pptxgenjs colors are hex without the leading '#'.
+function pptxHex(color: string): string {
+    return color.replace("#", "");
+}
+
+// No text-measurement API exists for pptxgenjs (unlike jsPDF's
+// splitTextToSize used by buildStatusReportCardPdfDocument), so free-text
+// fields (the alert banner, each action paragraph) are measured with a
+// scratch canvas instead, purely to size their box before drawing - actual
+// on-slide wrapping is still done by PowerPoint itself (wrap: true).
+function estimateWrappedLineCount(
+    text: string,
+    maxWidthIn: number,
+    fontSizePt: number
+): number {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    if (!ctx) {
+        return 1;
+    }
+
+    ctx.font = `${fontSizePt}pt Arial`;
+
+    const maxWidthPx = maxWidthIn * 96;
+    const spaceWidth = ctx.measureText(" ").width;
+    const words = text.split(/\s+/).filter(Boolean);
+
+    let lines = 1;
+    let lineWidth = 0;
+
+    for (const word of words) {
+        const wordWidth = ctx.measureText(word).width;
+
+        if (lineWidth > 0 && lineWidth + spaceWidth + wordWidth > maxWidthPx) {
+            lines++;
+            lineWidth = wordWidth;
+        } else {
+            lineWidth += (lineWidth > 0 ? spaceWidth : 0) + wordWidth;
+        }
+    }
+
+    return Math.max(lines, 1);
+}
+
+function pptxProgressTrack(
+    slide: PptxGenJS.PresSlide,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    segments: { color: string; pct: number }[]
+): void {
+    slide.addShape("roundRect", {
+        x,
+        y,
+        w: width,
+        h: height,
+        rectRadius: 0.5,
+        fill: { color: pptxHex(LIGHT_RULE) },
+        line: { type: "none" },
+    });
+
+    let cursor = x;
+
+    for (const segment of segments) {
+        const segmentWidth = (segment.pct / 100) * width;
+
+        if (segmentWidth <= 0) {
+            continue;
+        }
+
+        slide.addShape("rect", {
+            x: cursor,
+            y,
+            w: segmentWidth,
+            h: height,
+            fill: { color: pptxHex(segment.color) },
+            line: { type: "none" },
+        });
+        cursor += segmentWidth;
+    }
+}
+
+// Renders "■ 11 Passed   |   ■ 6 Failed   |   ..." as pptxgenjs text runs so
+// each count gets a colored square swatch matching the on-screen legend
+// (SuiteProgressBar / StatusReportCard), instead of a flat color-less list.
+function pptxLegendRuns(
+    entries: { color: string; label: string }[],
+    textColor: string,
+    fontSize: number
+): PptxGenJS.TextProps[] {
+    return entries.flatMap((entry, index) => {
+        const separator: PptxGenJS.TextProps[] =
+            index > 0
+                ? [{ text: "   |   ", options: { color: pptxHex(textColor), fontSize } }]
+                : [];
+
+        return [
+            ...separator,
+            { text: "■ ", options: { color: pptxHex(entry.color), fontSize } },
+            { text: entry.label, options: { color: pptxHex(textColor), fontSize } },
+        ];
+    });
+}
+
+const PPTX_SEVERITY_CHIP_HEIGHT = 0.55;
+const PPTX_SEVERITY_ROW_HEIGHT = PPTX_SEVERITY_CHIP_HEIGHT + 0.22;
+
+function pptxSeverityChipsRow(
+    slide: PptxGenJS.PresSlide,
+    rect: { x: number; y: number; width: number },
+    entries: readonly (readonly [string, number])[],
+    total: number,
+    caption: string,
+    scale = 1
+): void {
+    const { x, y, width } = rect;
+    const chipHeight = PPTX_SEVERITY_CHIP_HEIGHT * scale;
+    const gap = 0.06;
+    const chipWidth = (width - gap * (entries.length - 1)) / entries.length;
+
+    entries.forEach(([raw, count], index) => {
+        const rank = severityRank(raw);
+        const palette = LIGHT_SEVERITY_PALETTE[rank - 1] ?? LIGHT_SEVERITY_FALLBACK;
+        const percent = total ? Math.round((count / total) * 100) : 0;
+        const chipX = x + index * (chipWidth + gap);
+
+        slide.addText(
+            [
+                {
+                    text: String(count),
+                    options: { fontSize: 14 * scale, bold: true, breakLine: true },
+                },
+                { text: `${percent}%`, options: { fontSize: 9 * scale, breakLine: true } },
+                { text: emailSeverityLabel(raw), options: { fontSize: 9 * scale } },
+            ],
+            {
+                x: chipX,
+                y,
+                w: chipWidth,
+                h: chipHeight,
+                align: "center",
+                valign: "middle",
+                color: pptxHex(palette.text),
+                fontFace: "Arial",
+                fill: { color: pptxHex(palette.bg) },
+                line: { color: pptxHex(palette.border), width: 0.75 },
+                rectRadius: 0.08,
+                shape: "roundRect",
+            }
+        );
+    });
+
+    slide.addText(caption, {
+        x,
+        y: y + chipHeight + 0.03 * scale,
+        w: width,
+        h: 0.18 * scale,
+        align: "center",
+        fontSize: 9 * scale,
+        color: pptxHex(LIGHT_INK_MUTED),
+        fontFace: "Arial",
+    });
+}
+
+function computeOriginBreakdown(
+    report: SprintDefectReport,
+    showOriginBreakdown: boolean,
+    t: TranslateFn
+): {
+    originDefs: { origin: string; labelKey: string; bySuite: Record<string, number> }[];
+    originRowsData: string[][];
+} {
+    const originDefs = showOriginBreakdown
+        ? [
+              {
+                  origin: "Test Factory",
+                  labelKey: "defectManagementPage.sprintReport.origin.testFactory",
+                  bySuite: report.testFactoryBySuite,
+              },
+              {
+                  origin: "Test Agenti",
+                  labelKey: "defectManagementPage.sprintReport.origin.testAgenti",
+                  bySuite: report.testAgentiBySuite,
+              },
+              {
+                  origin: "Business",
+                  labelKey: "defectManagementPage.sprintReport.origin.business",
+                  bySuite: report.testBusinessBySuite,
+              },
+          ].filter((def) => Object.keys(def.bySuite).length > 0)
+        : [];
+    const originRowsData = originDefs.flatMap((def) => {
+        const suiteEntries = Object.entries(def.bySuite).sort(([a], [b]) => a.localeCompare(b));
+
+        return [
+            ...suiteEntries.map(([suite, count]) => [
+                t(def.labelKey),
+                suiteCaption(t, suite),
+                String(count),
+            ]),
+            [
+                t(def.labelKey),
+                t("defectManagementPage.sprintReport.statusCard.originBreakdown.detected"),
+                String(report.byOriginDetected[def.origin] ?? 0),
+            ],
+            [
+                t(def.labelKey),
+                t("defectManagementPage.sprintReport.statusCard.originBreakdown.accepted"),
+                String(report.byOrigin[def.origin] ?? 0),
+            ],
+        ];
+    });
+
+    return { originDefs, originRowsData };
+}
+
+interface PptxNaturalHeights {
+    naturalAlertBlock: number;
+    naturalKpiBlock: number;
+    naturalDashboardBlock: number;
+    naturalActionsBlock: number;
+    naturalSuiteBlock: number;
+    naturalBugStatusBlock: number;
+    naturalOriginBlock: number;
+    naturalBodyTotal: number;
+}
+
+// Measures every section's height up front (mirrors the drawing logic below
+// section-for-section) so the slide can be created at exactly the right
+// size - pptxgenjs has no auto-growing page, unlike jsPDF's page breaks.
+function computePptxNaturalHeights(params: {
+    hasAlert: boolean;
+    alertText: string;
+    innerW: number;
+    actionParagraphs: string[];
+    suiteGroups: SuiteProgressGroup[];
+    hasDashboard: boolean;
+    originDefs: unknown[];
+    originRowsData: unknown[];
+}): PptxNaturalHeights {
+    const {
+        hasAlert,
+        alertText,
+        innerW,
+        actionParagraphs,
+        suiteGroups,
+        hasDashboard,
+        originDefs,
+        originRowsData,
+    } = params;
+
+    const naturalAlertLineCount = hasAlert
+        ? estimateWrappedLineCount(`⚠ ${alertText}`, innerW - 0.35, 11)
+        : 0;
+    const naturalAlertBlock = hasAlert ? naturalAlertLineCount * 0.2 + 0.14 + 0.18 : 0;
+
+    const naturalKpiBlock = 0.62 + 0.08 + 0.62 + 0.15;
+
+    const naturalDashboardBlock = hasDashboard ? 0.32 + 0.2 : 0;
+
+    const naturalActionLineCounts = actionParagraphs.map((paragraph) => {
+        const { lead, rest } = splitEmailActionLeadIn(paragraph);
+        const bodyText = lead ? `${lead} ${rest}` : rest;
+        return estimateWrappedLineCount(bodyText, innerW - 0.35, 10);
+    });
+    const naturalActionsBlock =
+        actionParagraphs.length > 0
+            ? 0.32 +
+              naturalActionLineCounts.reduce(
+                  (sum, lineCount) => sum + (lineCount * 0.18 + 0.12) + 0.08,
+                  0
+              )
+            : 0;
+
+    const naturalSuiteBlock = 0.32 + (suiteGroups.length > 0 ? suiteGroups.length * 0.5 : 0.28);
+
+    const naturalBugStatusBlock =
+        0.32 + 0.2 + 0.24 + 0.1 + 0.2 + PPTX_SEVERITY_ROW_HEIGHT * 2 + 0.1;
+
+    const naturalOriginBlock =
+        originDefs.length > 0 ? 0.32 + originRowsData.length * 0.24 + 0.15 : 0;
+
+    const naturalBodyTotal =
+        naturalAlertBlock +
+        naturalKpiBlock +
+        naturalDashboardBlock +
+        naturalActionsBlock +
+        naturalSuiteBlock +
+        naturalBugStatusBlock +
+        naturalOriginBlock;
+
+    return {
+        naturalAlertBlock,
+        naturalKpiBlock,
+        naturalDashboardBlock,
+        naturalActionsBlock,
+        naturalSuiteBlock,
+        naturalBugStatusBlock,
+        naturalOriginBlock,
+        naturalBodyTotal,
+    };
+}
+
+function buildPptxKpiDefs(
+    kpis: StatusCardKpis,
+    report: SprintDefectReport,
+    t: TranslateFn
+): { value: string; label: string }[] {
+    return [
+        {
+            value: String(kpis.totalTestCases),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"),
+        },
+        {
+            value: `${kpis.passRate}%`,
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.passRate"),
+        },
+        {
+            value: `${kpis.bugsClosed}/${report.total}`,
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosed", {
+                percent: kpis.bugsClosedPct,
+            }),
+        },
+        {
+            value: String(report.bySeverity["1 - Critical"] ?? 0),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"),
+        },
+        {
+            value: String(report.reopenedCount),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs", {
+                percent: kpis.reopenedPct,
+            }),
+        },
+        {
+            value: t("defectManagementPage.stats.days", { value: kpis.avgClosureDays }),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime"),
+        },
+    ];
+}
+
+function buildPptxRow2KpiDefs(
+    kpis: StatusCardKpis,
+    report: SprintDefectReport,
+    t: TranslateFn
+): { value: string; label: string }[] {
+    return [
+        {
+            value: `${report.effectiveCount}/${report.total}`,
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"),
+        },
+        {
+            value: String(report.withoutResolutionDateCount),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"),
+        },
+        ...(report.outOfScopeCount > 0
+            ? [
+                {
+                    value: `${report.outOfScopeCount}/${report.total}`,
+                    label: t(
+                        "defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"
+                    ),
+                },
+            ]
+            : []),
+        {
+            value: `${kpis.notApplicableRate}%`,
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.notApplicableRate"),
+        },
+    ];
+}
+
+interface PptxDrawCtx {
+    slide: PptxGenJS.PresSlide;
+    M: number;
+    W: number;
+    innerW: number;
+    scale: number;
+    s: (n: number) => number;
+    t: TranslateFn;
+}
+
+function pptxDrawAlertBanner(
+    ctx: PptxDrawCtx,
+    cursorY: number,
+    alertText: string,
+    naturalAlertBlock: number
+): number {
+    if (!alertText) {
+        return cursorY;
+    }
+
+    const { slide, M, innerW, s } = ctx;
+    const lineCount = estimateWrappedLineCount(`⚠ ${alertText}`, innerW - 0.35, s(11));
+    const textHeight = s(lineCount * 0.2 + 0.14);
+
+    slide.addShape("rect", {
+        x: M,
+        y: cursorY,
+        w: innerW,
+        h: textHeight,
+        fill: { color: pptxHex(LIGHT_ALERT_BG) },
+        line: { color: pptxHex(LIGHT_ALERT_BORDER), width: 0.5 },
+    });
+    slide.addShape("rect", {
+        x: M,
+        y: cursorY,
+        w: 0.05,
+        h: textHeight,
+        fill: { color: pptxHex(LIGHT_ALERT_BORDER) },
+        line: { type: "none" },
+    });
+    slide.addText(`⚠ ${alertText}`, {
+        x: M + 0.15,
+        y: cursorY,
+        w: innerW - 0.3,
+        h: textHeight,
+        fontSize: s(11),
+        color: pptxHex(LIGHT_ALERT_TEXT),
+        fontFace: "Arial",
+        valign: "middle",
+        wrap: true,
+    });
+
+    return cursorY + s(naturalAlertBlock);
+}
+
+function pptxDrawKpiTiles(
+    ctx: PptxDrawCtx,
+    cursorY: number,
+    kpiDefs: { value: string; label: string }[],
+    row2KpiDefs: { value: string; label: string }[]
+): void {
+    const { slide, M, innerW, s } = ctx;
+    const kpiHeight = s(0.62);
+    const kpiGap = 0.06;
+    const kpiColumns = 6;
+    const kpiTileWidth = (innerW - kpiGap * (kpiColumns - 1)) / kpiColumns;
+
+    const drawTile = (
+        kpi: { value: string; label: string },
+        paletteIndex: number,
+        positionIndex: number,
+        y: number
+    ) => {
+        const kpiPalette = PPTX_KPI[paletteIndex];
+        const tileX = M + positionIndex * (kpiTileWidth + kpiGap);
+
+        slide.addText(
+            [
+                { text: kpi.value, options: { fontSize: s(15), bold: true, breakLine: true } },
+                { text: kpi.label, options: { fontSize: s(7) } },
+            ],
+            {
+                x: tileX,
+                y,
+                w: kpiTileWidth,
+                h: kpiHeight,
+                align: "center",
+                valign: "middle",
+                color: pptxHex(kpiPalette.accent),
+                fontFace: "Arial",
+                fill: { color: pptxHex(kpiPalette.bg) },
+                line: { color: pptxHex(kpiPalette.accent), width: 0.75 },
+                shape: "roundRect",
+                rectRadius: 0.06,
+            }
+        );
+    };
+
+    kpiDefs.forEach((kpi, index) => drawTile(kpi, index, index, cursorY));
+    row2KpiDefs.forEach((kpi, index) =>
+        drawTile(kpi, 6 + index, index, cursorY + kpiHeight + s(0.08))
+    );
+}
+
+function pptxDrawDashboardButton(
+    ctx: PptxDrawCtx,
+    cursorY: number,
+    dashboardUrl: string | undefined,
+    naturalDashboardBlock: number
+): number {
+    if (!dashboardUrl) {
+        return cursorY;
+    }
+
+    const { slide, M, innerW, s, t } = ctx;
+    const buttonHeight = s(0.32);
+
+    slide.addText(t("defectManagementPage.sprintReport.statusCard.openDashboard"), {
+        x: M,
+        y: cursorY,
+        w: innerW,
+        h: buttonHeight,
+        align: "center",
+        valign: "middle",
+        fontSize: s(11),
+        bold: true,
+        color: "FFFFFF",
+        fontFace: "Arial",
+        fill: { color: pptxHex(LIGHT_BUTTON_BG) },
+        line: { type: "none" },
+        shape: "roundRect",
+        rectRadius: 0.2,
+        hyperlink: { url: dashboardUrl },
+    });
+
+    return cursorY + s(naturalDashboardBlock);
+}
+
+function pptxDrawActionsSection(
+    ctx: PptxDrawCtx,
+    cursorY: number,
+    actionParagraphs: string[]
+): number {
+    if (actionParagraphs.length === 0) {
+        return cursorY;
+    }
+
+    const { slide, M, innerW, s, t } = ctx;
+    const titleHeight = s(0.32);
+
+    slide.addText(`📌 ${t("defectManagementPage.sprintReport.statusCard.actionsTitle")}`, {
+        x: M,
+        y: cursorY,
+        w: innerW,
+        h: titleHeight,
+        fontSize: s(13),
+        bold: true,
+        color: pptxHex(LIGHT_INK),
+        fontFace: "Arial",
+    });
+
+    let rowY = cursorY + titleHeight;
+
+    actionParagraphs.forEach((paragraph, index) => {
+        const palette = PPTX_ACTION_PALETTE[index % PPTX_ACTION_PALETTE.length];
+        const { lead, rest } = splitEmailActionLeadIn(paragraph);
+        const bodyText = lead ? `${lead} ${rest}` : rest;
+        const lineCount = estimateWrappedLineCount(bodyText, innerW - 0.35, s(10));
+        const boxHeight = s(lineCount * 0.18 + 0.12);
+
+        slide.addShape("rect", {
+            x: M,
+            y: rowY,
+            w: innerW,
+            h: boxHeight,
+            fill: { color: pptxHex(palette.bg) },
+            line: { color: pptxHex(palette.border), width: 0.5 },
+        });
+        slide.addShape("rect", {
+            x: M,
+            y: rowY,
+            w: 0.05,
+            h: boxHeight,
+            fill: { color: pptxHex(palette.border) },
+            line: { type: "none" },
+        });
+        slide.addText(bodyText, {
+            x: M + 0.15,
+            y: rowY,
+            w: innerW - 0.3,
+            h: boxHeight,
+            fontSize: s(10),
+            color: pptxHex(LIGHT_INK),
+            fontFace: "Arial",
+            valign: "middle",
+            wrap: true,
+        });
+
+        rowY += boxHeight + s(0.08);
+    });
+
+    return rowY + s(0.12);
+}
+
+function pptxDrawSuiteProgressRow(ctx: PptxDrawCtx, y: number, group: SuiteProgressGroup): void {
+    const { slide, M, W, innerW, s, t } = ctx;
+    const { executedPct, groupPassRate, segments, legendEntries } =
+        computeSuiteProgressRowData(group);
+    const legendRuns = pptxLegendRuns(
+        legendEntries.map((outcome) => ({
+            color: LIGHT_OUTCOME_COLORS[outcome],
+            label: outcomeCountLabel(t, outcome, group.outcomeCounts[outcome]),
+        })),
+        LIGHT_INK_MUTED,
+        s(8.5)
+    );
+
+    slide.addText(
+        `${group.label} – ${t("defectManagementPage.sprintReport.statusCard.casesCount", {
+            count: group.totalTestCases,
+        })}`,
+        {
+            x: M,
+            y,
+            w: innerW - 1.3,
+            h: s(0.2),
+            fontSize: s(10),
+            bold: true,
+            color: pptxHex(LIGHT_INK),
+            fontFace: "Arial",
+        }
+    );
+    slide.addText(`${executedPct}% ${t("defectManagementPage.sprintReport.statusCard.executed")}`, {
+        x: W - M - 1.3,
+        y,
+        w: 1.3,
+        h: s(0.2),
+        fontSize: s(10),
+        bold: true,
+        align: "right",
+        color: pptxHex(LIGHT_INK),
+        fontFace: "Arial",
+    });
+
+    pptxProgressTrack(slide, M, y + s(0.2), innerW, s(0.06), segments);
+
+    slide.addText(
+        [
+            ...legendRuns,
+            {
+                text: `   |   ${t("defectManagementPage.sprintReport.statusCard.passRate")}: ${groupPassRate}%`,
+                options: { color: pptxHex(LIGHT_INK_MUTED), fontSize: s(8.5) },
+            },
+        ],
+        {
+            x: M,
+            y: y + s(0.28),
+            w: innerW,
+            h: s(0.18),
+            fontSize: s(8.5),
+            color: pptxHex(LIGHT_INK_MUTED),
+            fontFace: "Arial",
+        }
+    );
+}
+
+function pptxDrawSuiteProgressSection(
+    ctx: PptxDrawCtx,
+    cursorY: number,
+    suiteGroups: SuiteProgressGroup[]
+): number {
+    const { slide, M, innerW, s, t } = ctx;
+    const titleHeight = s(0.32);
+
+    slide.addText(`📈 ${t("defectManagementPage.sprintReport.statusCard.suiteProgressTitle")}`, {
+        x: M,
+        y: cursorY,
+        w: innerW,
+        h: titleHeight,
+        fontSize: s(13),
+        bold: true,
+        color: pptxHex(LIGHT_INK),
+        fontFace: "Arial",
+    });
+
+    const rowY = cursorY + titleHeight;
+
+    if (suiteGroups.length === 0) {
+        slide.addText(t("defectManagementPage.sprintReport.statusCard.noPlanSelected"), {
+            x: M,
+            y: rowY,
+            w: innerW,
+            h: s(0.24),
+            fontSize: s(10),
+            italic: true,
+            color: pptxHex(LIGHT_INK_MUTED),
+            fontFace: "Arial",
+        });
+
+        return rowY + s(0.28) + s(0.15);
+    }
+
+    const suiteRowHeight = s(0.5);
+    let nextRowY = rowY;
+
+    for (const group of suiteGroups) {
+        pptxDrawSuiteProgressRow(ctx, nextRowY, group);
+        nextRowY += suiteRowHeight;
+    }
+
+    return nextRowY + s(0.15);
+}
+
+function pptxDrawBugStatusSection(
+    ctx: PptxDrawCtx,
+    cursorY: number,
+    report: SprintDefectReport,
+    kpis: StatusCardKpis,
+    suiteGroups: SuiteProgressGroup[],
+    includeDsiSource: boolean,
+    naturalBugStatusBlock: number
+): number {
+    const { slide, M, W, innerW, scale, s, t } = ctx;
+    const bugSources = [
+        ...suiteGroups.map((group) => group.label),
+        ...(includeDsiSource ? ["DSI"] : []),
+    ].join(", ");
+    const {
+        statusEntries,
+        statusSegments,
+        severityTotal,
+        severityEntries,
+        openSeverityTotal,
+        openSeverityEntries,
+    } = computeBugStatusData(report);
+
+    const y = cursorY;
+
+    slide.addText(`🐛 ${t("defectManagementPage.sprintReport.statusCard.bugStatusTitle")}`, {
+        x: M,
+        y,
+        w: innerW,
+        h: s(0.24),
+        fontSize: s(13),
+        bold: true,
+        color: pptxHex(LIGHT_INK),
+        fontFace: "Arial",
+    });
+    slide.addText(
+        t("defectManagementPage.sprintReport.statusCard.bugStatusSubtitle", {
+            sources: bugSources,
+        }),
+        {
+            x: M,
+            y: y + s(0.24),
+            w: innerW,
+            h: s(0.18),
+            fontSize: s(8.5),
+            color: pptxHex(LIGHT_INK_MUTED),
+            fontFace: "Arial",
+        }
+    );
+
+    let localY = y + s(0.32) + s(0.2);
+
+    slide.addText(
+        t("defectManagementPage.sprintReport.statusCard.bugsDetected", {
+            count: report.total,
+        }) +
+            ` – ${t("defectManagementPage.sprintReport.statusCard.bugStatusSummary", {
+                effective: report.effectiveCount,
+                outOfScope: report.outOfScopeCount,
+            })}`,
+        {
+            x: M,
+            y: localY,
+            w: innerW - 1.5,
+            h: s(0.22),
+            fontSize: s(10),
+            color: pptxHex(LIGHT_INK),
+            fontFace: "Arial",
+        }
+    );
+    slide.addText(
+        t("defectManagementPage.sprintReport.statusCard.stillOpen", { count: kpis.stillOpen }),
+        {
+            x: W - M - 1.5,
+            y: localY,
+            w: 1.5,
+            h: s(0.22),
+            fontSize: s(10),
+            bold: true,
+            align: "right",
+            color: pptxHex(LIGHT_STILL_OPEN),
+            fontFace: "Arial",
+        }
+    );
+
+    localY += s(0.24);
+    pptxProgressTrack(slide, M, localY, innerW, s(0.07), statusSegments);
+    localY += s(0.1);
+
+    slide.addText(
+        statusEntries.map(([name, count]) => statusCountLabel(t, name, count)).join("   |   "),
+        {
+            x: M,
+            y: localY,
+            w: innerW,
+            h: s(0.2),
+            fontSize: s(8.5),
+            color: pptxHex(LIGHT_INK_MUTED),
+            fontFace: "Arial",
+        }
+    );
+    localY += s(0.24);
+
+    pptxSeverityChipsRow(
+        slide,
+        { x: M, y: localY, width: innerW },
+        severityEntries,
+        severityTotal,
+        t("defectManagementPage.sprintReport.statusCard.severityCaption", {
+            count: report.effectiveCount,
+        }),
+        scale
+    );
+    localY += s(PPTX_SEVERITY_ROW_HEIGHT);
+
+    pptxSeverityChipsRow(
+        slide,
+        { x: M, y: localY, width: innerW },
+        openSeverityEntries,
+        openSeverityTotal,
+        t("defectManagementPage.sprintReport.statusCard.openSeverityCaption", {
+            count: openSeverityTotal,
+        }),
+        scale
+    );
+
+    return y + s(naturalBugStatusBlock);
+}
+
+function pptxDrawOriginBreakdownSection(
+    ctx: PptxDrawCtx,
+    cursorY: number,
+    originDefs: unknown[],
+    originRowsData: string[][]
+): number {
+    if (originDefs.length === 0) {
+        return cursorY;
+    }
+
+    const { slide, M, innerW, s, t } = ctx;
+    const titleHeight = s(0.32);
+    const rowHeight = s(0.24);
+
+    slide.addText(t("defectManagementPage.sprintReport.statusCard.originBreakdown.title"), {
+        x: M,
+        y: cursorY,
+        w: innerW,
+        h: titleHeight,
+        fontSize: s(13),
+        bold: true,
+        color: pptxHex(LIGHT_INK),
+        fontFace: "Arial",
+    });
+
+    let rowY = cursorY + titleHeight;
+
+    for (const row of originRowsData) {
+        slide.addTable([row.map((text) => ({ text }))], {
+            x: M,
+            y: rowY,
+            w: innerW,
+            colW: [innerW * 0.25, innerW * 0.55, innerW * 0.2],
+            rowH: rowHeight,
+            fontSize: s(9),
+            fontFace: "Arial",
+            border: { type: "solid", color: pptxHex(LIGHT_RULE), pt: 0.5 },
+            valign: "middle",
+        });
+        rowY += rowHeight;
+    }
+
+    return rowY;
+}
+
+// Builds real, editable PowerPoint shapes/text/tables (not a screenshot -
+// see exportStatusReportCardToPdf's identical reasoning) using the same
+// light palette as the email export, on a single Custom/Landscape slide
+// (matches PowerPoint's own "Slide Size" dialog) whose height is measured
+// from the actual content and set exactly - no wasted space below a fixed
+// page, and no shrinking either: a heavier report (more suites, more action
+// paragraphs, more bugs) just makes the slide taller.
+export async function exportStatusReportCardToPptx(
+    filename: string,
+    data: StatusReportCardEmailData,
+    t: TranslateFn
+): Promise<void> {
+    const {
+        headerTitle,
+        headerSubtitle,
+        suiteGroups,
+        report,
+        alertText,
+        actionsText,
+        dashboardUrl,
+        showOriginBreakdown = false,
+        includeDsiSource = true,
+    } = data;
+
+    const M = 0.45;
+    const W = 11;
+    const innerW = W - M * 2;
+
+    const { datePart, timePart } = formatEmailTimestamp(new Date());
+
+    const headerHeight = 0.85;
+    const headerGap = 0.15;
+    const bodyTop = M + headerHeight + headerGap;
+
+    const hasAlert = Boolean(alertText);
+    const hasDashboard = Boolean(dashboardUrl);
+    const actionParagraphs = actionsText
+        .split(/\n\s*\n/)
+        .map((paragraph) => paragraph.trim())
+        .filter(Boolean);
+    const { originDefs, originRowsData } = computeOriginBreakdown(report, showOriginBreakdown, t);
+
+    const heights = computePptxNaturalHeights({
+        hasAlert,
+        alertText,
+        innerW,
+        actionParagraphs,
+        suiteGroups,
+        hasDashboard,
+        originDefs,
+        originRowsData,
+    });
+
+    // No shrinking - the slide is exactly as tall as the content needs.
+    const scale = 1;
+    const s = (n: number) => n * scale;
+    const H = bodyTop + heights.naturalBodyTotal + M;
+
+    const pptx = new PptxGenJS();
+    pptx.defineLayout({ name: "STATUS_CARD", width: W, height: H });
+    pptx.layout = "STATUS_CARD";
+
+    const slide = pptx.addSlide();
+    slide.background = { color: pptxHex(LIGHT_PAGE_BG) };
+
+    // Header - always drawn at natural size regardless of scale, so the
+    // branding bar never shrinks even when the body below it does.
+    slide.addShape("rect", {
+        x: 0,
+        y: M,
+        w: W,
+        h: headerHeight,
+        fill: { color: pptxHex(LIGHT_HEADER_BG) },
+        line: { type: "none" },
+    });
+    slide.addText(headerTitle, {
+        x: M,
+        y: M + 0.12,
+        w: innerW - 1.8,
+        h: 0.35,
+        fontSize: 17,
+        bold: true,
+        color: "FFFFFF",
+        fontFace: "Arial",
+    });
+    slide.addText(headerSubtitle, {
+        x: M,
+        y: M + 0.48,
+        w: innerW - 1.8,
+        h: 0.28,
+        fontSize: 10,
+        color: "FFFFFF",
+        fontFace: "Arial",
+    });
+    slide.addText(
+        t("defectManagementPage.sprintReport.statusCard.updatedAt", {
+            date: datePart,
+            time: timePart,
+        }),
+        {
+            x: W - M - 1.8,
+            y: M + 0.12,
+            w: 1.8,
+            h: 0.28,
+            fontSize: 9,
+            align: "right",
+            color: "FFFFFF",
+            fontFace: "Arial",
+        }
+    );
+
+    const ctx: PptxDrawCtx = { slide, M, W, innerW, scale, s, t };
+
+    let cursorY = bodyTop;
+
+    cursorY = pptxDrawAlertBanner(ctx, cursorY, alertText, heights.naturalAlertBlock);
+
+    const kpis = computeStatusCardKpis(suiteGroups, report);
+    const kpiDefs = buildPptxKpiDefs(kpis, report, t);
+    const row2KpiDefs = buildPptxRow2KpiDefs(kpis, report, t);
+
+    pptxDrawKpiTiles(ctx, cursorY, kpiDefs, row2KpiDefs);
+    cursorY += s(heights.naturalKpiBlock);
+
+    cursorY = pptxDrawDashboardButton(ctx, cursorY, dashboardUrl, heights.naturalDashboardBlock);
+    cursorY = pptxDrawActionsSection(ctx, cursorY, actionParagraphs);
+    cursorY = pptxDrawSuiteProgressSection(ctx, cursorY, suiteGroups);
+    cursorY = pptxDrawBugStatusSection(
+        ctx,
+        cursorY,
+        report,
+        kpis,
+        suiteGroups,
+        includeDsiSource,
+        heights.naturalBugStatusBlock
+    );
+    pptxDrawOriginBreakdownSection(ctx, cursorY, originDefs, originRowsData);
+
+    await pptx.writeFile({ fileName: filename });
 }
 
 // Writes the card as a rich-text clipboard entry (text/html, with a

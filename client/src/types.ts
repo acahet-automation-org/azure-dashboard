@@ -246,6 +246,7 @@ export interface SprintDefectReport {
     effectiveDefects: DefectSummary[];
     reopenedCount: number;
     mttrDays: number | null;
+    withoutResolutionDateCount: number;
 }
 
 export interface DefectSummary extends BugInfo {
@@ -382,7 +383,7 @@ export interface DeleteTestCasesResult {
 }
 
 export interface SprintInfo {
-    id: number;
+    id: number | string;
     name: string;
     startDate: string;
     endDate: string;
@@ -426,6 +427,8 @@ export interface SprintCompletion {
     plannedCount: number;
     executedCount: number;
     notExecutedCount: number;
+    notApplicableCount: number;
+    testCaseRelevancePct: number;
     completionRatePct: number;
     carryOverCount: number;
 }
@@ -445,6 +448,7 @@ export interface BlockingDefect {
     state: string;
     url?: string;
     creator?: string;
+    assignee?: { displayName: string; uniqueName: string };
 }
 
 export interface BlockingDefectsSummary {

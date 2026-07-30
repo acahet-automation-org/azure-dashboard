@@ -39,6 +39,7 @@ import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { BugsTable } from "../components/BugsTable";
+import { IterationFilter } from "../components/IterationFilter";
 import { fetchPlans, fetchPlanOverview, sendEmailReport } from "../api/client";
 import {
     buildEmailReportHtml,
@@ -345,6 +346,7 @@ export function PlanOverviewPage() {
     const [selectedSuiteName, setSelectedSuiteName] = useState<
         string | undefined
     >(undefined);
+    const [iteration, setIteration] = useState("");
     const [isExporting, setIsExporting] = useState(false);
 
     const outcomeChartRef = useRef<HTMLDivElement>(null);
@@ -367,6 +369,10 @@ export function PlanOverviewPage() {
         queryFn: () => fetchPlanOverview(selectedPlanId!),
         enabled: selectedPlanId != null,
     });
+
+    const plansInIteration = iteration
+        ? plans?.filter((p) => p.iteration === iteration)
+        : plans;
 
     const selectedPlanName = plans?.find(
         (p) => p.id === selectedPlanId
@@ -576,6 +582,17 @@ export function PlanOverviewPage() {
             )}
 
             <div className={styles.toolbar}>
+                <IterationFilter
+                    value={iteration}
+                    onChange={(value) => {
+                        setIteration(value);
+                        setSelectedPlanId(undefined);
+                        setSelectedSuiteName(undefined);
+                        emailReportMutation.reset();
+                    }}
+                    className={styles.filterField}
+                />
+
                 <Field
                     label={t("planOverviewPage.planFilter.label")}
                     className={styles.filterField}
@@ -601,7 +618,7 @@ export function PlanOverviewPage() {
                             emailReportMutation.reset();
                         }}
                     >
-                        {plans?.map((plan) => (
+                        {plansInIteration?.map((plan) => (
                             <Option key={plan.id} value={String(plan.id)}>
                                 {plan.name}
                             </Option>

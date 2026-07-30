@@ -5,9 +5,11 @@ import {
 } from "./dashboardData.js";
 import { getDefectData } from "./defectData.js";
 import { getCurrentSprint, getPreviousSprint } from "./sprints.js";
+import { getIterations, type IterationNode } from "./azdo.js";
 import type {
     TrendPoint,
     DefectRecord,
+    TestCaseRow,
     ReleaseReadinessResponse,
     ReleaseGateSummary,
     ReleaseGateCriterion,
@@ -19,11 +21,15 @@ import type {
 
 const CACHE_DURATION_MS = 5 * 60 * 1000;
 
-let cache: { data: ReleaseReadinessResponse; timestamp: number } | null =
-    null;
+// Keyed by the selected iteration path ("" for the no-selection default
+// view), since each selection scopes to different data.
+const cache = new Map<
+    string,
+    { data: ReleaseReadinessResponse; timestamp: number }
+>();
 
 export function clearReleaseReadinessCache(): void {
-    cache = null;
+    cache.clear();
 }
 
 // Which test plans feed the release gate's completion/pass-rate criteria -
@@ -218,6 +224,141 @@ function computePassRateDelta(
     };
 }
 
+// Pass rate for a specific sprint's own test cases (NA excluded from both
+// sides, same as testsPassedPct above) - used instead of
+// sprintPassRateFromTrend's date-range approximation whenever a real
+// iteration is selected, since sprint date windows commonly overlap (see
+// computeReleaseReadiness) and would otherwise mix in another sprint's
+// executions that just happened to complete in the same window.
+function scopedPassRatePct(testCases: TestCaseRow[]): number | null {
+    const stats = computeDashboardStats(testCases);
+
+    return stats.executedCount
+        ? Math.round((stats.passedCount / stats.executedCount) * 1000) / 10
+        : null;
+}
+
+// previousSprint.id is only a real iteration path (string) when it was
+// resolved from the live iteration tree (see resolveSprint) - which is
+// always true here, since this only runs when `iteration` was provided.
+function buildScopedPassRateDelta(
+    currentSprintPassRate: number | null,
+    previousSprint: SprintInfo | null,
+    functionalTestCases: TestCaseRow[]
+): PassRateDelta {
+    const previousSprintPassRate =
+        previousSprint && typeof previousSprint.id === "string"
+            ? scopedPassRatePct(
+                  functionalTestCases.filter(
+                      (tc) => tc.iteration === previousSprint.id
+                  )
+              )
+            : null;
+
+    return {
+        currentSprintPassRate,
+        previousSprintPassRate,
+        deltaPct:
+            currentSprintPassRate != null && previousSprintPassRate != null
+                ? Math.round(
+                      (currentSprintPassRate - previousSprintPassRate) * 10
+                  ) / 10
+                : null,
+        previousSprintName: previousSprint?.name ?? null,
+    };
+}
+
+function todayDateString(): string {
+    return new Date().toISOString().slice(0, 10);
+}
+
+function toDateOnly(iso: string | null): string {
+    return iso ? iso.slice(0, 10) : "";
+}
+
+const SPRINT_NODE_NAME_PATTERN = /^Sprint\s+\d+$/i;
+
+// Builds the SprintInfo shown for a specific, real Azure DevOps iteration
+// the user picked from the dropdown - distinct from the hand-maintained
+// SPRINTS calendar in sprints.ts, which only backs the no-selection default
+// view below.
+function sprintInfoFromIterationNode(node: IterationNode): SprintInfo {
+    const endDate = toDateOnly(node.finishDate);
+
+    return {
+        id: node.path,
+        name: node.name,
+        startDate: toDateOnly(node.startDate),
+        endDate,
+        hasEnded: endDate ? todayDateString() > endDate : false,
+    };
+}
+
+// Finds the sprint-named iteration immediately preceding `node` by start
+// date, for the pass-rate delta - mirrors getPreviousSprint()'s array-order
+// logic in sprints.ts, but over real iteration nodes (which can span
+// multiple unrelated projects/areas, hence restricting to "Sprint N" names
+// with a start date rather than every node in the tree).
+function findPreviousIterationNode(
+    nodes: IterationNode[],
+    node: IterationNode
+): IterationNode | null {
+    const dated = nodes
+        .filter((n) => SPRINT_NODE_NAME_PATTERN.test(n.name) && n.startDate)
+        .sort((a, b) => {
+            if (a.startDate === b.startDate) return 0;
+            return a.startDate! < b.startDate! ? -1 : 1;
+        });
+
+    const index = dated.findIndex((n) => n.path === node.path);
+
+    if (index <= 0) {
+        return null;
+    }
+
+    return dated[index - 1];
+}
+
+// Resolves the sprint (and its predecessor, for the pass-rate delta) to
+// scope the release readiness snapshot to. With no iteration selected, this
+// is today's default: the hand-maintained calendar's "current" sprint,
+// covering all functional test cases regardless of iteration. With an
+// iteration selected, it's that real Azure DevOps sprint specifically.
+function resolveSprint(
+    iteration: string | undefined,
+    iterationNodes: IterationNode[]
+): { sprint: SprintInfo; previousSprint: SprintInfo | null } {
+    if (!iteration) {
+        const sprint = getCurrentSprint();
+
+        return { sprint, previousSprint: getPreviousSprint(sprint) };
+    }
+
+    const node = iterationNodes.find((n) => n.path === iteration);
+
+    if (!node) {
+        return {
+            sprint: {
+                id: iteration,
+                name: iteration,
+                startDate: "",
+                endDate: "",
+                hasEnded: false,
+            },
+            previousSprint: null,
+        };
+    }
+
+    const previousNode = findPreviousIterationNode(iterationNodes, node);
+
+    return {
+        sprint: sprintInfoFromIterationNode(node),
+        previousSprint: previousNode
+            ? sprintInfoFromIterationNode(previousNode)
+            : null,
+    };
+}
+
 export function countOpenBySeverity(
     defects: DefectRecord[]
 ): Record<"1 - Critical" | "2 - High" | "3 - Medium" | "4 - Low", number> {
@@ -231,36 +372,74 @@ export function countOpenBySeverity(
     };
 }
 
-export async function computeReleaseReadiness(): Promise<ReleaseReadinessResponse> {
+// `iteration` scopes the whole snapshot (gate, completion, blocking
+// defects) to a single real Azure DevOps sprint, matched against
+// TestCaseRow.iteration / DefectRecord.iterationPath (both the full
+// project-rooted path, e.g. "Nuova Frontiera\Front Office Auto\Sprint 2" -
+// see getIterations() in azdo.ts). Omitting it keeps the original
+// behaviour: every functional test case/defect regardless of sprint,
+// labelled with the hand-maintained "current" sprint from sprints.ts.
+export async function computeReleaseReadiness(
+    iteration?: string
+): Promise<ReleaseReadinessResponse> {
     const now = Date.now();
+    const cacheKey = iteration ?? "";
+    const cached = cache.get(cacheKey);
 
-    if (cache && now - cache.timestamp < CACHE_DURATION_MS) {
-        return cache.data;
+    if (cached && now - cached.timestamp < CACHE_DURATION_MS) {
+        return cached.data;
     }
 
-    const [allTestCases, defects, trend] = await Promise.all([
+    const [allTestCases, defects, trend, iterationNodes] = await Promise.all([
         getDashboardData(),
         getDefectData(),
         computeExecutionTrend(),
+        getIterations(),
     ]);
 
     const functionalTestCases = allTestCases.filter((tc) =>
         isFunctionalTestPlan(tc.planName)
     );
-    const dashboardStats = computeDashboardStats(functionalTestCases);
+    const scopedTestCases = iteration
+        ? functionalTestCases.filter((tc) => tc.iteration === iteration)
+        : functionalTestCases;
+    const scopedDefects = iteration
+        ? defects.filter((d) => d.iterationPath === iteration)
+        : defects;
 
-    const sprint = getCurrentSprint();
-    const previousSprint = getPreviousSprint(sprint);
+    const dashboardStats = computeDashboardStats(scopedTestCases);
+
+    const { sprint, previousSprint } = resolveSprint(iteration, iterationNodes);
+
+    // A Not Applicable test case was still assessed by a tester (they looked
+    // at it and decided it doesn't apply here) - unlike a NotRun one, which
+    // nobody ever touched - so it counts as "executed" for completion
+    // purposes here, even though it's excluded from the pass-rate
+    // calculations below (a NA case has no pass/fail verdict to score).
+    const executedCount =
+        dashboardStats.executedCount + dashboardStats.notApplicableCount;
+
+    // "Not Applicable" test cases are ones marked out-of-scope for the
+    // current release (code_coverage.md's "Pertinenza casi test") - the
+    // target is 0%, i.e. the plan shouldn't contain out-of-scope test cases
+    // without documented justification.
+    const testCaseRelevancePct = dashboardStats.totalTestCases
+        ? Math.round(
+              (dashboardStats.notApplicableCount /
+                  dashboardStats.totalTestCases) *
+                  1000
+          ) / 10
+        : 0;
 
     const completion: SprintCompletion = {
         plannedCount: dashboardStats.totalTestCases,
-        executedCount: dashboardStats.executedCount,
+        executedCount,
         notExecutedCount: dashboardStats.notRunCount,
+        notApplicableCount: dashboardStats.notApplicableCount,
+        testCaseRelevancePct,
         completionRatePct: dashboardStats.totalTestCases
             ? Math.round(
-                  (dashboardStats.executedCount /
-                      dashboardStats.totalTestCases) *
-                      1000
+                  (executedCount / dashboardStats.totalTestCases) * 1000
               ) / 10
             : 0,
         // Only counts as "carried over" once the sprint window has actually
@@ -277,19 +456,7 @@ export async function computeReleaseReadiness(): Promise<ReleaseReadinessRespons
           ) / 10
         : null;
 
-    // "Not Applicable" test cases are ones marked out-of-scope for the
-    // current release (code_coverage.md's "Pertinenza casi test") - the
-    // target is 0%, i.e. the plan shouldn't contain out-of-scope test cases
-    // without documented justification.
-    const testCaseRelevancePct = dashboardStats.totalTestCases
-        ? Math.round(
-              (dashboardStats.notApplicableCount /
-                  dashboardStats.totalTestCases) *
-                  1000
-          ) / 10
-        : 0;
-
-    const severityOpenCounts = countOpenBySeverity(defects);
+    const severityOpenCounts = countOpenBySeverity(scopedDefects);
 
     const criteria = buildGateCriteria(
         completion,
@@ -299,9 +466,21 @@ export async function computeReleaseReadiness(): Promise<ReleaseReadinessRespons
     );
     const releaseGate = computeReleaseGate(criteria);
 
-    const passRateDelta = computePassRateDelta(trend, sprint, previousSprint);
+    // With a specific iteration selected, both sprints' pass rates come from
+    // their own scoped test cases (exact, NA excluded, matches
+    // testsPassedPct above). Without one, there's no real per-sprint test
+    // case scope to draw on (the hand-maintained calendar sprint isn't tied
+    // to an iteration path), so this falls back to the original date-range
+    // approximation over the execution trend.
+    const passRateDelta: PassRateDelta = iteration
+        ? buildScopedPassRateDelta(
+              testsPassedPct,
+              previousSprint,
+              functionalTestCases
+          )
+        : computePassRateDelta(trend, sprint, previousSprint);
 
-    const blockingRecords = defects.filter(
+    const blockingRecords = scopedDefects.filter(
         (d) =>
             d.state !== "Closed" &&
             (d.severity === "1 - Critical" || d.severity === "2 - High")
@@ -321,6 +500,7 @@ export async function computeReleaseReadiness(): Promise<ReleaseReadinessRespons
                 state: d.state,
                 url: d.url,
                 creator: d.creator,
+                assignee: d.assignedTo,
             })),
     };
 
@@ -333,7 +513,7 @@ export async function computeReleaseReadiness(): Promise<ReleaseReadinessRespons
         cacheTimestamp: now,
     };
 
-    cache = { data, timestamp: now };
+    cache.set(cacheKey, { data, timestamp: now });
 
     return data;
 }
