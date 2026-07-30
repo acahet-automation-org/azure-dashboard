@@ -26,6 +26,10 @@
         "refreshFailed": "Refresh failed: {{message}}",
         "welcome": "Welcome, {{name}}",
         "signOut": "Sign Out",
+        "testGraphMail": "Test Graph Mail",
+        "testGraphMailSending": "Sending...",
+        "testGraphMailSuccess": "Test email sent",
+        "testGraphMailFailed": "Test email failed: {{message}}",
         "collapseSidebar": "Collapse sidebar",
         "expandSidebar": "Expand sidebar"
     },
