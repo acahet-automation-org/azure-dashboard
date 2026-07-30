@@ -1796,6 +1796,97 @@ function computeStatusCardKpis(
     };
 }
 
+interface BugStatusData {
+    statusEntries: (readonly [string, number])[];
+    statusSegments: { color: string; pct: number }[];
+    severityTotal: number;
+    severityEntries: (readonly [string, number])[];
+    openSeverityTotal: number;
+    openSeverityEntries: (readonly [string, number])[];
+}
+
+// Shared by the PDF and PPTX bug status sections - both render the same
+// status/severity breakdown, just with a different renderer underneath.
+function computeBugStatusData(report: SprintDefectReport): BugStatusData {
+    const statusEntries = EMAIL_STATUS_ORDER.map(
+        (name) =>
+            [
+                name,
+                name === "Not Applicable" ? report.outOfScopeCount : report.byStatus[name] ?? 0,
+            ] as const
+    ).filter(([, count]) => count > 0);
+    const statusSegments = statusEntries.map(([name, count]) => ({
+        color: LIGHT_STATUS_COLORS[name],
+        pct: report.total ? (count / report.total) * 100 : 0,
+    }));
+
+    const severityTotal = Object.values(report.bySeverity).reduce((sum, count) => sum + count, 0);
+    const severityEntries = EMAIL_SEVERITY_KEYS.map(
+        (key) => [key, report.bySeverity[key] ?? 0] as const
+    );
+
+    const openSeverityCounts = report.effectiveDefects.reduce<Record<string, number>>(
+        (acc, bug) => {
+            if (bug.state === "Closed") {
+                return acc;
+            }
+
+            const key = bug.severity ?? "Unspecified";
+            acc[key] = (acc[key] ?? 0) + 1;
+            return acc;
+        },
+        {}
+    );
+    const openSeverityTotal = Object.values(openSeverityCounts).reduce(
+        (sum, count) => sum + count,
+        0
+    );
+    const openSeverityEntries = EMAIL_SEVERITY_KEYS.map(
+        (key) => [key, openSeverityCounts[key] ?? 0] as const
+    );
+
+    return {
+        statusEntries,
+        statusSegments,
+        severityTotal,
+        severityEntries,
+        openSeverityTotal,
+        openSeverityEntries,
+    };
+}
+
+interface SuiteProgressRowData {
+    executedPct: number;
+    groupPassRate: number;
+    segments: { color: string; pct: number }[];
+    legendEntries: Outcome[];
+}
+
+// Shared by the PDF and PPTX suite-progress rows - both render the same
+// executed/pass-rate figures, just with a different renderer underneath.
+function computeSuiteProgressRowData(group: SuiteProgressGroup): SuiteProgressRowData {
+    const executed = group.totalTestCases - group.outcomeCounts.NotRun;
+    const executedPct = group.totalTestCases
+        ? Math.round((executed / group.totalTestCases) * 100)
+        : 0;
+    const decided = group.totalTestCases - group.outcomeCounts.NotApplicable;
+    const groupPassRate = decided
+        ? Math.round((group.outcomeCounts.Passed / decided) * 100)
+        : 0;
+
+    const legendEntries = EMAIL_OUTCOME_ORDER.filter(
+        (outcome) => group.outcomeCounts[outcome] > 0
+    );
+    const segments = legendEntries.map((outcome) => ({
+        color: LIGHT_OUTCOME_COLORS[outcome],
+        pct: group.totalTestCases
+            ? (group.outcomeCounts[outcome] / group.totalTestCases) * 100
+            : 0,
+    }));
+
+    return { executedPct, groupPassRate, segments, legendEntries };
+}
+
 interface PdfDrawCtx {
     doc: jsPDF;
     pageWidth: number;
@@ -1933,24 +2024,8 @@ function pdfDrawActionsSection(ctx: PdfDrawCtx, y: number, actionsText: string):
 
 function pdfDrawSuiteProgressRow(ctx: PdfDrawCtx, y: number, group: SuiteProgressGroup): number {
     const { doc, pageWidth, innerWidth, t } = ctx;
-    const executed = group.totalTestCases - group.outcomeCounts.NotRun;
-    const executedPct = group.totalTestCases
-        ? Math.round((executed / group.totalTestCases) * 100)
-        : 0;
-    const decided = group.totalTestCases - group.outcomeCounts.NotApplicable;
-    const groupPassRate = decided
-        ? Math.round((group.outcomeCounts.Passed / decided) * 100)
-        : 0;
-
-    const legendEntries = EMAIL_OUTCOME_ORDER.filter(
-        (outcome) => group.outcomeCounts[outcome] > 0
-    );
-    const segments = legendEntries.map((outcome) => ({
-        color: LIGHT_OUTCOME_COLORS[outcome],
-        pct: group.totalTestCases
-            ? (group.outcomeCounts[outcome] / group.totalTestCases) * 100
-            : 0,
-    }));
+    const { executedPct, groupPassRate, segments, legendEntries } =
+        computeSuiteProgressRowData(group);
     const legendText = legendEntries
         .map((outcome) => outcomeCountLabel(t, outcome, group.outcomeCounts[outcome]))
         .join("   |   ");
@@ -2036,6 +2111,15 @@ function pdfDrawBugStatusSection(
     includeDsiSource: boolean
 ): number {
     const { doc, pageWidth, innerWidth, t } = ctx;
+    const {
+        statusEntries,
+        statusSegments,
+        severityTotal,
+        severityEntries,
+        openSeverityTotal,
+        openSeverityEntries,
+    } = computeBugStatusData(report);
+
     let cursorY = ensurePdfSpace(doc, y, 10);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
@@ -2097,18 +2181,6 @@ function pdfDrawBugStatusSection(
     );
     cursorY += 4;
 
-    const statusEntries = EMAIL_STATUS_ORDER.map(
-        (name) =>
-            [
-                name,
-                name === "Not Applicable" ? report.outOfScopeCount : report.byStatus[name] ?? 0,
-            ] as const
-    ).filter(([, count]) => count > 0);
-    const statusSegments = statusEntries.map(([name, count]) => ({
-        color: LIGHT_STATUS_COLORS[name],
-        pct: report.total ? (count / report.total) * 100 : 0,
-    }));
-
     pdfProgressTrack(doc, PDF_MARGIN, cursorY, innerWidth, 3.5, statusSegments);
     cursorY += 6;
 
@@ -2122,14 +2194,6 @@ function pdfDrawBugStatusSection(
     );
     cursorY += 6;
 
-    const severityTotal = Object.values(report.bySeverity).reduce(
-        (sum, count) => sum + count,
-        0
-    );
-    const severityEntries = EMAIL_SEVERITY_KEYS.map(
-        (key) => [key, report.bySeverity[key] ?? 0] as const
-    );
-
     cursorY = ensurePdfSpace(doc, cursorY, 24);
     cursorY = pdfSeverityChipsRow(
         doc,
@@ -2141,26 +2205,6 @@ function pdfDrawBugStatusSection(
         t("defectManagementPage.sprintReport.statusCard.severityCaption", {
             count: report.effectiveCount,
         })
-    );
-
-    const openSeverityCounts = report.effectiveDefects.reduce<Record<string, number>>(
-        (acc, bug) => {
-            if (bug.state === "Closed") {
-                return acc;
-            }
-
-            const key = bug.severity ?? "Unspecified";
-            acc[key] = (acc[key] ?? 0) + 1;
-            return acc;
-        },
-        {}
-    );
-    const openSeverityTotal = Object.values(openSeverityCounts).reduce(
-        (sum, count) => sum + count,
-        0
-    );
-    const openSeverityEntries = EMAIL_SEVERITY_KEYS.map(
-        (key) => [key, openSeverityCounts[key] ?? 0] as const
     );
 
     cursorY = ensurePdfSpace(doc, cursorY, 24);
@@ -2185,29 +2229,8 @@ function pdfDrawOriginBreakdownSection(
     report: SprintDefectReport,
     showOriginBreakdown: boolean
 ): void {
-    if (!showOriginBreakdown) {
-        return;
-    }
-
     const { doc, t } = ctx;
-
-    const originDefs = [
-        {
-            origin: "Test Factory",
-            labelKey: "defectManagementPage.sprintReport.origin.testFactory",
-            bySuite: report.testFactoryBySuite,
-        },
-        {
-            origin: "Test Agenti",
-            labelKey: "defectManagementPage.sprintReport.origin.testAgenti",
-            bySuite: report.testAgentiBySuite,
-        },
-        {
-            origin: "Business",
-            labelKey: "defectManagementPage.sprintReport.origin.business",
-            bySuite: report.testBusinessBySuite,
-        },
-    ].filter((def) => Object.keys(def.bySuite).length > 0);
+    const { originDefs, originRowsData } = computeOriginBreakdown(report, showOriginBreakdown, t);
 
     if (originDefs.length === 0) {
         return;
@@ -2223,32 +2246,10 @@ function pdfDrawOriginBreakdownSection(
         titleY
     );
 
-    const rows = originDefs.flatMap((def) => {
-        const suiteEntries = Object.entries(def.bySuite).sort(([a], [b]) => a.localeCompare(b));
-
-        return [
-            ...suiteEntries.map(([suite, count]) => [
-                t(def.labelKey),
-                suiteCaption(t, suite),
-                String(count),
-            ]),
-            [
-                t(def.labelKey),
-                t("defectManagementPage.sprintReport.statusCard.originBreakdown.detected"),
-                String(report.byOriginDetected[def.origin] ?? 0),
-            ],
-            [
-                t(def.labelKey),
-                t("defectManagementPage.sprintReport.statusCard.originBreakdown.accepted"),
-                String(report.byOrigin[def.origin] ?? 0),
-            ],
-        ];
-    });
-
     autoTable(doc, {
         startY: titleY + 4,
         head: [["Origin", "Suite", "Count"]],
-        body: rows,
+        body: originRowsData,
         styles: { fontSize: 8 },
         headStyles: { fillColor: LIGHT_HEADER_BG },
     });
@@ -3008,24 +3009,8 @@ function pptxDrawActionsSection(
 
 function pptxDrawSuiteProgressRow(ctx: PptxDrawCtx, y: number, group: SuiteProgressGroup): void {
     const { slide, M, W, innerW, s, t } = ctx;
-    const executed = group.totalTestCases - group.outcomeCounts.NotRun;
-    const executedPct = group.totalTestCases
-        ? Math.round((executed / group.totalTestCases) * 100)
-        : 0;
-    const decided = group.totalTestCases - group.outcomeCounts.NotApplicable;
-    const groupPassRate = decided
-        ? Math.round((group.outcomeCounts.Passed / decided) * 100)
-        : 0;
-
-    const legendEntries = EMAIL_OUTCOME_ORDER.filter(
-        (outcome) => group.outcomeCounts[outcome] > 0
-    );
-    const segments = legendEntries.map((outcome) => ({
-        color: LIGHT_OUTCOME_COLORS[outcome],
-        pct: group.totalTestCases
-            ? (group.outcomeCounts[outcome] / group.totalTestCases) * 100
-            : 0,
-    }));
+    const { executedPct, groupPassRate, segments, legendEntries } =
+        computeSuiteProgressRowData(group);
     const legendRuns = pptxLegendRuns(
         legendEntries.map((outcome) => ({
             color: LIGHT_OUTCOME_COLORS[outcome],
@@ -3145,40 +3130,14 @@ function pptxDrawBugStatusSection(
         ...suiteGroups.map((group) => group.label),
         ...(includeDsiSource ? ["DSI"] : []),
     ].join(", ");
-    const statusEntries = EMAIL_STATUS_ORDER.map(
-        (name) =>
-            [
-                name,
-                name === "Not Applicable" ? report.outOfScopeCount : report.byStatus[name] ?? 0,
-            ] as const
-    ).filter(([, count]) => count > 0);
-    const statusSegments = statusEntries.map(([name, count]) => ({
-        color: LIGHT_STATUS_COLORS[name],
-        pct: report.total ? (count / report.total) * 100 : 0,
-    }));
-    const severityTotal = Object.values(report.bySeverity).reduce((sum, count) => sum + count, 0);
-    const severityEntries = EMAIL_SEVERITY_KEYS.map(
-        (key) => [key, report.bySeverity[key] ?? 0] as const
-    );
-    const openSeverityCounts = report.effectiveDefects.reduce<Record<string, number>>(
-        (acc, bug) => {
-            if (bug.state === "Closed") {
-                return acc;
-            }
-
-            const key = bug.severity ?? "Unspecified";
-            acc[key] = (acc[key] ?? 0) + 1;
-            return acc;
-        },
-        {}
-    );
-    const openSeverityTotal = Object.values(openSeverityCounts).reduce(
-        (sum, count) => sum + count,
-        0
-    );
-    const openSeverityEntries = EMAIL_SEVERITY_KEYS.map(
-        (key) => [key, openSeverityCounts[key] ?? 0] as const
-    );
+    const {
+        statusEntries,
+        statusSegments,
+        severityTotal,
+        severityEntries,
+        openSeverityTotal,
+        openSeverityEntries,
+    } = computeBugStatusData(report);
 
     const y = cursorY;
 
