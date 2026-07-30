@@ -481,6 +481,18 @@
         "allSuites": "Tutte le Suite di Test",
         "selectedSuites": "{{count}} selezionate"
     },
+    "scopeBar": {
+        "project": "Progetto",
+        "selectProject": "Seleziona un progetto",
+        "areaPaths": "Area Path",
+        "allAreaPaths": "Tutte le aree",
+        "areaPathCount": "{{count}} selezionate",
+        "iterations": "Iterazioni",
+        "allIterations": "Tutte le iterazioni",
+        "iterationCount": "{{count}} selezionate",
+        "change": "Modifica ambito",
+        "done": "Fatto"
+    },
     "iterationFilter": {
         "label": "Sprint/Iterazione (Azure)",
         "all": "Tutte le Iterazioni"

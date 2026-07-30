@@ -2,7 +2,7 @@ import "dotenv/config";
 import express, { type Response } from "express";
 import cors from "cors";
 import { requireAuth } from "./auth.js";
-import { AzdoAuthError, getIterations } from "./azdo.js";
+import { AzdoAuthError, getAreaPaths, getIterations, getProjects } from "./azdo.js";
 import {
     getDashboardData,
     clearDashboardCache,
@@ -151,9 +151,33 @@ app.get("/api/execution-trend", async (_, res) => {
     }
 });
 
-app.get("/api/iterations", async (_, res) => {
+app.get("/api/projects", async (_, res) => {
     try {
-        res.json(await getIterations());
+        res.json(getProjects());
+    } catch (error: any) {
+        sendApiError(res, error);
+    }
+});
+
+app.get("/api/iterations", async (req, res) => {
+    try {
+        const project = req.query.project as
+            | string
+            | undefined;
+
+        res.json(await getIterations(project));
+    } catch (error: any) {
+        sendApiError(res, error);
+    }
+});
+
+app.get("/api/areapaths", async (req, res) => {
+    try {
+        const project = req.query.project as
+            | string
+            | undefined;
+
+        res.json(await getAreaPaths(project));
     } catch (error: any) {
         sendApiError(res, error);
     }

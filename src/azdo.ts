@@ -5,39 +5,6 @@ const auth = Buffer.from(
     `:${process.env.AZDO_PAT}`
 ).toString("base64");
 
-export const azdo = axios.create({
-    baseURL: `https://dev.azure.com/${process.env.AZDO_ORG}/${encodeURIComponent(
-        process.env.AZDO_PROJECT!
-    )}/_apis`,
-    headers: {
-        Authorization: `Basic ${auth}`,
-        "Content-Type": "application/json",
-    },
-});
-
-// Some APIs (Favorites, Notification Subscriptions) are organization-scoped
-// rather than project-scoped, so they can't go through the `azdo` client above.
-export const azdoOrg = axios.create({
-    baseURL: `https://dev.azure.com/${process.env.AZDO_ORG}/_apis`,
-    headers: {
-        Authorization: `Basic ${auth}`,
-        "Content-Type": "application/json",
-    },
-});
-
-// The Test Plan Progress Report's hierarchy/rollup data isn't exposed by the
-// `_apis` REST surface above - it's only available through the Analytics
-// OData feed, which lives on a different host (analytics.dev.azure.com, not
-// dev.azure.com) and isn't part of the public REST API.
-export const azdoOdata = axios.create({
-    baseURL: `https://analytics.dev.azure.com/${process.env.AZDO_ORG}/${encodeURIComponent(
-        process.env.AZDO_PROJECT!
-    )}/_odata/v4.0-preview`,
-    headers: {
-        Authorization: `Basic ${auth}`,
-    },
-});
-
 // When AZDO_PAT is expired/revoked (or lacks the scope/conditional-access
 // needed for a given API), Azure DevOps doesn't reliably answer with a clean
 // 401 - it can instead serve its interactive HTML sign-in page while tagging
@@ -80,8 +47,95 @@ function attachAuthErrorInterceptor(instance: AxiosInstance): void {
     });
 }
 
-for (const instance of [azdo, azdoOrg, azdoOdata]) {
-    attachAuthErrorInterceptor(instance);
+const authHeaders = {
+    Authorization: `Basic ${auth}`,
+    "Content-Type": "application/json",
+};
+
+interface ProjectClients {
+    azdo: AxiosInstance;
+    azdoOdata: AxiosInstance;
+}
+
+function createProjectClients(project: string): ProjectClients {
+    const projectAzdo = axios.create({
+        baseURL: `https://dev.azure.com/${process.env.AZDO_ORG}/${encodeURIComponent(
+            project
+        )}/_apis`,
+        headers: authHeaders,
+    });
+
+    // The Test Plan Progress Report's hierarchy/rollup data isn't exposed by
+    // the `_apis` REST surface above - it's only available through the
+    // Analytics OData feed, which lives on a different host
+    // (analytics.dev.azure.com, not dev.azure.com) and isn't part of the
+    // public REST API.
+    const projectAzdoOdata = axios.create({
+        baseURL: `https://analytics.dev.azure.com/${process.env.AZDO_ORG}/${encodeURIComponent(
+            project
+        )}/_odata/v4.0-preview`,
+        headers: { Authorization: `Basic ${auth}` },
+    });
+
+    attachAuthErrorInterceptor(projectAzdo);
+    attachAuthErrorInterceptor(projectAzdoOdata);
+
+    return { azdo: projectAzdo, azdoOdata: projectAzdoOdata };
+}
+
+// Azure DevOps projects are selected by the user at runtime (see
+// ScopeContext on the client), so clients can't all be built once at module
+// load the way the old single-project setup did - they're built lazily per
+// project instead and cached here so repeat calls for the same project reuse
+// one axios instance rather than reconnecting every time.
+const projectClientCache = new Map<string, ProjectClients>();
+
+function getProjectClients(project: string): ProjectClients {
+    let clients = projectClientCache.get(project);
+
+    if (!clients) {
+        clients = createProjectClients(project);
+        projectClientCache.set(project, clients);
+    }
+
+    return clients;
+}
+
+// Falls back to the server's configured project for the many call sites
+// below that don't (yet) accept a `project` argument - see PROJECTS/
+// getProjects() further down for the full list of projects a caller can
+// choose from instead.
+const DEFAULT_PROJECT = process.env.AZDO_PROJECT!;
+
+export const { azdo, azdoOdata } = getProjectClients(DEFAULT_PROJECT);
+
+export function getAzdo(project: string = DEFAULT_PROJECT): AxiosInstance {
+    return getProjectClients(project).azdo;
+}
+
+export function getAzdoOdata(
+    project: string = DEFAULT_PROJECT
+): AxiosInstance {
+    return getProjectClients(project).azdoOdata;
+}
+
+// Some APIs (Favorites, Notification Subscriptions) are organization-scoped
+// rather than project-scoped, so they can't go through a project client
+// above - the org is fixed regardless of which project is selected.
+export const azdoOrg = axios.create({
+    baseURL: `https://dev.azure.com/${process.env.AZDO_ORG}/_apis`,
+    headers: authHeaders,
+});
+attachAuthErrorInterceptor(azdoOrg);
+
+// The two Azure DevOps projects this app is permitted to read from. Start as
+// a hardcoded allowlist (see the scope-gate design doc's open questions) -
+// revisit as a live call to Azure DevOps' own `_apis/projects` if new
+// projects need to appear without a redeploy.
+export const PROJECTS = ["Nuova Frontiera", "Test Factory Team"] as const;
+
+export function getProjects(): readonly string[] {
+    return PROJECTS;
 }
 
 export async function getTestSuiteHierarchy(planId: number) {
@@ -603,14 +657,33 @@ function flattenIterationTree(
 // from System.IterationPath values seen on fetched bugs), this includes
 // empty/future sprints too. Same path format as DefectFilterOptions though,
 // so either can be used to filter the same iterationPath/iteration fields.
-export async function getIterations(): Promise<IterationNode[]> {
-    const response = await azdo.get(
+export async function getIterations(
+    project: string = DEFAULT_PROJECT
+): Promise<IterationNode[]> {
+    const response = await getAzdo(project).get(
         "/wit/classificationnodes/iterations?$depth=20&api-version=7.1"
     );
 
     // The root node itself is just the project name, not a real iteration -
     // only its children are actual sprints - but its name still seeds every
     // child's path (see flattenIterationTree).
+    return (response.data.children ?? []).flatMap((child: any) =>
+        flattenIterationTree(child, response.data.name ?? "")
+    );
+}
+
+// Same shape as IterationNode (id/name/path, both walked with the same
+// flattenIterationTree helper) - area paths just don't have start/finish
+// dates, so those two fields are always null for a node returned here.
+export type AreaPathNode = IterationNode;
+
+export async function getAreaPaths(
+    project: string = DEFAULT_PROJECT
+): Promise<AreaPathNode[]> {
+    const response = await getAzdo(project).get(
+        "/wit/classificationnodes/areas?$depth=20&api-version=7.1"
+    );
+
     return (response.data.children ?? []).flatMap((child: any) =>
         flattenIterationTree(child, response.data.name ?? "")
     );

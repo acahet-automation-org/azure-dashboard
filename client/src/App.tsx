@@ -4,6 +4,7 @@ import { AuthenticatedTemplate, UnauthenticatedTemplate } from "@azure/msal-reac
 import { Spinner } from "@fluentui/react-components";
 import { SignInPage } from "./pages/SignInPage";
 import { useIsRestrictedOwner } from "./hooks/useIsRestrictedOwner";
+import { ScopeProvider } from "./hooks/ScopeProvider";
 
 const SuitesPage = lazy(() => import("./pages/SuitesPage").then((m) => ({ default: m.SuitesPage })));
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
@@ -134,13 +135,19 @@ function AppRoutes() {
 
 function App() {
     if (skipAuth) {
-        return <AppRoutes />;
+        return (
+            <ScopeProvider>
+                <AppRoutes />
+            </ScopeProvider>
+        );
     }
 
     return (
         <>
             <AuthenticatedTemplate>
-                <AppRoutes />
+                <ScopeProvider>
+                    <AppRoutes />
+                </ScopeProvider>
             </AuthenticatedTemplate>
 
             <UnauthenticatedTemplate>
