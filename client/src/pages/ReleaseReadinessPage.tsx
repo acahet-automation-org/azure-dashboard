@@ -18,6 +18,7 @@ import { StatCard } from "../components/StatCard";
 import { BugsTable } from "../components/BugsTable";
 import { IterationFilter } from "../components/IterationFilter";
 import { fetchReleaseReadiness } from "../api/client";
+import { useScope } from "../hooks/useScope";
 import type { RagStatus, ReleaseGateCriterion } from "../types";
 
 const RAG_BADGE_COLOR: Record<RagStatus, "success" | "warning" | "danger"> = {
@@ -154,17 +155,29 @@ export function ReleaseReadinessPage() {
     const styles = useStyles();
     const { t } = useTranslation();
     const [iteration, setIteration] = useState("");
+    const scope = useScope();
 
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["release-readiness", iteration],
-        queryFn: () => fetchReleaseReadiness(iteration || undefined),
+        queryKey: [
+            "release-readiness",
+            iteration,
+            scope.project,
+            scope.areaPaths,
+            scope.iterations,
+        ],
+        queryFn: () => fetchReleaseReadiness(scope, iteration || undefined),
+        enabled: scope.isComplete,
     });
 
     return (
         <PageLayout title={t("releaseReadinessPage.title")}>
             <IterationFilter value={iteration} onChange={setIteration} />
 
-            {isLoading && <LoadingCardGrid count={3} />}
+            {!scope.isComplete && (
+                <EmptyState message={t("scopeBar.selectScopePrompt")} />
+            )}
+
+            {scope.isComplete && isLoading && <LoadingCardGrid count={3} />}
 
             {isError && <ErrorState message={error.message} onRetry={refetch} />}
 

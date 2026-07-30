@@ -491,7 +491,8 @@
         "allIterations": "All iterations",
         "iterationCount": "{{count}} selected",
         "change": "Change scope",
-        "done": "Done"
+        "done": "Done",
+        "selectScopePrompt": "Select a project above to load data."
     },
     "iterationFilter": {
         "label": "Sprint/Iteration (Azure)",

@@ -5,12 +5,14 @@ import { Tab, TabList, makeStyles, tokens } from "@fluentui/react-components";
 import { PageLayout } from "../components/PageLayout";
 import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
+import { EmptyState } from "../components/EmptyState";
 import { DefectFilterBar } from "../components/DefectFilterBar";
 import { DefectOverviewTab } from "../components/DefectOverviewTab";
 import { DefectQualityTab } from "../components/DefectQualityTab";
 import { DefectResourceTab } from "../components/DefectResourceTab";
 import { SprintDefectStatsTab } from "../components/SprintDefectStatsTab";
 import { fetchDefects } from "../api/client";
+import { useScope } from "../hooks/useScope";
 import type { DefectFilters } from "../types";
 
 type DefectTab = "sprintReport" | "overview" | "quality" | "resource";
@@ -38,15 +40,27 @@ export function DefectManagementPage() {
     const styles = useStyles();
     const [filters, setFilters] = useState<DefectFilters>(EMPTY_FILTERS);
     const [tab, setTab] = useState<DefectTab>("sprintReport");
+    const scope = useScope();
 
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["defects", filters],
-        queryFn: () => fetchDefects(filters),
+        queryKey: [
+            "defects",
+            filters,
+            scope.project,
+            scope.areaPaths,
+            scope.iterations,
+        ],
+        queryFn: () => fetchDefects(scope, filters),
+        enabled: scope.isComplete,
     });
 
     return (
         <PageLayout title={t("defectManagementPage.title")}>
-            {isLoading && <LoadingCardGrid />}
+            {!scope.isComplete && (
+                <EmptyState message={t("scopeBar.selectScopePrompt")} />
+            )}
+
+            {scope.isComplete && isLoading && <LoadingCardGrid />}
 
             {isError && (
                 <ErrorState message={error.message} onRetry={refetch} />

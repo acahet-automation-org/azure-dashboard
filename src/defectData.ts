@@ -9,6 +9,8 @@ import {
     buildWorkItemUrl,
 } from "./azdo.js";
 import { getDashboardData } from "./dashboardData.js";
+import { areaPathInScope, iterationInScope } from "./scopeFilter.js";
+import { createPerProjectCache } from "./perProjectCache.js";
 import type {
     DefectRecord,
     DefectStats,
@@ -23,9 +25,11 @@ import type {
     SprintDefectReport,
 } from "./types.js";
 
-let defectCache: { data: DefectRecord[]; timestamp: number } | null = null;
-
 const CACHE_DURATION_MS = 5 * 60 * 1000;
+
+// Keyed per project - see the matching comment on dashboardCache in
+// dashboardData.ts.
+const defectCache = createPerProjectCache<DefectRecord[]>(CACHE_DURATION_MS);
 
 // This project's Bug workflow has a dedicated "Riaperto" (reopened) state
 // rather than a generic Resolved/Closed -> Active/New transition, so a
@@ -107,8 +111,8 @@ const SLA_THRESHOLD_DAYS: Record<string, number> = {
     default: 30,
 };
 
-export function getDefectCacheTimestamp(): number {
-    return defectCache?.timestamp ?? 0;
+export function getDefectCacheTimestamp(project: string): number {
+    return defectCache.getTimestamp(project);
 }
 
 function countReopenings(revisions: any[]): number {
@@ -190,9 +194,10 @@ function computeClosureReason(
 // confirmed linked here won't silently fall back to "no test case" just
 // because the reverse crawl in buildDashboard() didn't happen to surface it.
 async function getLinkedTestCaseIds(
-    bugId: number
+    bugId: number,
+    project: string
 ): Promise<number[]> {
-    const workItem = await getWorkItem(bugId);
+    const workItem = await getWorkItem(bugId, project);
 
     // Only "Tested By" relations (in either direction) represent a genuine
     // "this bug was found via this test case" link. A bug can also pick up
@@ -212,7 +217,7 @@ async function getLinkedTestCaseIds(
         testedByRelations
     );
 
-    const linkedItems = await getWorkItems(linkedIds);
+    const linkedItems = await getWorkItems(linkedIds, undefined, project);
 
     return linkedItems
         .filter(
@@ -243,12 +248,14 @@ interface TestCaseLookups {
 // bug's own confirmed test case links (see getLinkedTestCaseIds) instead of
 // requiring the bug to also turn up in the dashboard's own test-case-to-bug
 // crawl.
-async function getTestCaseLookups(): Promise<TestCaseLookups> {
+async function getTestCaseLookups(
+    project: string
+): Promise<TestCaseLookups> {
     const iterationByTestCase = new Map<number, string>();
     const titleByTestCase = new Map<number, string>();
     const suiteByTitle = new Map<string, string>();
 
-    const testCases = await getDashboardData();
+    const testCases = await getDashboardData(project);
 
     for (const tc of testCases) {
         if (tc.iteration && !iterationByTestCase.has(tc.testCaseId)) {
@@ -287,12 +294,13 @@ function isSpecificIterationPath(path: unknown): path is string {
 
 async function buildDefectRecord(
     bug: any,
-    lookups: TestCaseLookups
+    lookups: TestCaseLookups,
+    project: string
 ): Promise<DefectRecord> {
     const [revisions, linkedTestCaseIds] =
         await Promise.all([
-            getWorkItemRevisions(bug.id),
-            getLinkedTestCaseIds(bug.id),
+            getWorkItemRevisions(bug.id, project),
+            getLinkedTestCaseIds(bug.id, project),
         ]);
 
     // Custom.Suite is the sole source for a bug's suite - no more borrowing
@@ -377,7 +385,7 @@ async function buildDefectRecord(
             bug.fields["Custom.EstimatedResolutionDate"],
         reopenedCount: countReopenings(revisions),
         hasLinkedTestCase: linkedTestCaseIds.length > 0,
-        url: buildWorkItemUrl(bug.id),
+        url: buildWorkItemUrl(bug.id, project),
         creator: bug.fields["System.CreatedBy"]?.displayName,
         assignedTo: bug.fields["System.AssignedTo"]
             ? {
@@ -388,37 +396,61 @@ async function buildDefectRecord(
     };
 }
 
-export async function buildDefectRecords(): Promise<DefectRecord[]> {
+export async function buildDefectRecords(
+    project: string
+): Promise<DefectRecord[]> {
     const [bugs, lookups] = await Promise.all([
-        getAllBugFields(),
-        getTestCaseLookups(),
+        getAllBugFields(project),
+        getTestCaseLookups(project),
     ]);
 
     return Promise.all(
         bugs.map((bug) =>
-            buildDefectRecord(bug, lookups)
+            buildDefectRecord(bug, lookups, project)
         )
     );
 }
 
-export async function getDefectData(): Promise<DefectRecord[]> {
-    const now = Date.now();
+async function getCachedDefectData(
+    project: string
+): Promise<DefectRecord[]> {
+    const cached = defectCache.get(project);
 
-    if (defectCache && now - defectCache.timestamp < CACHE_DURATION_MS) {
-        return defectCache.data;
+    if (cached) {
+        return cached;
     }
 
-    const data = await buildDefectRecords();
+    const data = await buildDefectRecords(project);
 
-    defectCache = { data, timestamp: now };
+    defectCache.set(project, data);
 
     return data;
 }
 
-export function clearDefectCache(): void {
-    defectCache = null;
-    storyPointsCache = null;
-    suiteNamesCache = null;
+// Scope narrowing (area paths/iterations) is applied on top of the cached
+// per-project dataset, same pattern as getDashboardData in dashboardData.ts.
+export async function getDefectData(
+    project: string,
+    scopeAreaPaths: string[] = [],
+    scopeIterations: string[] = []
+): Promise<DefectRecord[]> {
+    const records = await getCachedDefectData(project);
+
+    if (scopeAreaPaths.length === 0 && scopeIterations.length === 0) {
+        return records;
+    }
+
+    return records.filter(
+        (r) =>
+            areaPathInScope(r.areaPath, scopeAreaPaths) &&
+            iterationInScope(r.iterationPath, scopeIterations)
+    );
+}
+
+export function clearDefectCache(project?: string): void {
+    defectCache.clear(project);
+    storyPointsCache.clear(project);
+    suiteNamesCache.clear(project);
 }
 
 function groupCount(
@@ -1121,49 +1153,45 @@ function computeAvailableFilters(
     };
 }
 
-let storyPointsCache: {
-    data: Record<string, number>;
-    timestamp: number;
-} | null = null;
+const storyPointsCache = createPerProjectCache<Record<string, number>>(
+    CACHE_DURATION_MS
+);
 
-export async function getStoryPointsByArea(): Promise<
+export async function getStoryPointsByArea(
+    project: string
+): Promise<
     Record<string, number>
 > {
-    const now = Date.now();
+    const cached = storyPointsCache.get(project);
 
-    if (
-        storyPointsCache &&
-        now - storyPointsCache.timestamp < CACHE_DURATION_MS
-    ) {
-        return storyPointsCache.data;
+    if (cached) {
+        return cached;
     }
 
-    const stories = await getStoriesWithFields();
+    const stories = await getStoriesWithFields(project);
     const data = computeStoryPointsByArea(stories);
 
-    storyPointsCache = { data, timestamp: now };
+    storyPointsCache.set(project, data);
 
     return data;
 }
 
-let suiteNamesCache: { data: string[]; timestamp: number } | null =
-    null;
+const suiteNamesCache = createPerProjectCache<string[]>(CACHE_DURATION_MS);
 
 // Full set of test suite names for the project, independent of whether any
 // bug is currently linked to them - needed so suites with zero bugs still
 // render as a zero bar instead of disappearing from the chart.
-export async function getAllSuiteNames(): Promise<string[]> {
-    const now = Date.now();
+export async function getAllSuiteNames(
+    project: string
+): Promise<string[]> {
+    const cached = suiteNamesCache.get(project);
 
-    if (
-        suiteNamesCache &&
-        now - suiteNamesCache.timestamp < CACHE_DURATION_MS
-    ) {
-        return suiteNamesCache.data;
+    if (cached) {
+        return cached;
     }
 
     const suites = new Set<string>();
-    const testCases = await getDashboardData();
+    const testCases = await getDashboardData(project);
 
     for (const tc of testCases) {
         const normalized = normalizeSuiteName(tc.suiteName);
@@ -1175,7 +1203,7 @@ export async function getAllSuiteNames(): Promise<string[]> {
 
     const data = [...suites].sort((a, b) => a.localeCompare(b));
 
-    suiteNamesCache = { data, timestamp: now };
+    suiteNamesCache.set(project, data);
 
     return data;
 }

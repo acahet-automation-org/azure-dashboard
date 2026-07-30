@@ -491,7 +491,8 @@
         "allIterations": "Tutte le iterazioni",
         "iterationCount": "{{count}} selezionate",
         "change": "Modifica ambito",
-        "done": "Fatto"
+        "done": "Fatto",
+        "selectScopePrompt": "Seleziona un progetto qui sopra per caricare i dati."
     },
     "iterationFilter": {
         "label": "Sprint/Iterazione (Azure)",

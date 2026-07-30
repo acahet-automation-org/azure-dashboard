@@ -9,11 +9,13 @@ import { RiskCoverage } from "../components/RiskCoverage";
 import { VisualsSection } from "../components/VisualsSection";
 import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
+import { EmptyState } from "../components/EmptyState";
 import {
     fetchDashboard,
     fetchSuites,
     fetchExecutionTrend,
 } from "../api/client";
+import { useScope } from "../hooks/useScope";
 
 const useStyles = makeStyles({
     section: {
@@ -26,20 +28,24 @@ const useStyles = makeStyles({
 export function TestExecutionPage() {
     const styles = useStyles();
     const { t } = useTranslation();
+    const scope = useScope();
 
     const dashboardQuery = useQuery({
-        queryKey: ["dashboard"],
-        queryFn: () => fetchDashboard(),
+        queryKey: ["dashboard", scope.project, scope.areaPaths, scope.iterations],
+        queryFn: () => fetchDashboard(scope),
+        enabled: scope.isComplete,
     });
 
     const suitesQuery = useQuery({
-        queryKey: ["suites"],
-        queryFn: fetchSuites,
+        queryKey: ["suites", scope.project, scope.areaPaths, scope.iterations],
+        queryFn: () => fetchSuites(scope),
+        enabled: scope.isComplete,
     });
 
     const trendQuery = useQuery({
-        queryKey: ["execution-trend"],
-        queryFn: fetchExecutionTrend,
+        queryKey: ["execution-trend", scope.project, scope.areaPaths, scope.iterations],
+        queryFn: () => fetchExecutionTrend(scope),
+        enabled: scope.isComplete,
     });
 
     const isLoading =
@@ -53,7 +59,11 @@ export function TestExecutionPage() {
 
     return (
         <PageLayout title={t("testExecutionPage.title")}>
-            {isLoading && <LoadingCardGrid />}
+            {!scope.isComplete && (
+                <EmptyState message={t("scopeBar.selectScopePrompt")} />
+            )}
+
+            {scope.isComplete && isLoading && <LoadingCardGrid />}
 
             {errorQuery && (
                 <ErrorState

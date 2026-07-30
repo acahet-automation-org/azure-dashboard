@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import "dotenv/config";
 import { getDefectData, computeSprintDefectReport } from "./defectData.js";
+import { DEFAULT_PROJECT } from "./azdo.js";
 import {
     sendTeamsMessage,
     buildBugsReportedTodayCard,
@@ -32,7 +33,7 @@ export function startBugSummaryScheduler(): void {
         schedule,
         async () => {
             try {
-                const records = await getDefectData();
+                const records = await getDefectData(DEFAULT_PROJECT);
                 const bugsToday = records.filter((record) =>
                     isToday(record.createdDate, timezone)
                 );
@@ -75,7 +76,7 @@ export function startSprintReportFileExportScheduler(): void {
         schedule,
         async () => {
             try {
-                const records = await getDefectData();
+                const records = await getDefectData(DEFAULT_PROJECT);
                 const report = computeSprintDefectReport(records);
                 const filePath = writeSprintDefectReportFile(
                     report,

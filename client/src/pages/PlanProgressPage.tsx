@@ -30,6 +30,7 @@ import {
     fetchPlanProgressBugs,
     sendEmailReport,
 } from "../api/client";
+import { useScope } from "../hooks/useScope";
 import {
     collectLeafOptions,
     filterProgressTree,
@@ -103,22 +104,30 @@ export function PlanProgressPage() {
         mutationFn: sendEmailReport,
     });
 
+    const scope = useScope();
+
     const { data: plans } = useQuery({
-        queryKey: ["plans"],
-        queryFn: fetchPlans,
+        queryKey: ["plans", scope.project],
+        queryFn: () => fetchPlans(scope),
+        enabled: scope.isComplete,
     });
 
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["plan-progress", selectedPlanId],
-        queryFn: () => fetchPlanProgress(selectedPlanId!),
-        enabled: selectedPlanId != null,
+        queryKey: ["plan-progress", selectedPlanId, scope.project],
+        queryFn: () => fetchPlanProgress(selectedPlanId!, scope),
+        enabled: scope.isComplete && selectedPlanId != null,
     });
 
     const { data: bugs, isLoading: isBugsLoading } = useQuery({
-        queryKey: ["plan-progress-bugs", selectedPlanId, selectedSuiteIds],
+        queryKey: [
+            "plan-progress-bugs",
+            selectedPlanId,
+            selectedSuiteIds,
+            scope.project,
+        ],
         queryFn: () =>
-            fetchPlanProgressBugs(selectedPlanId!, selectedSuiteIds),
-        enabled: selectedPlanId != null,
+            fetchPlanProgressBugs(selectedPlanId!, selectedSuiteIds, scope),
+        enabled: scope.isComplete && selectedPlanId != null,
     });
 
     const plansInIteration = iteration
@@ -407,13 +416,19 @@ export function PlanProgressPage() {
                 </Text>
             )}
 
-            {selectedPlanId == null && (
+            {!scope.isComplete && (
+                <EmptyState message={t("scopeBar.selectScopePrompt")} />
+            )}
+
+            {scope.isComplete && selectedPlanId == null && (
                 <EmptyState
                     message={t("planProgressPage.selectPlanPrompt")}
                 />
             )}
 
-            {selectedPlanId != null && isLoading && <LoadingCardGrid />}
+            {scope.isComplete && selectedPlanId != null && isLoading && (
+                <LoadingCardGrid />
+            )}
 
             {selectedPlanId != null && isError && (
                 <ErrorState message={error.message} onRetry={refetch} />

@@ -30,7 +30,12 @@ import { EmptyState } from "../components/EmptyState";
 import { SelectableSuiteTreeItem } from "../components/SelectableSuiteTreeItem";
 import { NAV_HEIGHT } from "../layoutConstants";
 import { deleteTestCases, fetchPlanSuites, fetchPlans } from "../api/client";
-import type { TestCaseSummary, TestSuiteSummary } from "../types";
+import { useScope } from "../hooks/useScope";
+import type {
+    DeleteTestCaseItem,
+    TestCaseSummary,
+    TestSuiteSummary,
+} from "../types";
 
 function flattenTestCases(
     suites: TestSuiteSummary[]
@@ -84,9 +89,12 @@ export function RemoveTestCasesPage() {
     );
     const [confirmOpen, setConfirmOpen] = useState(false);
 
+    const scope = useScope();
+
     const { data: plans } = useQuery({
-        queryKey: ["plans"],
-        queryFn: fetchPlans,
+        queryKey: ["plans", scope.project],
+        queryFn: () => fetchPlans(scope),
+        enabled: scope.isComplete,
     });
 
     const {
@@ -96,9 +104,9 @@ export function RemoveTestCasesPage() {
         error,
         refetch,
     } = useQuery({
-        queryKey: ["plan-suites", selectedPlanId],
-        queryFn: () => fetchPlanSuites(selectedPlanId!),
-        enabled: selectedPlanId != null,
+        queryKey: ["plan-suites", selectedPlanId, scope.project],
+        queryFn: () => fetchPlanSuites(selectedPlanId!, scope),
+        enabled: scope.isComplete && selectedPlanId != null,
     });
 
     const selectedPlanName =
@@ -111,7 +119,8 @@ export function RemoveTestCasesPage() {
     );
 
     const deleteMutation = useMutation({
-        mutationFn: deleteTestCases,
+        mutationFn: (items: DeleteTestCaseItem[]) =>
+            deleteTestCases(items, scope),
         onSuccess: () => {
             setSelectedIds(new Set());
             setConfirmOpen(false);
@@ -231,13 +240,17 @@ export function RemoveTestCasesPage() {
                 </MessageBar>
             )}
 
-            {selectedPlanId == null && (
+            {!scope.isComplete && (
+                <EmptyState message={t("scopeBar.selectScopePrompt")} />
+            )}
+
+            {scope.isComplete && selectedPlanId == null && (
                 <EmptyState
                     message={t("removeTestCasesPage.selectPlanFirst")}
                 />
             )}
 
-            {selectedPlanId != null && (
+            {scope.isComplete && selectedPlanId != null && (
                 <>
                     <div className={styles.toolbar}>
                         <Text weight="semibold">

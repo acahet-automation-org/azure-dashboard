@@ -25,7 +25,7 @@ const MY_WORK_ITEM_FIELDS = [
 
 const MENTION_SCAN_WINDOW_DAYS = 30;
 
-function toWorkItemSummary(wi: any): WorkItemSummary {
+function toWorkItemSummary(wi: any, project: string): WorkItemSummary {
     return {
         id: wi.id,
         title: wi.fields["System.Title"],
@@ -35,7 +35,7 @@ function toWorkItemSummary(wi: any): WorkItemSummary {
         changedDate: wi.fields["System.ChangedDate"],
         createdDate: wi.fields["System.CreatedDate"],
         closedDate: wi.fields["Microsoft.VSTS.Common.ClosedDate"],
-        url: buildWorkItemUrl(wi.id),
+        url: buildWorkItemUrl(wi.id, project),
         assignee: wi.fields["System.AssignedTo"]
             ? {
                   displayName: wi.fields["System.AssignedTo"].displayName,
@@ -57,22 +57,27 @@ function toWorkItemSummary(wi: any): WorkItemSummary {
     };
 }
 
-export async function getAssignedWorkItems(): Promise<WorkItemSummary[]> {
-    const ids = await getActiveWorkItemIds();
-    const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS);
+export async function getAssignedWorkItems(
+    project: string
+): Promise<WorkItemSummary[]> {
+    const ids = await getActiveWorkItemIds(project);
+    const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS, project);
 
-    return items.map(toWorkItemSummary);
+    return items.map((wi) => toWorkItemSummary(wi, project));
 }
 
-export async function getMentionedWorkItems(): Promise<WorkItemSummary[]> {
+export async function getMentionedWorkItems(
+    project: string
+): Promise<WorkItemSummary[]> {
     const ids = await getRecentlyChangedWorkItemIds(
-        MENTION_SCAN_WINDOW_DAYS
+        MENTION_SCAN_WINDOW_DAYS,
+        project
     );
     const mentionsById = new Map<number, string[]>();
 
     await Promise.all(
         ids.map(async (id) => {
-            const mentions = await getCommentMentions(id);
+            const mentions = await getCommentMentions(id, project);
 
             if (mentions.length) {
                 mentionsById.set(id, mentions);
@@ -86,25 +91,33 @@ export async function getMentionedWorkItems(): Promise<WorkItemSummary[]> {
 
     const items = await getWorkItems(
         [...mentionsById.keys()],
-        MY_WORK_ITEM_FIELDS
+        MY_WORK_ITEM_FIELDS,
+        project
     );
 
     return items.map((wi) => ({
-        ...toWorkItemSummary(wi),
+        ...toWorkItemSummary(wi, project),
         mentions: mentionsById.get(wi.id) ?? [],
     }));
 }
 
-export async function getFollowedWorkItems(): Promise<WorkItemSummary[]> {
+// getFollowedWorkItemIds is org-scoped (not project-scoped - see its doc
+// comment in azdo.ts), but the work items it returns still need to be
+// resolved against a specific project's client.
+export async function getFollowedWorkItems(
+    project: string
+): Promise<WorkItemSummary[]> {
     const ids = await getFollowedWorkItemIds();
-    const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS);
+    const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS, project);
 
-    return items.map(toWorkItemSummary);
+    return items.map((wi) => toWorkItemSummary(wi, project));
 }
 
-export async function getCreatedWorkItems(): Promise<WorkItemSummary[]> {
-    const ids = await getCreatedWorkItemIds();
-    const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS);
+export async function getCreatedWorkItems(
+    project: string
+): Promise<WorkItemSummary[]> {
+    const ids = await getCreatedWorkItemIds(project);
+    const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS, project);
 
-    return items.map(toWorkItemSummary);
+    return items.map((wi) => toWorkItemSummary(wi, project));
 }

@@ -1,8 +1,14 @@
 import "dotenv/config";
-import express, { type Response } from "express";
+import express, { type Request, type Response } from "express";
 import cors from "cors";
 import { requireAuth } from "./auth.js";
-import { AzdoAuthError, getAreaPaths, getIterations, getProjects } from "./azdo.js";
+import {
+    AzdoAuthError,
+    DEFAULT_PROJECT,
+    getAreaPaths,
+    getIterations,
+    getProjects,
+} from "./azdo.js";
 import {
     getDashboardData,
     clearDashboardCache,
@@ -73,6 +79,34 @@ app.use(express.json({ limit: "15mb" }));
 
 app.use("/api", requireAuth);
 
+// The project the client's global scope bar has selected (see ScopeContext
+// on the client) - falls back to the server's baseline configured project
+// for any request that doesn't send one yet.
+function resolveProject(req: Request): string {
+    return (req.query.project as string | undefined) || DEFAULT_PROJECT;
+}
+
+function toStringArray(value: unknown): string[] {
+    if (Array.isArray(value)) {
+        return value as string[];
+    }
+
+    return value ? [value as string] : [];
+}
+
+// Named distinctly from the existing single-select `iteration`/`area` query
+// params (used by several routes' own page-local filter, e.g. /api/dashboard
+// ?iteration=) so the two don't collide - this is the global scope-bar
+// selection that pre-filters the dataset those local filters then narrow
+// further within.
+function resolveScopeAreaPaths(req: Request): string[] {
+    return toStringArray(req.query.scopeAreaPath);
+}
+
+function resolveScopeIterations(req: Request): string[] {
+    return toStringArray(req.query.scopeIteration);
+}
+
 // AzdoAuthError means Azure DevOps rejected our AZDO_PAT (usually expired or
 // revoked) - surface it as 502 Bad Gateway so the client can tell it apart
 // from an ordinary server-side bug and show a specific, actionable message.
@@ -87,10 +121,14 @@ function sendApiError(res: Response, error: any): void {
     res.status(500).json({ message: error.message });
 }
 
-app.get("/api/suites", async (_, res) => {
+app.get("/api/suites", async (req, res) => {
     try {
-        const allTestCases =
-            await getDashboardData();
+        const project = resolveProject(req);
+        const allTestCases = await getDashboardData(
+            project,
+            resolveScopeAreaPaths(req),
+            resolveScopeIterations(req)
+        );
 
         res.json(
             computeSuiteStats(allTestCases)
@@ -102,8 +140,12 @@ app.get("/api/suites", async (_, res) => {
 
 app.get("/api/dashboard", async (req, res) => {
     try {
-        const allTestCases =
-            await getDashboardData();
+        const project = resolveProject(req);
+        const allTestCases = await getDashboardData(
+            project,
+            resolveScopeAreaPaths(req),
+            resolveScopeIterations(req)
+        );
 
         const iteration = req.query.iteration as
             | string
@@ -119,27 +161,32 @@ app.get("/api/dashboard", async (req, res) => {
             stats: computeDashboardStats(
                 scoped
             ),
-            cacheTimestamp: getCacheTimestamp(),
+            cacheTimestamp: getCacheTimestamp(project),
         });
     } catch (error: any) {
         sendApiError(res, error);
     }
 });
 
-app.get("/api/runs", async (_, res) => {
+app.get("/api/runs", async (req, res) => {
     try {
-        res.json(await computeRunCards());
+        res.json(await computeRunCards(resolveProject(req)));
     } catch (error: any) {
         sendApiError(res, error);
     }
 });
 
-app.get("/api/execution-trend", async (_, res) => {
+app.get("/api/execution-trend", async (req, res) => {
     try {
+        const project = resolveProject(req);
         const [trend, allTestCases] =
             await Promise.all([
-                computeExecutionTrend(),
-                getDashboardData(),
+                computeExecutionTrend(project),
+                getDashboardData(
+                    project,
+                    resolveScopeAreaPaths(req),
+                    resolveScopeIterations(req)
+                ),
             ]);
 
         res.json({
@@ -183,9 +230,9 @@ app.get("/api/areapaths", async (req, res) => {
     }
 });
 
-app.get("/api/plans", async (_, res) => {
+app.get("/api/plans", async (req, res) => {
     try {
-        res.json(await computeTestPlans());
+        res.json(await computeTestPlans(resolveProject(req)));
     } catch (error: any) {
         sendApiError(res, error);
     }
@@ -195,7 +242,7 @@ app.get("/api/plans/:planId/suites", async (req, res) => {
     try {
         const planId = Number(req.params.planId);
 
-        res.json(await computePlanSuites(planId));
+        res.json(await computePlanSuites(planId, resolveProject(req)));
     } catch (error: any) {
         sendApiError(res, error);
     }
@@ -205,7 +252,7 @@ app.get("/api/plans/:planId/overview", async (req, res) => {
     try {
         const planId = Number(req.params.planId);
 
-        res.json(await computePlanOverview(planId));
+        res.json(await computePlanOverview(planId, resolveProject(req)));
     } catch (error: any) {
         sendApiError(res, error);
     }
@@ -215,7 +262,7 @@ app.get("/api/plans/:planId/progress", async (req, res) => {
     try {
         const planId = Number(req.params.planId);
 
-        res.json(await computeTestPlanProgress(planId));
+        res.json(await computeTestPlanProgress(planId, resolveProject(req)));
     } catch (error: any) {
         sendApiError(res, error);
     }
@@ -232,7 +279,13 @@ app.get("/api/plans/:planId/progress/bugs", async (req, res) => {
                   .filter(Number.isFinite)
             : undefined;
 
-        res.json(await computeTestPlanProgressBugs(planId, suiteIds));
+        res.json(
+            await computeTestPlanProgressBugs(
+                planId,
+                resolveProject(req),
+                suiteIds
+            )
+        );
     } catch (error: any) {
         sendApiError(res, error);
     }
@@ -250,7 +303,10 @@ app.get("/api/release-readiness", async (req, res) => {
     try {
         res.json(
             await computeReleaseReadiness(
-                req.query.iteration as string | undefined
+                resolveProject(req),
+                req.query.iteration as string | undefined,
+                resolveScopeAreaPaths(req),
+                resolveScopeIterations(req)
             )
         );
     } catch (error: any) {
@@ -262,9 +318,13 @@ app.get("/api/release-readiness", async (req, res) => {
     }
 });
 
-app.get("/api/nav-badges", async (_, res) => {
+app.get("/api/nav-badges", async (req, res) => {
     try {
-        const records = await getDefectData();
+        const records = await getDefectData(
+            resolveProject(req),
+            resolveScopeAreaPaths(req),
+            resolveScopeIterations(req)
+        );
         const counts = countOpenBySeverity(records);
 
         res.json({
@@ -304,11 +364,13 @@ app.post("/api/test-cases/delete", async (req, res) => {
         return;
     }
 
+    const project = resolveProject(req);
+
     try {
-        const result = await deleteTestCases(items);
+        const result = await deleteTestCases(items, project);
 
         if (result.deleted.length > 0) {
-            clearAutomationCache();
+            clearAutomationCache(project);
             clearPlanOverviewCache();
             clearTestPlanProgressCache();
             clearTestPlanProgressBugsCache();
@@ -329,10 +391,13 @@ app.get("/api/automation", async (req, res) => {
 
         res.json(
             await getAutomationDashboard(
+                resolveProject(req),
                 Number.isFinite(planId)
                     ? planId
                     : undefined,
-                iteration
+                iteration,
+                resolveScopeAreaPaths(req),
+                resolveScopeIterations(req)
             )
         );
     } catch (error: any) {
@@ -342,12 +407,15 @@ app.get("/api/automation", async (req, res) => {
 
 app.get("/api/defects", async (req, res) => {
     try {
+        const project = resolveProject(req);
+        const scopeAreaPaths = resolveScopeAreaPaths(req);
+        const scopeIterations = resolveScopeIterations(req);
         const [records, storyCount, storyPointsByArea, allSuiteNames] =
             await Promise.all([
-                getDefectData(),
-                getStoryCount(),
-                getStoryPointsByArea(),
-                getAllSuiteNames(),
+                getDefectData(project, scopeAreaPaths, scopeIterations),
+                getStoryCount(project),
+                getStoryPointsByArea(project),
+                getAllSuiteNames(project),
             ]);
 
         const filtered = filterRecords(records, {
@@ -377,23 +445,24 @@ app.get("/api/defects", async (req, res) => {
                 records,
                 allSuiteNames
             ),
-            cacheTimestamp: getDefectCacheTimestamp(),
+            cacheTimestamp: getDefectCacheTimestamp(project),
         });
     } catch (error: any) {
         sendApiError(res, error);
     }
 });
 
-app.get("/api/common-errors", async (_, res) => {
+app.get("/api/common-errors", async (req, res) => {
     try {
+        const project = resolveProject(req);
         const { errors, totalFailedResults } =
-            await getCommonErrorsData();
+            await getCommonErrorsData(project);
 
         res.json({
             errors,
             totalFailedResults,
             cacheTimestamp:
-                getCommonErrorsCacheTimestamp(),
+                getCommonErrorsCacheTimestamp(project),
         });
     } catch (error: any) {
         sendApiError(res, error);
@@ -402,15 +471,16 @@ app.get("/api/common-errors", async (_, res) => {
 app.get("/api/my-work-items", async (req, res) => {
     try {
         const mode = req.query.mode;
+        const project = resolveProject(req);
 
         const items =
             mode === "mentioned"
-                ? await getMentionedWorkItems()
+                ? await getMentionedWorkItems(project)
                 : mode === "following"
-                    ? await getFollowedWorkItems()
+                    ? await getFollowedWorkItems(project)
                     : mode === "created"
-                        ? await getCreatedWorkItems()
-                        : await getAssignedWorkItems();
+                        ? await getCreatedWorkItems(project)
+                        : await getAssignedWorkItems(project);
 
         res.json(items);
     } catch (error: any) {

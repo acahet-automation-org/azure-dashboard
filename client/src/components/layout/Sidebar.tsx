@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useIsRestrictedOwner } from "../../hooks/useIsRestrictedOwner";
+import { useScope } from "../../hooks/useScope";
 import {
     Button,
     Text,
@@ -401,9 +402,12 @@ export function Sidebar({
         AUTOMATION_PATHS.includes(location.pathname)
     );
 
+    const scope = useScope();
+
     const { data: badges } = useQuery({
-        queryKey: ["nav-badges"],
-        queryFn: fetchNavBadges,
+        queryKey: ["nav-badges", scope.project, scope.areaPaths, scope.iterations],
+        queryFn: () => fetchNavBadges(scope),
+        enabled: scope.isComplete,
         staleTime: 5 * 60 * 1000,
     });
 

@@ -26,19 +26,23 @@ import type {
     DeleteTestCaseItem,
     DeleteTestCasesResult,
 } from "./types.js";
-
-let dashboardCache: TestCaseRow[] | null = null;
-let cacheTimestamp = 0;
+import { areaPathInScope, iterationInScope } from "./scopeFilter.js";
+import { createPerProjectCache } from "./perProjectCache.js";
 
 const CACHE_DURATION_MS = 5 * 60 * 1000;
+
+// Keyed per project - see the per-project client factory in azdo.ts for why
+// a single shared cache can no longer work now that project is chosen at
+// runtime rather than fixed at server startup.
+const dashboardCache = createPerProjectCache<TestCaseRow[]>(CACHE_DURATION_MS);
 
 // Sprint 1 test execution kicked off on this date; runs before it are
 // leftover data from prior activity and excluded from the execution trend.
 
 const SPRINT_1_START_DATE = "2026-07-07";
 
-export function getCacheTimestamp(): number {
-    return cacheTimestamp;
+export function getCacheTimestamp(project: string): number {
+    return dashboardCache.getTimestamp(project);
 }
 
 // A test point's `results.outcome` can carry a stale/interim verdict (e.g.
@@ -117,10 +121,12 @@ export async function buildTestCaseRow(
     suiteId: number,
     outcomesByTestCase: Record<number, string[]>,
     lastRunByTestCase: Record<number, number>,
-    planIteration?: string
+    planIteration?: string,
+    project?: string
 ): Promise<TestCaseRow> {
     const workItem = await getWorkItem(
-        tc.workItem.id
+        tc.workItem.id,
+        project
     );
 
     const linkedIds = extractWorkItemIds(
@@ -128,7 +134,9 @@ export async function buildTestCaseRow(
     );
 
     const linkedItems = await getWorkItems(
-        linkedIds
+        linkedIds,
+        undefined,
+        project
     );
 
     const bugs = linkedItems.filter(
@@ -244,25 +252,29 @@ function indexSuiteTestPoints(testPoints: any[]): SuiteTestPointIndex {
     return { outcomesByTestCase, lastRunByTestCase };
 }
 
-export async function buildDashboard(): Promise<
+export async function buildDashboard(
+    project: string
+): Promise<
     TestCaseRow[]
 > {
-    const plans = await getTestPlans();
+    const plans = await getTestPlans(project);
 
     const allTestCases: TestCaseRow[] = [];
 
     for (const plan of plans) {
-        const suites = await getSuites(plan.id);
+        const suites = await getSuites(plan.id, project);
 
         for (const suite of suites) {
             const testCases = await getTestCases(
                 plan.id,
-                suite.id
+                suite.id,
+                project
             );
 
             const testPoints = await getTestPoints(
                 plan.id,
-                suite.id
+                suite.id,
+                project
             );
 
             const { outcomesByTestCase, lastRunByTestCase } =
@@ -277,7 +289,8 @@ export async function buildDashboard(): Promise<
                         suite.id,
                         outcomesByTestCase,
                         lastRunByTestCase,
-                        plan.iteration
+                        plan.iteration,
+                        project
                     )
                 )
             );
@@ -289,31 +302,47 @@ export async function buildDashboard(): Promise<
     return allTestCases;
 }
 
-export async function getDashboardData(): Promise<
-    TestCaseRow[]
-> {
-    const now = Date.now();
+// Returns the full per-project dataset, cached - scope narrowing (area
+// paths/iterations) is applied by getDashboardData below, on top of this
+// cache, so a scope change never forces a re-fetch from Azure DevOps.
+async function getCachedDashboard(
+    project: string
+): Promise<TestCaseRow[]> {
+    const cached = dashboardCache.get(project);
 
-    if (
-        dashboardCache &&
-        now - cacheTimestamp <
-        CACHE_DURATION_MS
-    ) {
+    if (cached) {
         console.log("CACHE HIT");
-        return dashboardCache;
+        return cached;
     }
 
     console.log("CACHE MISS");
 
-    dashboardCache = await buildDashboard();
-    cacheTimestamp = now;
+    const data = await buildDashboard(project);
+    dashboardCache.set(project, data);
 
-    return dashboardCache;
+    return data;
 }
 
-export function clearDashboardCache(): void {
-    dashboardCache = null;
-    cacheTimestamp = 0;
+export async function getDashboardData(
+    project: string,
+    scopeAreaPaths: string[] = [],
+    scopeIterations: string[] = []
+): Promise<TestCaseRow[]> {
+    const allTestCases = await getCachedDashboard(project);
+
+    if (scopeAreaPaths.length === 0 && scopeIterations.length === 0) {
+        return allTestCases;
+    }
+
+    return allTestCases.filter(
+        (tc) =>
+            areaPathInScope(tc.areaPath, scopeAreaPaths) &&
+            iterationInScope(tc.iteration, scopeIterations)
+    );
+}
+
+export function clearDashboardCache(project?: string): void {
+    dashboardCache.clear(project);
 }
 
 export function computeDashboardStats(
@@ -534,20 +563,20 @@ function summarizeRunStats(
     return { counts, total, passRate };
 }
 
-export async function computeTestPlans(): Promise<
+export async function computeTestPlans(
+    project: string
+): Promise<
     TestPlanSummary[]
 > {
-    const plans = await getTestPlans();
+    const plans = await getTestPlans(project);
 
     const org = process.env.AZDO_ORG;
-    const project = encodeURIComponent(
-        process.env.AZDO_PROJECT!
-    );
+    const encodedProject = encodeURIComponent(project);
 
     return plans.map((plan: any): TestPlanSummary => ({
         id: plan.id,
         name: plan.name,
-        url: `https://dev.azure.com/${org}/${project}/_testPlans/define?planId=${plan.id}&suiteId=${plan.rootSuite?.id ?? plan.id}`,
+        url: `https://dev.azure.com/${org}/${encodedProject}/_testPlans/define?planId=${plan.id}&suiteId=${plan.rootSuite?.id ?? plan.id}`,
         areaPath: plan.areaPath,
         iteration: plan.iteration,
         state: plan.state,
@@ -556,9 +585,10 @@ export async function computeTestPlans(): Promise<
 }
 
 export async function computePlanSuites(
-    planId: number
+    planId: number,
+    project: string
 ): Promise<TestSuiteSummary[]> {
-    const suites = await getSuites(planId);
+    const suites = await getSuites(planId, project);
 
     const testCasesBySuiteId = new Map<
         number,
@@ -574,7 +604,8 @@ export async function computePlanSuites(
                     const testCases =
                         await getTestCases(
                             planId,
-                            suite.id
+                            suite.id,
+                            project
                         );
 
                     return [
@@ -633,10 +664,12 @@ export async function computePlanSuites(
     return roots;
 }
 
-export async function computeRunCards(): Promise<
+export async function computeRunCards(
+    project: string
+): Promise<
     RunCard[]
 > {
-    const runs = await getTestRuns();
+    const runs = await getTestRuns(project);
 
     const last10 = [...runs]
         .sort((a: any, b: any) => {
@@ -659,7 +692,8 @@ export async function computeRunCards(): Promise<
             async (run: any): Promise<RunCard | null> => {
                 const stats =
                     await getTestRunStatistics(
-                        run.id
+                        run.id,
+                        project
                     );
 
                 // A null result means Azure DevOps no longer has this run
@@ -694,15 +728,18 @@ export async function computeRunCards(): Promise<
     );
 }
 
-export async function computeExecutionTrend(): Promise<
+export async function computeExecutionTrend(
+    project: string
+): Promise<
     TrendPoint[]
 > {
-    const runs = await getTestRuns();
+    const runs = await getTestRuns(project);
 
     const runStatsWithNulls = await Promise.all(
         runs.map(async (run: any) => {
             const stats = await getTestRunStatistics(
-                run.id
+                run.id,
+                project
             );
 
             // See computeRunCards: a null result means the run no longer
@@ -808,7 +845,8 @@ export async function computeExecutionTrend(): Promise<
 }
 
 export async function deleteTestCases(
-    items: DeleteTestCaseItem[]
+    items: DeleteTestCaseItem[],
+    project: string
 ): Promise<DeleteTestCasesResult> {
     // Unlinking from the suite is what actually makes the test case
     // disappear from the suite tree the UI renders (see the comment on
@@ -841,7 +879,8 @@ export async function deleteTestCases(
             deleteTestCasesFromSuite(
                 group.planId,
                 group.suiteId,
-                group.testCaseIds
+                group.testCaseIds,
+                project
             )
         )
     );
@@ -869,11 +908,11 @@ export async function deleteTestCases(
     // reported to the caller - the test case already no longer appears in
     // the suite, which is what the UI promised.
     await Promise.allSettled(
-        deleted.map((id) => deleteTestCase(id))
+        deleted.map((id) => deleteTestCase(id, project))
     );
 
     if (deleted.length > 0) {
-        clearDashboardCache();
+        clearDashboardCache(project);
     }
 
     return { deleted, failed };

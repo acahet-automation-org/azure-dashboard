@@ -24,6 +24,7 @@ import { ChartCard } from "./ChartCard";
 import { StatusReportCard } from "./StatusReportCard";
 import type { SuiteProgressGroup } from "./StatusReportCard";
 import { fetchPlanOverview, fetchPlans } from "../api/client";
+import { useScope } from "../hooks/useScope";
 import { sendGraphMailReport } from "../api/graphMail";
 import {
     buildStatusReportCardEmailBodyHtml,
@@ -181,6 +182,7 @@ export function SprintDefectReportTab({
 }) {
     const { t } = useTranslation();
     const styles = useStyles();
+    const scope = useScope();
     const report = stats.sprintDefectReport;
 
     const [headerTitle, setHeaderTitle] = useState(defaultHeaderTitle);
@@ -221,8 +223,9 @@ export function SprintDefectReportTab({
     // plan ID) rather than the whole-org /api/dashboard, which is cached
     // for 5 minutes and can lag behind a plan that was just populated.
     const { data: plans, isLoading: plansLoading } = useQuery({
-        queryKey: ["plans"],
-        queryFn: fetchPlans,
+        queryKey: ["plans", scope.project],
+        queryFn: () => fetchPlans(scope),
+        enabled: scope.isComplete,
     });
 
     const planIdByName = new Map(
@@ -243,8 +246,9 @@ export function SprintDefectReportTab({
 
     const planOverviewQueries = useQueries({
         queries: distinctPlanIds.map((planId) => ({
-            queryKey: ["plan-overview", planId],
-            queryFn: () => fetchPlanOverview(planId),
+            queryKey: ["plan-overview", planId, scope.project],
+            queryFn: () => fetchPlanOverview(planId, scope),
+            enabled: scope.isComplete,
         })),
     });
 
