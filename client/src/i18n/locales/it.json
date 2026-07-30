@@ -400,7 +400,7 @@
                     "totalTestCases": "Casi di Test Totali",
                     "passRate": "Pass Rate",
                     "bugsClosed": "Bug Chiusi ({{percent}}%)",
-                    "criticalBugs": "Bug Critici",
+                    "criticalBugs": "Bug Critici (non chiusi)",
                     "reopenedBugs": "Bug riaperti ({{percent}}%)",
                     "avgClosureTime": "Tempo medio chiusura\nbug (gg)",
                     "effectiveBugsDetected": "Bug Effettivi Rilevati",

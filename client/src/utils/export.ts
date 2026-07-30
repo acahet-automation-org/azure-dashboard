@@ -1465,7 +1465,7 @@ export function buildStatusReportCardEmailBodyHtml(
             })
         ) +
         lightKpiTile(
-            String(severityEntries[0][1]),
+            String(openSeverityEntries[0][1]),
             3,
             t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs")
         ) +
@@ -1753,6 +1753,7 @@ interface StatusCardKpis {
     stillOpen: number;
     reopenedPct: number;
     avgClosureDays: number;
+    criticalCount: number;
 }
 
 // Shared by the PDF and PPTX status card exports so the two renderings never
@@ -1781,6 +1782,14 @@ function computeStatusCardKpis(
         : 0;
     const avgClosureDays = Math.round(report.mttrDays ?? 0);
 
+    // Only non-closed bugs count here - a closed critical bug isn't
+    // something the reader still needs to act on. Mirrors
+    // StatusReportCard.tsx's criticalCount so the live card, PDF, PPTX and
+    // email export never drift apart on this number.
+    const criticalCount = report.effectiveDefects.filter(
+        (bug) => bug.state !== "Closed" && severityRank(bug.severity ?? "") === 1
+    ).length;
+
     return {
         totalTestCases,
         totalPassed,
@@ -1793,6 +1802,7 @@ function computeStatusCardKpis(
         stillOpen,
         reopenedPct,
         avgClosureDays,
+        criticalCount,
     };
 }
 
@@ -2332,7 +2342,7 @@ export function buildStatusReportCardPdfDocument(
                 String(kpis.totalTestCases),
                 `${kpis.passRate}%`,
                 `${kpis.bugsClosed}/${report.total}`,
-                String(report.bySeverity["1 - Critical"] ?? 0),
+                String(kpis.criticalCount),
                 String(report.reopenedCount),
                 t("defectManagementPage.stats.days", { value: kpis.avgClosureDays }),
             ],
@@ -2756,7 +2766,7 @@ function buildPptxKpiDefs(
             }),
         },
         {
-            value: String(report.bySeverity["1 - Critical"] ?? 0),
+            value: String(kpis.criticalCount),
             label: t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"),
         },
         {
