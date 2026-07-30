@@ -14,6 +14,7 @@ import { NAV_HEIGHT, RAIL_BG, RAIL_FG, RAIL_FG_ACTIVE } from "../../layoutConsta
 import { postRefresh } from "../../api/client";
 import { LanguageSwitcher } from "../LanguageSwitcher";
 import { ThemeSwitcher } from "../ThemeSwitcher";
+import { TestGraphMailButton } from "../TestGraphMailButton";
 
 // Colors are hardcoded (not theme tokens) to match the Sidebar rail, which
 // is also always dark regardless of the light/dark content theme - see
@@ -118,6 +119,8 @@ export function TopBar({ title }: { title: string }) {
                         })}
                     </Text>
                 )}
+
+                <TestGraphMailButton />
 
                 <LanguageSwitcher />
                 <ThemeSwitcher />

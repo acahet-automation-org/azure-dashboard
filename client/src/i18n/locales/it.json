@@ -26,6 +26,10 @@
         "refreshFailed": "Aggiornamento non riuscito: {{message}}",
         "welcome": "Benvenuto, {{name}}",
         "signOut": "Esci",
+        "testGraphMail": "Test Graph Mail",
+        "testGraphMailSending": "Invio in corso...",
+        "testGraphMailSuccess": "Email di prova inviata",
+        "testGraphMailFailed": "Invio email di prova non riuscito: {{message}}",
         "collapseSidebar": "Comprimi barra laterale",
         "expandSidebar": "Espandi barra laterale"
     },
