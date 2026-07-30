@@ -23,7 +23,8 @@ import {
 import { ChartCard } from "./ChartCard";
 import { StatusReportCard } from "./StatusReportCard";
 import type { SuiteProgressGroup } from "./StatusReportCard";
-import { fetchPlanOverview, fetchPlans, sendEmailReport } from "../api/client";
+import { fetchPlanOverview, fetchPlans } from "../api/client";
+import { sendGraphMailReport } from "../api/graphMail";
 import {
     buildStatusReportCardEmailBodyHtml,
     buildStatusReportCardEmailDocument,
@@ -437,7 +438,7 @@ export function SprintDefectReportTab({
     };
 
     const emailReportMutation = useMutation({
-        mutationFn: sendEmailReport,
+        mutationFn: sendGraphMailReport,
     });
 
     const handleSendStatusCardEmail = () => {
@@ -460,7 +461,6 @@ export function SprintDefectReportTab({
         emailReportMutation.mutate({
             subject: headerTitle,
             bodyHtml,
-            fromName: headerTitle,
         });
     };
 

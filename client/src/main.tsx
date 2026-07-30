@@ -12,43 +12,70 @@ import App from "./App";
 
 const queryClient = new QueryClient();
 
-msalInstance.addEventCallback((event) => {
-    if (
-        event.eventType === EventType.LOGIN_SUCCESS &&
-        event.payload &&
-        "account" in event.payload &&
-        event.payload.account
-    ) {
-        msalInstance.setActiveAccount(event.payload.account);
+// Every app registration in this project (dashboard sign-in, mailMsalInstance
+// for the Test Graph Mail button, and MSAL's own silent-renewal iframe) shares
+// this app's root as its redirect URI. When MSAL opens a login popup or a
+// hidden iframe for token renewal, that window navigates back here too - if
+// left alone it would boot the *full* app (mounting a different MSAL
+// instance, routing, etc.) instead of running MSAL's bridge script, so the
+// opener never receives its response and the popup never closes (see
+// @azure/msal-browser's redirect_bridge module, which is what's actually
+// meant to run in that window). Hand off to the bridge before doing anything
+// else whenever we're inside one of those windows.
+const isPopupOrIframe = (window.opener && window.opener !== window) || window.parent !== window;
+
+if (isPopupOrIframe) {
+    try {
+        const { broadcastResponseToMainFrame } = await import("@azure/msal-browser/redirect-bridge");
+        await broadcastResponseToMainFrame();
+    } catch {
+        // Not actually an MSAL auth response landing here (e.g. embedded in an
+        // iframe for an unrelated reason) - fall back to a normal app boot.
+        await bootApp();
     }
-});
-
-await msalInstance.initialize();
-
-const redirectResponse = await msalInstance.handleRedirectPromise();
-
-if (redirectResponse?.account) {
-    msalInstance.setActiveAccount(redirectResponse.account);
-} else if (!msalInstance.getActiveAccount()) {
-    const [firstAccount] = msalInstance.getAllAccounts();
-
-    if (firstAccount) {
-        msalInstance.setActiveAccount(firstAccount);
-    }
+} else {
+    await bootApp();
 }
 
-createRoot(document.getElementById("root")!).render(
-    <StrictMode>
-        <MsalProvider instance={msalInstance}>
-            <ThemeModeProvider>
-                <ThemedFluentProvider>
-                    <QueryClientProvider client={queryClient}>
-                        <BrowserRouter basename={import.meta.env.BASE_URL}>
-                            <App />
-                        </BrowserRouter>
-                    </QueryClientProvider>
-                </ThemedFluentProvider>
-            </ThemeModeProvider>
-        </MsalProvider>
-    </StrictMode>
-);
+async function bootApp() {
+    msalInstance.addEventCallback((event) => {
+        if (
+            event.eventType === EventType.LOGIN_SUCCESS &&
+            event.payload &&
+            "account" in event.payload &&
+            event.payload.account
+        ) {
+            msalInstance.setActiveAccount(event.payload.account);
+        }
+    });
+
+    await msalInstance.initialize();
+
+    const redirectResponse = await msalInstance.handleRedirectPromise();
+
+    if (redirectResponse?.account) {
+        msalInstance.setActiveAccount(redirectResponse.account);
+    } else if (!msalInstance.getActiveAccount()) {
+        const [firstAccount] = msalInstance.getAllAccounts();
+
+        if (firstAccount) {
+            msalInstance.setActiveAccount(firstAccount);
+        }
+    }
+
+    createRoot(document.getElementById("root")!).render(
+        <StrictMode>
+            <MsalProvider instance={msalInstance}>
+                <ThemeModeProvider>
+                    <ThemedFluentProvider>
+                        <QueryClientProvider client={queryClient}>
+                            <BrowserRouter basename={import.meta.env.BASE_URL}>
+                                <App />
+                            </BrowserRouter>
+                        </QueryClientProvider>
+                    </ThemedFluentProvider>
+                </ThemeModeProvider>
+            </MsalProvider>
+        </StrictMode>
+    );
+}
