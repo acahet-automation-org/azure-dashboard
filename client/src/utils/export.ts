@@ -1796,15 +1796,19 @@ function computeStatusCardKpis(
     };
 }
 
-function pdfDrawAlertBanner(
-    doc: jsPDF,
-    y: number,
-    innerWidth: number,
-    alertText: string
-): number {
+interface PdfDrawCtx {
+    doc: jsPDF;
+    pageWidth: number;
+    innerWidth: number;
+    t: TranslateFn;
+}
+
+function pdfDrawAlertBanner(ctx: PdfDrawCtx, y: number, alertText: string): number {
     if (!alertText) {
         return y;
     }
+
+    const { doc, innerWidth } = ctx;
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
@@ -1858,17 +1862,15 @@ function buildPdfRow2KpiDefs(
 }
 
 function pdfDrawDashboardButton(
-    doc: jsPDF,
+    ctx: PdfDrawCtx,
     y: number,
-    pageWidth: number,
-    innerWidth: number,
-    dashboardUrl: string | undefined,
-    t: TranslateFn
+    dashboardUrl: string | undefined
 ): number {
     if (!dashboardUrl) {
         return y;
     }
 
+    const { doc, pageWidth, innerWidth, t } = ctx;
     const buttonY = ensurePdfSpace(doc, y, 14);
     const label = t("defectManagementPage.sprintReport.statusCard.openDashboard");
 
@@ -1886,13 +1888,7 @@ function pdfDrawDashboardButton(
     return buttonY + buttonHeight + 8;
 }
 
-function pdfDrawActionsSection(
-    doc: jsPDF,
-    y: number,
-    innerWidth: number,
-    actionsText: string,
-    t: TranslateFn
-): number {
+function pdfDrawActionsSection(ctx: PdfDrawCtx, y: number, actionsText: string): number {
     const actionParagraphs = actionsText
         .split(/\n\s*\n/)
         .map((paragraph) => paragraph.trim())
@@ -1902,6 +1898,7 @@ function pdfDrawActionsSection(
         return y;
     }
 
+    const { doc, innerWidth, t } = ctx;
     let cursorY = ensurePdfSpace(doc, y, 10);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
@@ -1934,14 +1931,8 @@ function pdfDrawActionsSection(
     return cursorY + 4;
 }
 
-function pdfDrawSuiteProgressRow(
-    doc: jsPDF,
-    y: number,
-    pageWidth: number,
-    innerWidth: number,
-    group: SuiteProgressGroup,
-    t: TranslateFn
-): number {
+function pdfDrawSuiteProgressRow(ctx: PdfDrawCtx, y: number, group: SuiteProgressGroup): number {
+    const { doc, pageWidth, innerWidth, t } = ctx;
     const executed = group.totalTestCases - group.outcomeCounts.NotRun;
     const executedPct = group.totalTestCases
         ? Math.round((executed / group.totalTestCases) * 100)
@@ -2001,13 +1992,11 @@ function pdfDrawSuiteProgressRow(
 }
 
 function pdfDrawSuiteProgressSection(
-    doc: jsPDF,
+    ctx: PdfDrawCtx,
     y: number,
-    pageWidth: number,
-    innerWidth: number,
-    suiteGroups: SuiteProgressGroup[],
-    t: TranslateFn
+    suiteGroups: SuiteProgressGroup[]
 ): number {
+    const { doc, t } = ctx;
     let cursorY = ensurePdfSpace(doc, y, 10);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
@@ -2032,23 +2021,21 @@ function pdfDrawSuiteProgressSection(
     }
 
     for (const group of suiteGroups) {
-        cursorY = pdfDrawSuiteProgressRow(doc, cursorY, pageWidth, innerWidth, group, t);
+        cursorY = pdfDrawSuiteProgressRow(ctx, cursorY, group);
     }
 
     return cursorY;
 }
 
 function pdfDrawBugStatusSection(
-    doc: jsPDF,
+    ctx: PdfDrawCtx,
     y: number,
-    pageWidth: number,
-    innerWidth: number,
     report: SprintDefectReport,
     kpis: StatusCardKpis,
     suiteGroups: SuiteProgressGroup[],
-    includeDsiSource: boolean,
-    t: TranslateFn
+    includeDsiSource: boolean
 ): number {
+    const { doc, pageWidth, innerWidth, t } = ctx;
     let cursorY = ensurePdfSpace(doc, y, 10);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
@@ -2193,15 +2180,16 @@ function pdfDrawBugStatusSection(
 }
 
 function pdfDrawOriginBreakdownSection(
-    doc: jsPDF,
+    ctx: PdfDrawCtx,
     y: number,
     report: SprintDefectReport,
-    showOriginBreakdown: boolean,
-    t: TranslateFn
+    showOriginBreakdown: boolean
 ): void {
     if (!showOriginBreakdown) {
         return;
     }
+
+    const { doc, t } = ctx;
 
     const originDefs = [
         {
@@ -2313,7 +2301,9 @@ export function buildStatusReportCardPdfDocument(
         { align: "right" }
     );
 
-    let y = pdfDrawAlertBanner(doc, 30, innerWidth, alertText);
+    const ctx: PdfDrawCtx = { doc, pageWidth, innerWidth, t };
+
+    let y = pdfDrawAlertBanner(ctx, 30, alertText);
 
     const kpis = computeStatusCardKpis(suiteGroups, report);
 
@@ -2397,21 +2387,11 @@ export function buildStatusReportCardPdfDocument(
 
     y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
 
-    y = pdfDrawDashboardButton(doc, y, pageWidth, innerWidth, dashboardUrl, t);
-    y = pdfDrawActionsSection(doc, y, innerWidth, actionsText, t);
-    y = pdfDrawSuiteProgressSection(doc, y, pageWidth, innerWidth, suiteGroups, t);
-    y = pdfDrawBugStatusSection(
-        doc,
-        y,
-        pageWidth,
-        innerWidth,
-        report,
-        kpis,
-        suiteGroups,
-        includeDsiSource,
-        t
-    );
-    pdfDrawOriginBreakdownSection(doc, y, report, showOriginBreakdown, t);
+    y = pdfDrawDashboardButton(ctx, y, dashboardUrl);
+    y = pdfDrawActionsSection(ctx, y, actionsText);
+    y = pdfDrawSuiteProgressSection(ctx, y, suiteGroups);
+    y = pdfDrawBugStatusSection(ctx, y, report, kpis, suiteGroups, includeDsiSource);
+    pdfDrawOriginBreakdownSection(ctx, y, report, showOriginBreakdown);
 
     return doc;
 }
@@ -2822,19 +2802,27 @@ function buildPptxRow2KpiDefs(
     ];
 }
 
+interface PptxDrawCtx {
+    slide: PptxGenJS.PresSlide;
+    M: number;
+    W: number;
+    innerW: number;
+    scale: number;
+    s: (n: number) => number;
+    t: TranslateFn;
+}
+
 function pptxDrawAlertBanner(
-    slide: PptxGenJS.PresSlide,
+    ctx: PptxDrawCtx,
     cursorY: number,
-    M: number,
-    innerW: number,
     alertText: string,
-    naturalAlertBlock: number,
-    s: (n: number) => number
+    naturalAlertBlock: number
 ): number {
     if (!alertText) {
         return cursorY;
     }
 
+    const { slide, M, innerW, s } = ctx;
     const lineCount = estimateWrappedLineCount(`⚠ ${alertText}`, innerW - 0.35, s(11));
     const textHeight = s(lineCount * 0.2 + 0.14);
 
@@ -2870,14 +2858,12 @@ function pptxDrawAlertBanner(
 }
 
 function pptxDrawKpiTiles(
-    slide: PptxGenJS.PresSlide,
+    ctx: PptxDrawCtx,
     cursorY: number,
-    M: number,
-    innerW: number,
     kpiDefs: { value: string; label: string }[],
-    row2KpiDefs: { value: string; label: string }[],
-    s: (n: number) => number
+    row2KpiDefs: { value: string; label: string }[]
 ): void {
+    const { slide, M, innerW, s } = ctx;
     const kpiHeight = s(0.62);
     const kpiGap = 0.06;
     const kpiColumns = 6;
@@ -2921,19 +2907,16 @@ function pptxDrawKpiTiles(
 }
 
 function pptxDrawDashboardButton(
-    slide: PptxGenJS.PresSlide,
+    ctx: PptxDrawCtx,
     cursorY: number,
-    M: number,
-    innerW: number,
     dashboardUrl: string | undefined,
-    naturalDashboardBlock: number,
-    t: TranslateFn,
-    s: (n: number) => number
+    naturalDashboardBlock: number
 ): number {
     if (!dashboardUrl) {
         return cursorY;
     }
 
+    const { slide, M, innerW, s, t } = ctx;
     const buttonHeight = s(0.32);
 
     slide.addText(t("defectManagementPage.sprintReport.statusCard.openDashboard"), {
@@ -2958,18 +2941,15 @@ function pptxDrawDashboardButton(
 }
 
 function pptxDrawActionsSection(
-    slide: PptxGenJS.PresSlide,
+    ctx: PptxDrawCtx,
     cursorY: number,
-    M: number,
-    innerW: number,
-    actionParagraphs: string[],
-    t: TranslateFn,
-    s: (n: number) => number
+    actionParagraphs: string[]
 ): number {
     if (actionParagraphs.length === 0) {
         return cursorY;
     }
 
+    const { slide, M, innerW, s, t } = ctx;
     const titleHeight = s(0.32);
 
     slide.addText(`📌 ${t("defectManagementPage.sprintReport.statusCard.actionsTitle")}`, {
@@ -3026,16 +3006,8 @@ function pptxDrawActionsSection(
     return rowY + s(0.12);
 }
 
-function pptxDrawSuiteProgressRow(
-    slide: PptxGenJS.PresSlide,
-    y: number,
-    M: number,
-    W: number,
-    innerW: number,
-    group: SuiteProgressGroup,
-    t: TranslateFn,
-    s: (n: number) => number
-): void {
+function pptxDrawSuiteProgressRow(ctx: PptxDrawCtx, y: number, group: SuiteProgressGroup): void {
+    const { slide, M, W, innerW, s, t } = ctx;
     const executed = group.totalTestCases - group.outcomeCounts.NotRun;
     const executedPct = group.totalTestCases
         ? Math.round((executed / group.totalTestCases) * 100)
@@ -3113,15 +3085,11 @@ function pptxDrawSuiteProgressRow(
 }
 
 function pptxDrawSuiteProgressSection(
-    slide: PptxGenJS.PresSlide,
+    ctx: PptxDrawCtx,
     cursorY: number,
-    M: number,
-    W: number,
-    innerW: number,
-    suiteGroups: SuiteProgressGroup[],
-    t: TranslateFn,
-    s: (n: number) => number
+    suiteGroups: SuiteProgressGroup[]
 ): number {
+    const { slide, M, innerW, s, t } = ctx;
     const titleHeight = s(0.32);
 
     slide.addText(`📈 ${t("defectManagementPage.sprintReport.statusCard.suiteProgressTitle")}`, {
@@ -3156,7 +3124,7 @@ function pptxDrawSuiteProgressSection(
     let nextRowY = rowY;
 
     for (const group of suiteGroups) {
-        pptxDrawSuiteProgressRow(slide, nextRowY, M, W, innerW, group, t, s);
+        pptxDrawSuiteProgressRow(ctx, nextRowY, group);
         nextRowY += suiteRowHeight;
     }
 
@@ -3164,20 +3132,15 @@ function pptxDrawSuiteProgressSection(
 }
 
 function pptxDrawBugStatusSection(
-    slide: PptxGenJS.PresSlide,
+    ctx: PptxDrawCtx,
     cursorY: number,
-    M: number,
-    W: number,
-    innerW: number,
     report: SprintDefectReport,
     kpis: StatusCardKpis,
     suiteGroups: SuiteProgressGroup[],
     includeDsiSource: boolean,
-    naturalBugStatusBlock: number,
-    scale: number,
-    s: (n: number) => number,
-    t: TranslateFn
+    naturalBugStatusBlock: number
 ): number {
+    const { slide, M, W, innerW, scale, s, t } = ctx;
     const bugSources = [
         ...suiteGroups.map((group) => group.label),
         ...(includeDsiSource ? ["DSI"] : []),
@@ -3324,19 +3287,16 @@ function pptxDrawBugStatusSection(
 }
 
 function pptxDrawOriginBreakdownSection(
-    slide: PptxGenJS.PresSlide,
+    ctx: PptxDrawCtx,
     cursorY: number,
-    M: number,
-    innerW: number,
     originDefs: unknown[],
-    originRowsData: string[][],
-    t: TranslateFn,
-    s: (n: number) => number
+    originRowsData: string[][]
 ): number {
     if (originDefs.length === 0) {
         return cursorY;
     }
 
+    const { slide, M, innerW, s, t } = ctx;
     const titleHeight = s(0.32);
     const rowHeight = s(0.24);
 
@@ -3482,45 +3442,32 @@ export async function exportStatusReportCardToPptx(
         }
     );
 
+    const ctx: PptxDrawCtx = { slide, M, W, innerW, scale, s, t };
+
     let cursorY = bodyTop;
 
-    cursorY = pptxDrawAlertBanner(slide, cursorY, M, innerW, alertText, heights.naturalAlertBlock, s);
+    cursorY = pptxDrawAlertBanner(ctx, cursorY, alertText, heights.naturalAlertBlock);
 
     const kpis = computeStatusCardKpis(suiteGroups, report);
     const kpiDefs = buildPptxKpiDefs(kpis, report, t);
     const row2KpiDefs = buildPptxRow2KpiDefs(kpis, report, t);
 
-    pptxDrawKpiTiles(slide, cursorY, M, innerW, kpiDefs, row2KpiDefs, s);
+    pptxDrawKpiTiles(ctx, cursorY, kpiDefs, row2KpiDefs);
     cursorY += s(heights.naturalKpiBlock);
 
-    cursorY = pptxDrawDashboardButton(
-        slide,
-        cursorY,
-        M,
-        innerW,
-        dashboardUrl,
-        heights.naturalDashboardBlock,
-        t,
-        s
-    );
-    cursorY = pptxDrawActionsSection(slide, cursorY, M, innerW, actionParagraphs, t, s);
-    cursorY = pptxDrawSuiteProgressSection(slide, cursorY, M, W, innerW, suiteGroups, t, s);
+    cursorY = pptxDrawDashboardButton(ctx, cursorY, dashboardUrl, heights.naturalDashboardBlock);
+    cursorY = pptxDrawActionsSection(ctx, cursorY, actionParagraphs);
+    cursorY = pptxDrawSuiteProgressSection(ctx, cursorY, suiteGroups);
     cursorY = pptxDrawBugStatusSection(
-        slide,
+        ctx,
         cursorY,
-        M,
-        W,
-        innerW,
         report,
         kpis,
         suiteGroups,
         includeDsiSource,
-        heights.naturalBugStatusBlock,
-        scale,
-        s,
-        t
+        heights.naturalBugStatusBlock
     );
-    pptxDrawOriginBreakdownSection(slide, cursorY, M, innerW, originDefs, originRowsData, t, s);
+    pptxDrawOriginBreakdownSection(ctx, cursorY, originDefs, originRowsData);
 
     await pptx.writeFile({ fileName: filename });
 }
