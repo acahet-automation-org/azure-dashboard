@@ -42,7 +42,7 @@ export function IterationFilter({
 
     const { data: iterations } = useQuery({
         queryKey: ["iterations"],
-        queryFn: fetchIterations,
+        queryFn: () => fetchIterations(),
     });
 
     return (

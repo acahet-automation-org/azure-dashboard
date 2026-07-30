@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { makeStyles, mergeClasses, tokens } from "@fluentui/react-components";
 import { Sidebar } from "./layout/Sidebar";
 import { TopBar } from "./layout/TopBar";
+import { ScopeBar } from "./layout/ScopeBar";
 import { SIDEBAR_WIDTH, SIDEBAR_COLLAPSED_WIDTH } from "../layoutConstants";
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "sidebarCollapsed";
@@ -70,6 +71,7 @@ export function PageLayout({
                 )}
             >
                 <TopBar title={title} />
+                <ScopeBar />
 
                 <div className={styles.content}>{children}</div>
             </div>

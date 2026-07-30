@@ -133,8 +133,27 @@ export function fetchPlans(): Promise<TestPlanSummary[]> {
     return getJson("/api/plans");
 }
 
-export function fetchIterations(): Promise<IterationNode[]> {
-    return getJson("/api/iterations");
+export function fetchProjects(): Promise<string[]> {
+    return getJson("/api/projects");
+}
+
+export function fetchIterations(
+    project?: string
+): Promise<IterationNode[]> {
+    const qs = project ? `?project=${encodeURIComponent(project)}` : "";
+
+    return getJson(`/api/iterations${qs}`);
+}
+
+// Same node shape as IterationNode - see AreaPathNode's doc comment in
+// src/azdo.ts. Reusing the type client-side too rather than declaring a
+// second identical interface.
+export function fetchAreaPaths(
+    project?: string
+): Promise<IterationNode[]> {
+    const qs = project ? `?project=${encodeURIComponent(project)}` : "";
+
+    return getJson(`/api/areapaths${qs}`);
 }
 
 export function fetchPlanSuites(
