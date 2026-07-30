@@ -27,6 +27,7 @@ import { fetchPlanOverview, fetchPlans } from "../api/client";
 import {
     DEFAULT_REPORT_CC,
     DEFAULT_REPORT_RECIPIENTS,
+    parseAddressList,
     sendGraphMailReport,
 } from "../api/graphMail";
 import {
@@ -173,13 +174,6 @@ function formatDDMM(date: Date): string {
     const day = String(date.getDate()).padStart(2, "0");
     const month = String(date.getMonth() + 1).padStart(2, "0");
     return `${day}/${month}`;
-}
-
-function parseAddressListInput(raw: string): string[] {
-    return raw
-        .split(",")
-        .map((email) => email.trim())
-        .filter(Boolean);
 }
 
 export function SprintDefectReportTab({
@@ -466,8 +460,8 @@ export function SprintDefectReportTab({
         mutationFn: sendGraphMailReport,
     });
 
-    const toAddresses = parseAddressListInput(toInput);
-    const ccAddresses = parseAddressListInput(ccInput);
+    const toAddresses = parseAddressList(toInput);
+    const ccAddresses = parseAddressList(ccInput);
 
     const handleSendStatusCardEmail = () => {
         const cardData = {

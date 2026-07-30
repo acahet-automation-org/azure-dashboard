@@ -1,6 +1,9 @@
 import { acquireMailToken } from "../mailGraphAuth";
 
-function parseAddressList(raw: unknown): string[] {
+// Shared by both the env-driven defaults below and the report card's
+// editable To/Cc inputs (SprintDefectReportTab) - one comma-splitting
+// implementation for every "list of email addresses" field in the app.
+export function parseAddressList(raw: unknown): string[] {
     return String(raw ?? "")
         .split(",")
         .map((email) => email.trim())
