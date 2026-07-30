@@ -1504,9 +1504,9 @@ export function buildStatusReportCardEmailBodyHtml(
         `</tr></table>`;
 
     const dashboardHtml = dashboardUrl
-        ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;"><tr>` +
+        ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;"><tr>` +
           `<td bgcolor="${LIGHT_BUTTON_BG}" style="background-color:${LIGHT_BUTTON_BG};border-radius:6px;">` +
-          `<a href="${escapeHtml(dashboardUrl)}" target="_blank" rel="noreferrer" style="display:block;padding:10px 16px;color:#ffffff;font-size:13px;font-weight:600;text-decoration:none;text-align:center;font-family:${EMAIL_FONT_FAMILY};">${escapeHtml(t("defectManagementPage.sprintReport.statusCard.openDashboard"))}</a>` +
+          `<a href="${escapeHtml(dashboardUrl)}" target="_blank" rel="noreferrer" style="display:inline-block;padding:10px 16px;color:#ffffff;font-size:13px;font-weight:600;text-decoration:none;text-align:center;white-space:nowrap;font-family:${EMAIL_FONT_FAMILY};">${escapeHtml(t("defectManagementPage.sprintReport.statusCard.openDashboard"))}</a>` +
           `</td></tr></table>`
         : "";
 
