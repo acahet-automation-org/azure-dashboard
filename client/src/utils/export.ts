@@ -1263,6 +1263,33 @@ function lightOriginPanel(
     );
 }
 
+// "Bulletproof" VML button: Outlook re-renders forwarded HTML through its
+// Word engine, which doesn't support display:inline-block and (on a
+// width-less table) let a filled <td> background-color bleed across the
+// whole forwarded email instead of staying on the button. The mso branch
+// draws a native VML shape - which Word's engine renders predictably on
+// both first open and forward - while every other client falls through to
+// the plain HTML <a> button below it. The mso conditional comments are
+// inert (parsed as regular HTML comments) outside Outlook, so
+// Gmail/webmail/etc. only ever see the <a> version. Centralized here (one
+// definition) rather than inlined, since every card export that offers a
+// dashboard link should get the same forward-safe markup.
+function lightDashboardButton(dashboardUrl: string, label: string): string {
+    return (
+        `<div style="margin-top:14px;">` +
+        `<!--[if mso]>` +
+        `<v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${escapeHtml(dashboardUrl)}" style="height:38px;v-text-anchor:middle;width:300px;" arcsize="16%" stroke="f" fillcolor="${LIGHT_BUTTON_BG}">` +
+        `<w:anchorlock/>` +
+        `<center style="color:#ffffff;font-family:${EMAIL_FONT_FAMILY};font-size:13px;font-weight:600;">${escapeHtml(label)}</center>` +
+        `</v:roundrect>` +
+        `<![endif]-->` +
+        `<!--[if !mso]><!-->` +
+        `<a href="${escapeHtml(dashboardUrl)}" target="_blank" rel="noreferrer" style="background-color:${LIGHT_BUTTON_BG};border-radius:6px;color:#ffffff;display:inline-block;font-family:${EMAIL_FONT_FAMILY};font-size:13px;font-weight:600;line-height:38px;text-align:center;text-decoration:none;padding:0 20px;">${escapeHtml(label)}</a>` +
+        `<!--<![endif]-->` +
+        `</div>`
+    );
+}
+
 // Builds the sprint status card as genuine HTML tables with inline styles
 // (rather than an html2canvas screenshot embedded via <img>, the previous
 // approach), so it renders as crisp, selectable text/links in Outlook,
@@ -1516,10 +1543,10 @@ export function buildStatusReportCardEmailBodyHtml(
         `</tr></table>`;
 
     const dashboardHtml = dashboardUrl
-        ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;"><tr>` +
-          `<td bgcolor="${LIGHT_BUTTON_BG}" style="background-color:${LIGHT_BUTTON_BG};border-radius:6px;">` +
-          `<a href="${escapeHtml(dashboardUrl)}" target="_blank" rel="noreferrer" style="display:inline-block;padding:10px 16px;color:#ffffff;font-size:13px;font-weight:600;text-decoration:none;text-align:center;white-space:nowrap;font-family:${EMAIL_FONT_FAMILY};">${escapeHtml(t("defectManagementPage.sprintReport.statusCard.openDashboard"))}</a>` +
-          `</td></tr></table>`
+        ? lightDashboardButton(
+              dashboardUrl,
+              t("defectManagementPage.sprintReport.statusCard.openDashboard")
+          )
         : "";
 
     const actionsHtml = actionParagraphs.length
@@ -2414,19 +2441,6 @@ export function exportStatusReportCardToPdf(
 ): void {
     const doc = buildStatusReportCardPdfDocument(data, t);
     doc.save(filename);
-}
-
-// Same document exportStatusReportCardToPdf saves to disk, base64-encoded
-// for attaching to the status card email (see sendEmailReport's pdfBase64
-// field) - the recipient gets the identical file, dashboard link included,
-// as a real attachment rather than anything embedded in the HTML body
-// itself (no email client renders a PDF inline in the message body).
-export function buildStatusReportCardPdfBase64(
-    data: StatusReportCardEmailData,
-    t: TranslateFn
-): string {
-    const doc = buildStatusReportCardPdfDocument(data, t);
-    return pdfDocToBase64(doc);
 }
 
 export function downloadStatusReportCardEmailHtml(
