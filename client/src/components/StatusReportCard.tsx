@@ -467,9 +467,11 @@ export const StatusReportCard = forwardRef<
     // the exported card, 0 reads as "nothing to report yet".
     const avgClosureDays = Math.round(report.mttrDays ?? 0);
 
-    const criticalCount = Object.entries(report.bySeverity)
-        .filter(([key]) => severityRank(key) === 1)
-        .reduce((sum, [, count]) => sum + count, 0);
+    // Only non-closed bugs count here - a closed critical bug isn't
+    // something the reader still needs to act on.
+    const criticalCount = report.effectiveDefects.filter(
+        (bug) => bug.state !== "Closed" && severityRank(bug.severity ?? "") === 1
+    ).length;
 
     // Closed/Resolved/In Progress/New are scoped to effective (in-scope)
     // bugs via byStatus - out-of-scope bugs are pulled into their own "Not

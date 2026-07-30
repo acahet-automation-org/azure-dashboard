@@ -34,6 +34,7 @@ const CACHE_DURATION_MS = 5 * 60 * 1000;
 
 // Sprint 1 test execution kicked off on this date; runs before it are
 // leftover data from prior activity and excluded from the execution trend.
+
 const SPRINT_1_START_DATE = "2026-07-07";
 
 export function getCacheTimestamp(): number {
@@ -177,11 +178,11 @@ export async function buildTestCaseRow(
             creator: b.fields["System.CreatedBy"]?.displayName,
             assignee: b.fields["System.AssignedTo"]
                 ? {
-                      displayName:
-                          b.fields["System.AssignedTo"].displayName,
-                      uniqueName:
-                          b.fields["System.AssignedTo"].uniqueName,
-                  }
+                    displayName:
+                        b.fields["System.AssignedTo"].displayName,
+                    uniqueName:
+                        b.fields["System.AssignedTo"].uniqueName,
+                }
                 : undefined,
         })),
         lastRunId,
