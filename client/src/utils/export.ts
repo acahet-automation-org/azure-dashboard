@@ -971,6 +971,18 @@ const EMAIL_OUTCOME_ORDER: Outcome[] = [
     "NotRun",
 ];
 
+function outcomeCountLabel(t: TranslateFn, outcome: Outcome, count: number): string {
+    const label = t(`outcome.${outcome}`);
+    return `${count} ${label}`;
+}
+
+function statusCountLabel(t: TranslateFn, name: string, count: number): string {
+    const label = t(
+        `defectManagementPage.sprintReport.statusCard.statusLabels.${EMAIL_STATUS_LABEL_KEYS[name]}`
+    );
+    return `${count} ${label}`;
+}
+
 function formatEmailTimestamp(date: Date): { datePart: string; timePart: string } {
     const day = String(date.getDate()).padStart(2, "0");
     const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -1729,6 +1741,531 @@ function pdfSeverityChipsRow(
     return rowBottom + 6;
 }
 
+interface StatusCardKpis {
+    totalTestCases: number;
+    totalPassed: number;
+    totalNotApplicable: number;
+    totalDecided: number;
+    passRate: number;
+    notApplicableRate: number;
+    bugsClosed: number;
+    bugsClosedPct: number;
+    stillOpen: number;
+    reopenedPct: number;
+    avgClosureDays: number;
+}
+
+// Shared by the PDF and PPTX status card exports so the two renderings never
+// drift apart on how a rate/percentage is derived from the raw report.
+function computeStatusCardKpis(
+    suiteGroups: SuiteProgressGroup[],
+    report: SprintDefectReport
+): StatusCardKpis {
+    const totalTestCases = suiteGroups.reduce((sum, group) => sum + group.totalTestCases, 0);
+    const totalPassed = suiteGroups.reduce((sum, group) => sum + group.outcomeCounts.Passed, 0);
+    const totalNotApplicable = suiteGroups.reduce(
+        (sum, group) => sum + group.outcomeCounts.NotApplicable,
+        0
+    );
+    const totalDecided = totalTestCases - totalNotApplicable;
+    const passRate = totalDecided ? Math.round((totalPassed / totalDecided) * 100) : 0;
+    const notApplicableRate = totalTestCases
+        ? Math.round((totalNotApplicable / totalTestCases) * 100)
+        : 0;
+
+    const bugsClosed = report.byStatusAll.Closed ?? 0;
+    const bugsClosedPct = report.total ? Math.round((bugsClosed / report.total) * 100) : 0;
+    const stillOpen = report.total - bugsClosed;
+    const reopenedPct = report.total
+        ? Math.round((report.reopenedCount / report.total) * 1000) / 10
+        : 0;
+    const avgClosureDays = Math.round(report.mttrDays ?? 0);
+
+    return {
+        totalTestCases,
+        totalPassed,
+        totalNotApplicable,
+        totalDecided,
+        passRate,
+        notApplicableRate,
+        bugsClosed,
+        bugsClosedPct,
+        stillOpen,
+        reopenedPct,
+        avgClosureDays,
+    };
+}
+
+function pdfDrawAlertBanner(
+    doc: jsPDF,
+    y: number,
+    innerWidth: number,
+    alertText: string
+): number {
+    if (!alertText) {
+        return y;
+    }
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const lines = doc.splitTextToSize(alertText, innerWidth - 10);
+    const boxHeight = lines.length * 5 + 6;
+    const boxY = ensurePdfSpace(doc, y, boxHeight + 8);
+
+    doc.setFillColor(LIGHT_ALERT_BG);
+    doc.rect(PDF_MARGIN, boxY, innerWidth, boxHeight, "F");
+    doc.setFillColor(LIGHT_ALERT_BORDER);
+    doc.rect(PDF_MARGIN, boxY, 1.2, boxHeight, "F");
+    doc.setTextColor(LIGHT_ALERT_TEXT);
+    doc.text(lines, PDF_MARGIN + 6, boxY + 5);
+
+    return boxY + boxHeight + 8;
+}
+
+function buildPdfRow2KpiDefs(
+    kpis: StatusCardKpis,
+    report: SprintDefectReport,
+    t: TranslateFn
+): { kpi: (typeof LIGHT_KPI)[number]; label: string; value: string }[] {
+    return [
+        {
+            kpi: LIGHT_KPI[6],
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"),
+            value: `${report.effectiveCount}/${report.total}`,
+        },
+        {
+            kpi: LIGHT_KPI[7],
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"),
+            value: String(report.withoutResolutionDateCount),
+        },
+        ...(report.outOfScopeCount > 0
+            ? [
+                {
+                    kpi: LIGHT_KPI[8],
+                    label: t(
+                        "defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"
+                    ),
+                    value: `${report.outOfScopeCount}/${report.total}`,
+                },
+            ]
+            : []),
+        {
+            kpi: LIGHT_KPI[9],
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.notApplicableRate"),
+            value: `${kpis.notApplicableRate}%`,
+        },
+    ];
+}
+
+function pdfDrawDashboardButton(
+    doc: jsPDF,
+    y: number,
+    pageWidth: number,
+    innerWidth: number,
+    dashboardUrl: string | undefined,
+    t: TranslateFn
+): number {
+    if (!dashboardUrl) {
+        return y;
+    }
+
+    const buttonY = ensurePdfSpace(doc, y, 14);
+    const label = t("defectManagementPage.sprintReport.statusCard.openDashboard");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+
+    const buttonHeight = 9;
+
+    doc.setFillColor(LIGHT_BUTTON_BG);
+    doc.roundedRect(PDF_MARGIN, buttonY, innerWidth, buttonHeight, 2, 2, "F");
+    doc.setTextColor("#ffffff");
+    doc.text(label, pageWidth / 2, buttonY + buttonHeight / 2 + 1.2, { align: "center" });
+    doc.link(PDF_MARGIN, buttonY, innerWidth, buttonHeight, { url: dashboardUrl });
+
+    return buttonY + buttonHeight + 8;
+}
+
+function pdfDrawActionsSection(
+    doc: jsPDF,
+    y: number,
+    innerWidth: number,
+    actionsText: string,
+    t: TranslateFn
+): number {
+    const actionParagraphs = actionsText
+        .split(/\n\s*\n/)
+        .map((paragraph) => paragraph.trim())
+        .filter(Boolean);
+
+    if (actionParagraphs.length === 0) {
+        return y;
+    }
+
+    let cursorY = ensurePdfSpace(doc, y, 10);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(LIGHT_INK);
+    doc.text(t("defectManagementPage.sprintReport.statusCard.actionsTitle"), PDF_MARGIN, cursorY);
+    cursorY += 6;
+
+    for (const [index, paragraph] of actionParagraphs.entries()) {
+        const palette = LIGHT_ACTION_PALETTE[index % LIGHT_ACTION_PALETTE.length];
+        const { lead, rest } = splitEmailActionLeadIn(paragraph);
+        const bodyText = lead ? `${lead} ${rest}` : rest;
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        const lines = doc.splitTextToSize(bodyText, innerWidth - 10);
+        const boxHeight = lines.length * 4.5 + 5;
+
+        cursorY = ensurePdfSpace(doc, cursorY, boxHeight + 4);
+
+        doc.setFillColor(palette.bg);
+        doc.rect(PDF_MARGIN, cursorY, innerWidth, boxHeight, "F");
+        doc.setFillColor(palette.border);
+        doc.rect(PDF_MARGIN, cursorY, 1.2, boxHeight, "F");
+        doc.setTextColor(LIGHT_INK);
+        doc.text(lines, PDF_MARGIN + 6, cursorY + 4.5);
+
+        cursorY += boxHeight + 4;
+    }
+
+    return cursorY + 4;
+}
+
+function pdfDrawSuiteProgressRow(
+    doc: jsPDF,
+    y: number,
+    pageWidth: number,
+    innerWidth: number,
+    group: SuiteProgressGroup,
+    t: TranslateFn
+): number {
+    const executed = group.totalTestCases - group.outcomeCounts.NotRun;
+    const executedPct = group.totalTestCases
+        ? Math.round((executed / group.totalTestCases) * 100)
+        : 0;
+    const decided = group.totalTestCases - group.outcomeCounts.NotApplicable;
+    const groupPassRate = decided
+        ? Math.round((group.outcomeCounts.Passed / decided) * 100)
+        : 0;
+
+    const legendEntries = EMAIL_OUTCOME_ORDER.filter(
+        (outcome) => group.outcomeCounts[outcome] > 0
+    );
+    const segments = legendEntries.map((outcome) => ({
+        color: LIGHT_OUTCOME_COLORS[outcome],
+        pct: group.totalTestCases
+            ? (group.outcomeCounts[outcome] / group.totalTestCases) * 100
+            : 0,
+    }));
+    const legendText = legendEntries
+        .map((outcome) => outcomeCountLabel(t, outcome, group.outcomeCounts[outcome]))
+        .join("   |   ");
+
+    let cursorY = ensurePdfSpace(doc, y, 18);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(LIGHT_INK);
+    doc.text(
+        `${group.label} – ${t("defectManagementPage.sprintReport.statusCard.casesCount", {
+            count: group.totalTestCases,
+        })}`,
+        PDF_MARGIN,
+        cursorY
+    );
+    doc.text(
+        `${executedPct}% ${t("defectManagementPage.sprintReport.statusCard.executed")}`,
+        pageWidth - PDF_MARGIN,
+        cursorY,
+        { align: "right" }
+    );
+    cursorY += 3;
+
+    pdfProgressTrack(doc, PDF_MARGIN, cursorY, innerWidth, 3, segments);
+    cursorY += 6;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(LIGHT_INK_MUTED);
+    doc.text(
+        `${legendText}   |   ${t("defectManagementPage.sprintReport.statusCard.passRate")}: ${groupPassRate}%`,
+        PDF_MARGIN,
+        cursorY
+    );
+    cursorY += 8;
+
+    return cursorY;
+}
+
+function pdfDrawSuiteProgressSection(
+    doc: jsPDF,
+    y: number,
+    pageWidth: number,
+    innerWidth: number,
+    suiteGroups: SuiteProgressGroup[],
+    t: TranslateFn
+): number {
+    let cursorY = ensurePdfSpace(doc, y, 10);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(LIGHT_INK);
+    doc.text(
+        t("defectManagementPage.sprintReport.statusCard.suiteProgressTitle"),
+        PDF_MARGIN,
+        cursorY
+    );
+    cursorY += 6;
+
+    if (suiteGroups.length === 0) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(LIGHT_INK_MUTED);
+        doc.text(
+            t("defectManagementPage.sprintReport.statusCard.noPlanSelected"),
+            PDF_MARGIN,
+            cursorY
+        );
+        return cursorY + 6;
+    }
+
+    for (const group of suiteGroups) {
+        cursorY = pdfDrawSuiteProgressRow(doc, cursorY, pageWidth, innerWidth, group, t);
+    }
+
+    return cursorY;
+}
+
+function pdfDrawBugStatusSection(
+    doc: jsPDF,
+    y: number,
+    pageWidth: number,
+    innerWidth: number,
+    report: SprintDefectReport,
+    kpis: StatusCardKpis,
+    suiteGroups: SuiteProgressGroup[],
+    includeDsiSource: boolean,
+    t: TranslateFn
+): number {
+    let cursorY = ensurePdfSpace(doc, y, 10);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(LIGHT_INK);
+    doc.text(
+        t("defectManagementPage.sprintReport.statusCard.bugStatusTitle"),
+        PDF_MARGIN,
+        cursorY
+    );
+    cursorY += 5;
+
+    const bugSources = [
+        ...suiteGroups.map((group) => group.label),
+        ...(includeDsiSource ? ["DSI"] : []),
+    ].join(", ");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(LIGHT_INK_MUTED);
+    doc.text(
+        t("defectManagementPage.sprintReport.statusCard.bugStatusSubtitle", {
+            sources: bugSources,
+        }),
+        PDF_MARGIN,
+        cursorY
+    );
+    cursorY += 6;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(LIGHT_INK);
+    doc.text(
+        t("defectManagementPage.sprintReport.statusCard.bugsDetected", {
+            count: report.total,
+        }),
+        PDF_MARGIN,
+        cursorY
+    );
+    doc.setFont("helvetica", "normal");
+    doc.text(
+        ` – ${t("defectManagementPage.sprintReport.statusCard.bugStatusSummary", {
+            effective: report.effectiveCount,
+            outOfScope: report.outOfScopeCount,
+        })}`,
+        PDF_MARGIN +
+            doc.getTextWidth(
+                t("defectManagementPage.sprintReport.statusCard.bugsDetected", {
+                    count: report.total,
+                })
+            ),
+        cursorY
+    );
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(LIGHT_STILL_OPEN);
+    doc.text(
+        t("defectManagementPage.sprintReport.statusCard.stillOpen", { count: kpis.stillOpen }),
+        pageWidth - PDF_MARGIN,
+        cursorY,
+        { align: "right" }
+    );
+    cursorY += 4;
+
+    const statusEntries = EMAIL_STATUS_ORDER.map(
+        (name) =>
+            [
+                name,
+                name === "Not Applicable" ? report.outOfScopeCount : report.byStatus[name] ?? 0,
+            ] as const
+    ).filter(([, count]) => count > 0);
+    const statusSegments = statusEntries.map(([name, count]) => ({
+        color: LIGHT_STATUS_COLORS[name],
+        pct: report.total ? (count / report.total) * 100 : 0,
+    }));
+
+    pdfProgressTrack(doc, PDF_MARGIN, cursorY, innerWidth, 3.5, statusSegments);
+    cursorY += 6;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(LIGHT_INK_MUTED);
+    doc.text(
+        statusEntries.map(([name, count]) => statusCountLabel(t, name, count)).join("   |   "),
+        PDF_MARGIN,
+        cursorY
+    );
+    cursorY += 6;
+
+    const severityTotal = Object.values(report.bySeverity).reduce(
+        (sum, count) => sum + count,
+        0
+    );
+    const severityEntries = EMAIL_SEVERITY_KEYS.map(
+        (key) => [key, report.bySeverity[key] ?? 0] as const
+    );
+
+    cursorY = ensurePdfSpace(doc, cursorY, 24);
+    cursorY = pdfSeverityChipsRow(
+        doc,
+        PDF_MARGIN,
+        cursorY,
+        innerWidth,
+        severityEntries,
+        severityTotal,
+        t("defectManagementPage.sprintReport.statusCard.severityCaption", {
+            count: report.effectiveCount,
+        })
+    );
+
+    const openSeverityCounts = report.effectiveDefects.reduce<Record<string, number>>(
+        (acc, bug) => {
+            if (bug.state === "Closed") {
+                return acc;
+            }
+
+            const key = bug.severity ?? "Unspecified";
+            acc[key] = (acc[key] ?? 0) + 1;
+            return acc;
+        },
+        {}
+    );
+    const openSeverityTotal = Object.values(openSeverityCounts).reduce(
+        (sum, count) => sum + count,
+        0
+    );
+    const openSeverityEntries = EMAIL_SEVERITY_KEYS.map(
+        (key) => [key, openSeverityCounts[key] ?? 0] as const
+    );
+
+    cursorY = ensurePdfSpace(doc, cursorY, 24);
+    cursorY = pdfSeverityChipsRow(
+        doc,
+        PDF_MARGIN,
+        cursorY,
+        innerWidth,
+        openSeverityEntries,
+        openSeverityTotal,
+        t("defectManagementPage.sprintReport.statusCard.openSeverityCaption", {
+            count: openSeverityTotal,
+        })
+    );
+
+    return cursorY;
+}
+
+function pdfDrawOriginBreakdownSection(
+    doc: jsPDF,
+    y: number,
+    report: SprintDefectReport,
+    showOriginBreakdown: boolean,
+    t: TranslateFn
+): void {
+    if (!showOriginBreakdown) {
+        return;
+    }
+
+    const originDefs = [
+        {
+            origin: "Test Factory",
+            labelKey: "defectManagementPage.sprintReport.origin.testFactory",
+            bySuite: report.testFactoryBySuite,
+        },
+        {
+            origin: "Test Agenti",
+            labelKey: "defectManagementPage.sprintReport.origin.testAgenti",
+            bySuite: report.testAgentiBySuite,
+        },
+        {
+            origin: "Business",
+            labelKey: "defectManagementPage.sprintReport.origin.business",
+            bySuite: report.testBusinessBySuite,
+        },
+    ].filter((def) => Object.keys(def.bySuite).length > 0);
+
+    if (originDefs.length === 0) {
+        return;
+    }
+
+    const titleY = ensurePdfSpace(doc, y, 10);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(LIGHT_INK);
+    doc.text(
+        t("defectManagementPage.sprintReport.statusCard.originBreakdown.title"),
+        PDF_MARGIN,
+        titleY
+    );
+
+    const rows = originDefs.flatMap((def) => {
+        const suiteEntries = Object.entries(def.bySuite).sort(([a], [b]) => a.localeCompare(b));
+
+        return [
+            ...suiteEntries.map(([suite, count]) => [
+                t(def.labelKey),
+                suiteCaption(t, suite),
+                String(count),
+            ]),
+            [
+                t(def.labelKey),
+                t("defectManagementPage.sprintReport.statusCard.originBreakdown.detected"),
+                String(report.byOriginDetected[def.origin] ?? 0),
+            ],
+            [
+                t(def.labelKey),
+                t("defectManagementPage.sprintReport.statusCard.originBreakdown.accepted"),
+                String(report.byOrigin[def.origin] ?? 0),
+            ],
+        ];
+    });
+
+    autoTable(doc, {
+        startY: titleY + 4,
+        head: [["Origin", "Suite", "Count"]],
+        body: rows,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: LIGHT_HEADER_BG },
+    });
+}
+
 // Real jsPDF text/tables (like every other report PDF in this file), not a
 // screenshot of the on-screen card - so the exported text is selectable,
 // copyable and searchable. Deliberately reuses the card's light palette
@@ -1776,55 +2313,9 @@ export function buildStatusReportCardPdfDocument(
         { align: "right" }
     );
 
-    let y = 30;
+    let y = pdfDrawAlertBanner(doc, 30, innerWidth, alertText);
 
-    if (alertText) {
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        const lines = doc.splitTextToSize(alertText, innerWidth - 10);
-        const boxHeight = lines.length * 5 + 6;
-
-        y = ensurePdfSpace(doc, y, boxHeight + 8);
-
-        doc.setFillColor(LIGHT_ALERT_BG);
-        doc.rect(PDF_MARGIN, y, innerWidth, boxHeight, "F");
-        doc.setFillColor(LIGHT_ALERT_BORDER);
-        doc.rect(PDF_MARGIN, y, 1.2, boxHeight, "F");
-        doc.setTextColor(LIGHT_ALERT_TEXT);
-        doc.text(lines, PDF_MARGIN + 6, y + 5);
-
-        y += boxHeight + 8;
-    }
-
-    const totalTestCases = suiteGroups.reduce(
-        (sum, group) => sum + group.totalTestCases,
-        0
-    );
-    const totalPassed = suiteGroups.reduce(
-        (sum, group) => sum + group.outcomeCounts.Passed,
-        0
-    );
-    const totalNotApplicable = suiteGroups.reduce(
-        (sum, group) => sum + group.outcomeCounts.NotApplicable,
-        0
-    );
-    const totalDecided = totalTestCases - totalNotApplicable;
-    const passRate = totalDecided
-        ? Math.round((totalPassed / totalDecided) * 100)
-        : 0;
-    const notApplicableRate = totalTestCases
-        ? Math.round((totalNotApplicable / totalTestCases) * 100)
-        : 0;
-
-    const bugsClosed = report.byStatusAll.Closed ?? 0;
-    const bugsClosedPct = report.total
-        ? Math.round((bugsClosed / report.total) * 100)
-        : 0;
-    const stillOpen = report.total - bugsClosed;
-    const reopenedPct = report.total
-        ? Math.round((report.reopenedCount / report.total) * 1000) / 10
-        : 0;
-    const avgClosureDays = Math.round(report.mttrDays ?? 0);
+    const kpis = computeStatusCardKpis(suiteGroups, report);
 
     y = ensurePdfSpace(doc, y, 24);
 
@@ -1836,23 +2327,23 @@ export function buildStatusReportCardPdfDocument(
                 t("defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"),
                 t("defectManagementPage.sprintReport.statusCard.kpis.passRate"),
                 t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosed", {
-                    percent: bugsClosedPct,
+                    percent: kpis.bugsClosedPct,
                 }),
                 t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"),
                 t("defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs", {
-                    percent: reopenedPct,
+                    percent: kpis.reopenedPct,
                 }),
                 t("defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime"),
             ],
         ],
         body: [
             [
-                String(totalTestCases),
-                `${passRate}%`,
-                `${bugsClosed}/${report.total}`,
+                String(kpis.totalTestCases),
+                `${kpis.passRate}%`,
+                `${kpis.bugsClosed}/${report.total}`,
                 String(report.bySeverity["1 - Critical"] ?? 0),
                 String(report.reopenedCount),
-                t("defectManagementPage.stats.days", { value: avgClosureDays }),
+                t("defectManagementPage.stats.days", { value: kpis.avgClosureDays }),
             ],
         ],
         tableWidth: innerWidth,
@@ -1878,32 +2369,7 @@ export function buildStatusReportCardPdfDocument(
 
     y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 2;
 
-    const row2Defs = [
-        {
-            kpi: LIGHT_KPI[6],
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"),
-            value: `${report.effectiveCount}/${report.total}`,
-        },
-        {
-            kpi: LIGHT_KPI[7],
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"),
-            value: String(report.withoutResolutionDateCount),
-        },
-        ...(report.outOfScopeCount > 0
-            ? [
-                {
-                    kpi: LIGHT_KPI[8],
-                    label: t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"),
-                    value: `${report.outOfScopeCount}/${report.total}`,
-                },
-            ]
-            : []),
-        {
-            kpi: LIGHT_KPI[9],
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.notApplicableRate"),
-            value: `${notApplicableRate}%`,
-        },
-    ];
+    const row2Defs = buildPdfRow2KpiDefs(kpis, report, t);
 
     autoTable(doc, {
         startY: y,
@@ -1931,354 +2397,21 @@ export function buildStatusReportCardPdfDocument(
 
     y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
 
-    if (dashboardUrl) {
-        y = ensurePdfSpace(doc, y, 14);
-
-        const label = t("defectManagementPage.sprintReport.statusCard.openDashboard");
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-
-        const buttonHeight = 9;
-
-        doc.setFillColor(LIGHT_BUTTON_BG);
-        doc.roundedRect(PDF_MARGIN, y, innerWidth, buttonHeight, 2, 2, "F");
-        doc.setTextColor("#ffffff");
-        doc.text(label, pageWidth / 2, y + buttonHeight / 2 + 1.2, { align: "center" });
-        doc.link(PDF_MARGIN, y, innerWidth, buttonHeight, { url: dashboardUrl });
-
-        y += buttonHeight + 8;
-    }
-
-    const actionParagraphs = actionsText
-        .split(/\n\s*\n/)
-        .map((paragraph) => paragraph.trim())
-        .filter(Boolean);
-
-    if (actionParagraphs.length > 0) {
-        y = ensurePdfSpace(doc, y, 10);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        doc.setTextColor(LIGHT_INK);
-        doc.text(t("defectManagementPage.sprintReport.statusCard.actionsTitle"), PDF_MARGIN, y);
-        y += 6;
-
-        actionParagraphs.forEach((paragraph, index) => {
-            const palette = LIGHT_ACTION_PALETTE[index % LIGHT_ACTION_PALETTE.length];
-            const { lead, rest } = splitEmailActionLeadIn(paragraph);
-            const bodyText = lead ? `${lead} ${rest}` : rest;
-
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(9);
-            const lines = doc.splitTextToSize(bodyText, innerWidth - 10);
-            const boxHeight = lines.length * 4.5 + 5;
-
-            y = ensurePdfSpace(doc, y, boxHeight + 4);
-
-            doc.setFillColor(palette.bg);
-            doc.rect(PDF_MARGIN, y, innerWidth, boxHeight, "F");
-            doc.setFillColor(palette.border);
-            doc.rect(PDF_MARGIN, y, 1.2, boxHeight, "F");
-            doc.setTextColor(LIGHT_INK);
-            doc.text(lines, PDF_MARGIN + 6, y + 4.5);
-
-            y += boxHeight + 4;
-        });
-
-        y += 4;
-    }
-
-    y = ensurePdfSpace(doc, y, 10);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.setTextColor(LIGHT_INK);
-    doc.text(
-        t("defectManagementPage.sprintReport.statusCard.suiteProgressTitle"),
-        PDF_MARGIN,
-        y
-    );
-    y += 6;
-
-    if (suiteGroups.length === 0) {
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
-        doc.setTextColor(LIGHT_INK_MUTED);
-        doc.text(
-            t("defectManagementPage.sprintReport.statusCard.noPlanSelected"),
-            PDF_MARGIN,
-            y
-        );
-        y += 6;
-    } else {
-        for (const group of suiteGroups) {
-            const executed = group.totalTestCases - group.outcomeCounts.NotRun;
-            const executedPct = group.totalTestCases
-                ? Math.round((executed / group.totalTestCases) * 100)
-                : 0;
-            const decided = group.totalTestCases - group.outcomeCounts.NotApplicable;
-            const groupPassRate = decided
-                ? Math.round((group.outcomeCounts.Passed / decided) * 100)
-                : 0;
-
-            const legendEntries = EMAIL_OUTCOME_ORDER.filter(
-                (outcome) => group.outcomeCounts[outcome] > 0
-            );
-            const segments = legendEntries.map((outcome) => ({
-                color: LIGHT_OUTCOME_COLORS[outcome],
-                pct: group.totalTestCases
-                    ? (group.outcomeCounts[outcome] / group.totalTestCases) * 100
-                    : 0,
-            }));
-            const legendText = legendEntries
-                .map((outcome) => `${group.outcomeCounts[outcome]} ${t(`outcome.${outcome}`)}`)
-                .join("   |   ");
-
-            y = ensurePdfSpace(doc, y, 18);
-
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(9);
-            doc.setTextColor(LIGHT_INK);
-            doc.text(
-                `${group.label} – ${t(
-                    "defectManagementPage.sprintReport.statusCard.casesCount",
-                    { count: group.totalTestCases }
-                )}`,
-                PDF_MARGIN,
-                y
-            );
-            doc.text(
-                `${executedPct}% ${t("defectManagementPage.sprintReport.statusCard.executed")}`,
-                pageWidth - PDF_MARGIN,
-                y,
-                { align: "right" }
-            );
-            y += 3;
-
-            pdfProgressTrack(doc, PDF_MARGIN, y, innerWidth, 3, segments);
-            y += 6;
-
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(8);
-            doc.setTextColor(LIGHT_INK_MUTED);
-            doc.text(
-                `${legendText}   |   ${t("defectManagementPage.sprintReport.statusCard.passRate")}: ${groupPassRate}%`,
-                PDF_MARGIN,
-                y
-            );
-            y += 8;
-        }
-    }
-
-    y = ensurePdfSpace(doc, y, 10);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.setTextColor(LIGHT_INK);
-    doc.text(
-        t("defectManagementPage.sprintReport.statusCard.bugStatusTitle"),
-        PDF_MARGIN,
-        y
-    );
-    y += 5;
-
-    const bugSources = [
-        ...suiteGroups.map((group) => group.label),
-        ...(includeDsiSource ? ["DSI"] : []),
-    ].join(", ");
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(LIGHT_INK_MUTED);
-    doc.text(
-        t("defectManagementPage.sprintReport.statusCard.bugStatusSubtitle", {
-            sources: bugSources,
-        }),
-        PDF_MARGIN,
-        y
-    );
-    y += 6;
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(LIGHT_INK);
-    doc.text(
-        t("defectManagementPage.sprintReport.statusCard.bugsDetected", {
-            count: report.total,
-        }),
-        PDF_MARGIN,
-        y
-    );
-    doc.setFont("helvetica", "normal");
-    doc.text(
-        ` – ${t("defectManagementPage.sprintReport.statusCard.bugStatusSummary", {
-            effective: report.effectiveCount,
-            outOfScope: report.outOfScopeCount,
-        })}`,
-        PDF_MARGIN + doc.getTextWidth(
-            t("defectManagementPage.sprintReport.statusCard.bugsDetected", {
-                count: report.total,
-            })
-        ),
-        y
-    );
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(LIGHT_STILL_OPEN);
-    doc.text(
-        t("defectManagementPage.sprintReport.statusCard.stillOpen", { count: stillOpen }),
-        pageWidth - PDF_MARGIN,
-        y,
-        { align: "right" }
-    );
-    y += 4;
-
-    const statusEntries = EMAIL_STATUS_ORDER.map(
-        (name) =>
-            [
-                name,
-                name === "Not Applicable"
-                    ? report.outOfScopeCount
-                    : report.byStatus[name] ?? 0,
-            ] as const
-    ).filter(([, count]) => count > 0);
-    const statusSegments = statusEntries.map(([name, count]) => ({
-        color: LIGHT_STATUS_COLORS[name],
-        pct: report.total ? (count / report.total) * 100 : 0,
-    }));
-
-    pdfProgressTrack(doc, PDF_MARGIN, y, innerWidth, 3.5, statusSegments);
-    y += 6;
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(LIGHT_INK_MUTED);
-    doc.text(
-        statusEntries
-            .map(
-                ([name, count]) =>
-                    `${count} ${t(`defectManagementPage.sprintReport.statusCard.statusLabels.${EMAIL_STATUS_LABEL_KEYS[name]}`)}`
-            )
-            .join("   |   "),
-        PDF_MARGIN,
-        y
-    );
-    y += 6;
-
-    const severityTotal = Object.values(report.bySeverity).reduce(
-        (sum, count) => sum + count,
-        0
-    );
-    const severityEntries = EMAIL_SEVERITY_KEYS.map(
-        (key) => [key, report.bySeverity[key] ?? 0] as const
-    );
-
-    y = ensurePdfSpace(doc, y, 24);
-    y = pdfSeverityChipsRow(
+    y = pdfDrawDashboardButton(doc, y, pageWidth, innerWidth, dashboardUrl, t);
+    y = pdfDrawActionsSection(doc, y, innerWidth, actionsText, t);
+    y = pdfDrawSuiteProgressSection(doc, y, pageWidth, innerWidth, suiteGroups, t);
+    y = pdfDrawBugStatusSection(
         doc,
-        PDF_MARGIN,
         y,
+        pageWidth,
         innerWidth,
-        severityEntries,
-        severityTotal,
-        t("defectManagementPage.sprintReport.statusCard.severityCaption", {
-            count: report.effectiveCount,
-        })
+        report,
+        kpis,
+        suiteGroups,
+        includeDsiSource,
+        t
     );
-
-    const openSeverityCounts = report.effectiveDefects.reduce<Record<string, number>>(
-        (acc, bug) => {
-            if (bug.state === "Closed") {
-                return acc;
-            }
-
-            const key = bug.severity ?? "Unspecified";
-            acc[key] = (acc[key] ?? 0) + 1;
-            return acc;
-        },
-        {}
-    );
-    const openSeverityTotal = Object.values(openSeverityCounts).reduce(
-        (sum, count) => sum + count,
-        0
-    );
-    const openSeverityEntries = EMAIL_SEVERITY_KEYS.map(
-        (key) => [key, openSeverityCounts[key] ?? 0] as const
-    );
-
-    y = ensurePdfSpace(doc, y, 24);
-    y = pdfSeverityChipsRow(
-        doc,
-        PDF_MARGIN,
-        y,
-        innerWidth,
-        openSeverityEntries,
-        openSeverityTotal,
-        t("defectManagementPage.sprintReport.statusCard.openSeverityCaption", {
-            count: openSeverityTotal,
-        })
-    );
-
-    if (showOriginBreakdown) {
-        const originDefs = [
-            {
-                origin: "Test Factory",
-                labelKey: "defectManagementPage.sprintReport.origin.testFactory",
-                bySuite: report.testFactoryBySuite,
-            },
-            {
-                origin: "Test Agenti",
-                labelKey: "defectManagementPage.sprintReport.origin.testAgenti",
-                bySuite: report.testAgentiBySuite,
-            },
-            {
-                origin: "Business",
-                labelKey: "defectManagementPage.sprintReport.origin.business",
-                bySuite: report.testBusinessBySuite,
-            },
-        ].filter((def) => Object.keys(def.bySuite).length > 0);
-
-        if (originDefs.length > 0) {
-            y = ensurePdfSpace(doc, y, 10);
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(12);
-            doc.setTextColor(LIGHT_INK);
-            doc.text(
-                t("defectManagementPage.sprintReport.statusCard.originBreakdown.title"),
-                PDF_MARGIN,
-                y
-            );
-            y += 4;
-
-            const rows = originDefs.flatMap((def) => {
-                const suiteEntries = Object.entries(def.bySuite).sort(([a], [b]) =>
-                    a.localeCompare(b)
-                );
-
-                return [
-                    ...suiteEntries.map(([suite, count]) => [
-                        t(def.labelKey),
-                        suiteCaption(t, suite),
-                        String(count),
-                    ]),
-                    [
-                        t(def.labelKey),
-                        t("defectManagementPage.sprintReport.statusCard.originBreakdown.detected"),
-                        String(report.byOriginDetected[def.origin] ?? 0),
-                    ],
-                    [
-                        t(def.labelKey),
-                        t("defectManagementPage.sprintReport.statusCard.originBreakdown.accepted"),
-                        String(report.byOrigin[def.origin] ?? 0),
-                    ],
-                ];
-            });
-
-            autoTable(doc, {
-                startY: y,
-                head: [["Origin", "Suite", "Count"]],
-                body: rows,
-                styles: { fontSize: 8 },
-                headStyles: { fillColor: LIGHT_HEADER_BG },
-            });
-        }
-    }
+    pdfDrawOriginBreakdownSection(doc, y, report, showOriginBreakdown, t);
 
     return doc;
 }
@@ -2408,27 +2541,18 @@ function pptxLegendRuns(
     textColor: string,
     fontSize: number
 ): PptxGenJS.TextProps[] {
-    const runs: PptxGenJS.TextProps[] = [];
+    return entries.flatMap((entry, index) => {
+        const separator: PptxGenJS.TextProps[] =
+            index > 0
+                ? [{ text: "   |   ", options: { color: pptxHex(textColor), fontSize } }]
+                : [];
 
-    entries.forEach((entry, index) => {
-        if (index > 0) {
-            runs.push({
-                text: "   |   ",
-                options: { color: pptxHex(textColor), fontSize },
-            });
-        }
-
-        runs.push({
-            text: "■ ",
-            options: { color: pptxHex(entry.color), fontSize },
-        });
-        runs.push({
-            text: entry.label,
-            options: { color: pptxHex(textColor), fontSize },
-        });
+        return [
+            ...separator,
+            { text: "■ ", options: { color: pptxHex(entry.color), fontSize } },
+            { text: entry.label, options: { color: pptxHex(textColor), fontSize } },
+        ];
     });
-
-    return runs;
 }
 
 const PPTX_SEVERITY_CHIP_HEIGHT = 0.55;
@@ -2436,14 +2560,13 @@ const PPTX_SEVERITY_ROW_HEIGHT = PPTX_SEVERITY_CHIP_HEIGHT + 0.22;
 
 function pptxSeverityChipsRow(
     slide: PptxGenJS.PresSlide,
-    x: number,
-    y: number,
-    width: number,
+    rect: { x: number; y: number; width: number },
     entries: readonly (readonly [string, number])[],
     total: number,
     caption: string,
     scale = 1
 ): void {
+    const { x, y, width } = rect;
     const chipHeight = PPTX_SEVERITY_CHIP_HEIGHT * scale;
     const gap = 0.06;
     const chipWidth = (width - gap * (entries.length - 1)) / entries.length;
@@ -2492,78 +2615,14 @@ function pptxSeverityChipsRow(
     });
 }
 
-// Builds real, editable PowerPoint shapes/text/tables (not a screenshot -
-// see exportStatusReportCardToPdf's identical reasoning) using the same
-// light palette as the email export, on a single Custom/Landscape slide
-// (matches PowerPoint's own "Slide Size" dialog) whose height is measured
-// from the actual content and set exactly - no wasted space below a fixed
-// page, and no shrinking either: a heavier report (more suites, more action
-// paragraphs, more bugs) just makes the slide taller.
-export async function exportStatusReportCardToPptx(
-    filename: string,
-    data: StatusReportCardEmailData,
+function computeOriginBreakdown(
+    report: SprintDefectReport,
+    showOriginBreakdown: boolean,
     t: TranslateFn
-): Promise<void> {
-    const {
-        headerTitle,
-        headerSubtitle,
-        suiteGroups,
-        report,
-        alertText,
-        actionsText,
-        dashboardUrl,
-        showOriginBreakdown = false,
-        includeDsiSource = true,
-    } = data;
-
-    const M = 0.45;
-    const W = 11;
-    const innerW = W - M * 2;
-
-    const { datePart, timePart } = formatEmailTimestamp(new Date());
-
-    const headerHeight = 0.85;
-    const headerGap = 0.15;
-    const bodyTop = M + headerHeight + headerGap;
-
-    // ---- Measure the natural height of every section up front, so the
-    // slide height can be set to fit exactly (no fixed page to shrink into). ----
-    const hasAlert = Boolean(alertText);
-    const naturalAlertLineCount = hasAlert
-        ? estimateWrappedLineCount(`⚠ ${alertText}`, innerW - 0.35, 11)
-        : 0;
-    const naturalAlertBlock = hasAlert
-        ? naturalAlertLineCount * 0.2 + 0.14 + 0.18
-        : 0;
-
-    const naturalKpiBlock = 0.62 + 0.08 + 0.62 + 0.15;
-
-    const hasDashboard = Boolean(dashboardUrl);
-    const naturalDashboardBlock = hasDashboard ? 0.32 + 0.2 : 0;
-
-    const actionParagraphs = actionsText
-        .split(/\n\s*\n/)
-        .map((paragraph) => paragraph.trim())
-        .filter(Boolean);
-    const naturalActionLineCounts = actionParagraphs.map((paragraph) => {
-        const { lead, rest } = splitEmailActionLeadIn(paragraph);
-        const bodyText = lead ? `${lead} ${rest}` : rest;
-        return estimateWrappedLineCount(bodyText, innerW - 0.35, 10);
-    });
-    const naturalActionsBlock =
-        actionParagraphs.length > 0
-            ? 0.32 +
-              naturalActionLineCounts.reduce(
-                  (sum, lineCount) => sum + (lineCount * 0.18 + 0.12) + 0.08,
-                  0
-              )
-            : 0;
-
-    const naturalSuiteBlock =
-        0.32 + (suiteGroups.length > 0 ? suiteGroups.length * 0.5 : 0.28);
-
-    const naturalBugStatusBlock = 0.32 + 0.2 + 0.24 + 0.1 + 0.2 + PPTX_SEVERITY_ROW_HEIGHT * 2 + 0.1;
-
+): {
+    originDefs: { origin: string; labelKey: string; bySuite: Record<string, number> }[];
+    originRowsData: string[][];
+} {
     const originDefs = showOriginBreakdown
         ? [
               {
@@ -2604,6 +2663,73 @@ export async function exportStatusReportCardToPptx(
             ],
         ];
     });
+
+    return { originDefs, originRowsData };
+}
+
+interface PptxNaturalHeights {
+    naturalAlertBlock: number;
+    naturalKpiBlock: number;
+    naturalDashboardBlock: number;
+    naturalActionsBlock: number;
+    naturalSuiteBlock: number;
+    naturalBugStatusBlock: number;
+    naturalOriginBlock: number;
+    naturalBodyTotal: number;
+}
+
+// Measures every section's height up front (mirrors the drawing logic below
+// section-for-section) so the slide can be created at exactly the right
+// size - pptxgenjs has no auto-growing page, unlike jsPDF's page breaks.
+function computePptxNaturalHeights(params: {
+    hasAlert: boolean;
+    alertText: string;
+    innerW: number;
+    actionParagraphs: string[];
+    suiteGroups: SuiteProgressGroup[];
+    hasDashboard: boolean;
+    originDefs: unknown[];
+    originRowsData: unknown[];
+}): PptxNaturalHeights {
+    const {
+        hasAlert,
+        alertText,
+        innerW,
+        actionParagraphs,
+        suiteGroups,
+        hasDashboard,
+        originDefs,
+        originRowsData,
+    } = params;
+
+    const naturalAlertLineCount = hasAlert
+        ? estimateWrappedLineCount(`⚠ ${alertText}`, innerW - 0.35, 11)
+        : 0;
+    const naturalAlertBlock = hasAlert ? naturalAlertLineCount * 0.2 + 0.14 + 0.18 : 0;
+
+    const naturalKpiBlock = 0.62 + 0.08 + 0.62 + 0.15;
+
+    const naturalDashboardBlock = hasDashboard ? 0.32 + 0.2 : 0;
+
+    const naturalActionLineCounts = actionParagraphs.map((paragraph) => {
+        const { lead, rest } = splitEmailActionLeadIn(paragraph);
+        const bodyText = lead ? `${lead} ${rest}` : rest;
+        return estimateWrappedLineCount(bodyText, innerW - 0.35, 10);
+    });
+    const naturalActionsBlock =
+        actionParagraphs.length > 0
+            ? 0.32 +
+              naturalActionLineCounts.reduce(
+                  (sum, lineCount) => sum + (lineCount * 0.18 + 0.12) + 0.08,
+                  0
+              )
+            : 0;
+
+    const naturalSuiteBlock = 0.32 + (suiteGroups.length > 0 ? suiteGroups.length * 0.5 : 0.28);
+
+    const naturalBugStatusBlock =
+        0.32 + 0.2 + 0.24 + 0.1 + 0.2 + PPTX_SEVERITY_ROW_HEIGHT * 2 + 0.1;
+
     const naturalOriginBlock =
         originDefs.length > 0 ? 0.32 + originRowsData.length * 0.24 + 0.15 : 0;
 
@@ -2616,10 +2742,692 @@ export async function exportStatusReportCardToPptx(
         naturalBugStatusBlock +
         naturalOriginBlock;
 
+    return {
+        naturalAlertBlock,
+        naturalKpiBlock,
+        naturalDashboardBlock,
+        naturalActionsBlock,
+        naturalSuiteBlock,
+        naturalBugStatusBlock,
+        naturalOriginBlock,
+        naturalBodyTotal,
+    };
+}
+
+function buildPptxKpiDefs(
+    kpis: StatusCardKpis,
+    report: SprintDefectReport,
+    t: TranslateFn
+): { value: string; label: string }[] {
+    return [
+        {
+            value: String(kpis.totalTestCases),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"),
+        },
+        {
+            value: `${kpis.passRate}%`,
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.passRate"),
+        },
+        {
+            value: `${kpis.bugsClosed}/${report.total}`,
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosed", {
+                percent: kpis.bugsClosedPct,
+            }),
+        },
+        {
+            value: String(report.bySeverity["1 - Critical"] ?? 0),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"),
+        },
+        {
+            value: String(report.reopenedCount),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs", {
+                percent: kpis.reopenedPct,
+            }),
+        },
+        {
+            value: t("defectManagementPage.stats.days", { value: kpis.avgClosureDays }),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime"),
+        },
+    ];
+}
+
+function buildPptxRow2KpiDefs(
+    kpis: StatusCardKpis,
+    report: SprintDefectReport,
+    t: TranslateFn
+): { value: string; label: string }[] {
+    return [
+        {
+            value: `${report.effectiveCount}/${report.total}`,
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"),
+        },
+        {
+            value: String(report.withoutResolutionDateCount),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"),
+        },
+        ...(report.outOfScopeCount > 0
+            ? [
+                {
+                    value: `${report.outOfScopeCount}/${report.total}`,
+                    label: t(
+                        "defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"
+                    ),
+                },
+            ]
+            : []),
+        {
+            value: `${kpis.notApplicableRate}%`,
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.notApplicableRate"),
+        },
+    ];
+}
+
+function pptxDrawAlertBanner(
+    slide: PptxGenJS.PresSlide,
+    cursorY: number,
+    M: number,
+    innerW: number,
+    alertText: string,
+    naturalAlertBlock: number,
+    s: (n: number) => number
+): number {
+    if (!alertText) {
+        return cursorY;
+    }
+
+    const lineCount = estimateWrappedLineCount(`⚠ ${alertText}`, innerW - 0.35, s(11));
+    const textHeight = s(lineCount * 0.2 + 0.14);
+
+    slide.addShape("rect", {
+        x: M,
+        y: cursorY,
+        w: innerW,
+        h: textHeight,
+        fill: { color: pptxHex(LIGHT_ALERT_BG) },
+        line: { color: pptxHex(LIGHT_ALERT_BORDER), width: 0.5 },
+    });
+    slide.addShape("rect", {
+        x: M,
+        y: cursorY,
+        w: 0.05,
+        h: textHeight,
+        fill: { color: pptxHex(LIGHT_ALERT_BORDER) },
+        line: { type: "none" },
+    });
+    slide.addText(`⚠ ${alertText}`, {
+        x: M + 0.15,
+        y: cursorY,
+        w: innerW - 0.3,
+        h: textHeight,
+        fontSize: s(11),
+        color: pptxHex(LIGHT_ALERT_TEXT),
+        fontFace: "Arial",
+        valign: "middle",
+        wrap: true,
+    });
+
+    return cursorY + s(naturalAlertBlock);
+}
+
+function pptxDrawKpiTiles(
+    slide: PptxGenJS.PresSlide,
+    cursorY: number,
+    M: number,
+    innerW: number,
+    kpiDefs: { value: string; label: string }[],
+    row2KpiDefs: { value: string; label: string }[],
+    s: (n: number) => number
+): void {
+    const kpiHeight = s(0.62);
+    const kpiGap = 0.06;
+    const kpiColumns = 6;
+    const kpiTileWidth = (innerW - kpiGap * (kpiColumns - 1)) / kpiColumns;
+
+    const drawTile = (
+        kpi: { value: string; label: string },
+        paletteIndex: number,
+        positionIndex: number,
+        y: number
+    ) => {
+        const kpiPalette = PPTX_KPI[paletteIndex];
+        const tileX = M + positionIndex * (kpiTileWidth + kpiGap);
+
+        slide.addText(
+            [
+                { text: kpi.value, options: { fontSize: s(15), bold: true, breakLine: true } },
+                { text: kpi.label, options: { fontSize: s(7) } },
+            ],
+            {
+                x: tileX,
+                y,
+                w: kpiTileWidth,
+                h: kpiHeight,
+                align: "center",
+                valign: "middle",
+                color: pptxHex(kpiPalette.accent),
+                fontFace: "Arial",
+                fill: { color: pptxHex(kpiPalette.bg) },
+                line: { color: pptxHex(kpiPalette.accent), width: 0.75 },
+                shape: "roundRect",
+                rectRadius: 0.06,
+            }
+        );
+    };
+
+    kpiDefs.forEach((kpi, index) => drawTile(kpi, index, index, cursorY));
+    row2KpiDefs.forEach((kpi, index) =>
+        drawTile(kpi, 6 + index, index, cursorY + kpiHeight + s(0.08))
+    );
+}
+
+function pptxDrawDashboardButton(
+    slide: PptxGenJS.PresSlide,
+    cursorY: number,
+    M: number,
+    innerW: number,
+    dashboardUrl: string | undefined,
+    naturalDashboardBlock: number,
+    t: TranslateFn,
+    s: (n: number) => number
+): number {
+    if (!dashboardUrl) {
+        return cursorY;
+    }
+
+    const buttonHeight = s(0.32);
+
+    slide.addText(t("defectManagementPage.sprintReport.statusCard.openDashboard"), {
+        x: M,
+        y: cursorY,
+        w: innerW,
+        h: buttonHeight,
+        align: "center",
+        valign: "middle",
+        fontSize: s(11),
+        bold: true,
+        color: "FFFFFF",
+        fontFace: "Arial",
+        fill: { color: pptxHex(LIGHT_BUTTON_BG) },
+        line: { type: "none" },
+        shape: "roundRect",
+        rectRadius: 0.2,
+        hyperlink: { url: dashboardUrl },
+    });
+
+    return cursorY + s(naturalDashboardBlock);
+}
+
+function pptxDrawActionsSection(
+    slide: PptxGenJS.PresSlide,
+    cursorY: number,
+    M: number,
+    innerW: number,
+    actionParagraphs: string[],
+    t: TranslateFn,
+    s: (n: number) => number
+): number {
+    if (actionParagraphs.length === 0) {
+        return cursorY;
+    }
+
+    const titleHeight = s(0.32);
+
+    slide.addText(`📌 ${t("defectManagementPage.sprintReport.statusCard.actionsTitle")}`, {
+        x: M,
+        y: cursorY,
+        w: innerW,
+        h: titleHeight,
+        fontSize: s(13),
+        bold: true,
+        color: pptxHex(LIGHT_INK),
+        fontFace: "Arial",
+    });
+
+    let rowY = cursorY + titleHeight;
+
+    actionParagraphs.forEach((paragraph, index) => {
+        const palette = PPTX_ACTION_PALETTE[index % PPTX_ACTION_PALETTE.length];
+        const { lead, rest } = splitEmailActionLeadIn(paragraph);
+        const bodyText = lead ? `${lead} ${rest}` : rest;
+        const lineCount = estimateWrappedLineCount(bodyText, innerW - 0.35, s(10));
+        const boxHeight = s(lineCount * 0.18 + 0.12);
+
+        slide.addShape("rect", {
+            x: M,
+            y: rowY,
+            w: innerW,
+            h: boxHeight,
+            fill: { color: pptxHex(palette.bg) },
+            line: { color: pptxHex(palette.border), width: 0.5 },
+        });
+        slide.addShape("rect", {
+            x: M,
+            y: rowY,
+            w: 0.05,
+            h: boxHeight,
+            fill: { color: pptxHex(palette.border) },
+            line: { type: "none" },
+        });
+        slide.addText(bodyText, {
+            x: M + 0.15,
+            y: rowY,
+            w: innerW - 0.3,
+            h: boxHeight,
+            fontSize: s(10),
+            color: pptxHex(LIGHT_INK),
+            fontFace: "Arial",
+            valign: "middle",
+            wrap: true,
+        });
+
+        rowY += boxHeight + s(0.08);
+    });
+
+    return rowY + s(0.12);
+}
+
+function pptxDrawSuiteProgressRow(
+    slide: PptxGenJS.PresSlide,
+    y: number,
+    M: number,
+    W: number,
+    innerW: number,
+    group: SuiteProgressGroup,
+    t: TranslateFn,
+    s: (n: number) => number
+): void {
+    const executed = group.totalTestCases - group.outcomeCounts.NotRun;
+    const executedPct = group.totalTestCases
+        ? Math.round((executed / group.totalTestCases) * 100)
+        : 0;
+    const decided = group.totalTestCases - group.outcomeCounts.NotApplicable;
+    const groupPassRate = decided
+        ? Math.round((group.outcomeCounts.Passed / decided) * 100)
+        : 0;
+
+    const legendEntries = EMAIL_OUTCOME_ORDER.filter(
+        (outcome) => group.outcomeCounts[outcome] > 0
+    );
+    const segments = legendEntries.map((outcome) => ({
+        color: LIGHT_OUTCOME_COLORS[outcome],
+        pct: group.totalTestCases
+            ? (group.outcomeCounts[outcome] / group.totalTestCases) * 100
+            : 0,
+    }));
+    const legendRuns = pptxLegendRuns(
+        legendEntries.map((outcome) => ({
+            color: LIGHT_OUTCOME_COLORS[outcome],
+            label: outcomeCountLabel(t, outcome, group.outcomeCounts[outcome]),
+        })),
+        LIGHT_INK_MUTED,
+        s(8.5)
+    );
+
+    slide.addText(
+        `${group.label} – ${t("defectManagementPage.sprintReport.statusCard.casesCount", {
+            count: group.totalTestCases,
+        })}`,
+        {
+            x: M,
+            y,
+            w: innerW - 1.3,
+            h: s(0.2),
+            fontSize: s(10),
+            bold: true,
+            color: pptxHex(LIGHT_INK),
+            fontFace: "Arial",
+        }
+    );
+    slide.addText(`${executedPct}% ${t("defectManagementPage.sprintReport.statusCard.executed")}`, {
+        x: W - M - 1.3,
+        y,
+        w: 1.3,
+        h: s(0.2),
+        fontSize: s(10),
+        bold: true,
+        align: "right",
+        color: pptxHex(LIGHT_INK),
+        fontFace: "Arial",
+    });
+
+    pptxProgressTrack(slide, M, y + s(0.2), innerW, s(0.06), segments);
+
+    slide.addText(
+        [
+            ...legendRuns,
+            {
+                text: `   |   ${t("defectManagementPage.sprintReport.statusCard.passRate")}: ${groupPassRate}%`,
+                options: { color: pptxHex(LIGHT_INK_MUTED), fontSize: s(8.5) },
+            },
+        ],
+        {
+            x: M,
+            y: y + s(0.28),
+            w: innerW,
+            h: s(0.18),
+            fontSize: s(8.5),
+            color: pptxHex(LIGHT_INK_MUTED),
+            fontFace: "Arial",
+        }
+    );
+}
+
+function pptxDrawSuiteProgressSection(
+    slide: PptxGenJS.PresSlide,
+    cursorY: number,
+    M: number,
+    W: number,
+    innerW: number,
+    suiteGroups: SuiteProgressGroup[],
+    t: TranslateFn,
+    s: (n: number) => number
+): number {
+    const titleHeight = s(0.32);
+
+    slide.addText(`📈 ${t("defectManagementPage.sprintReport.statusCard.suiteProgressTitle")}`, {
+        x: M,
+        y: cursorY,
+        w: innerW,
+        h: titleHeight,
+        fontSize: s(13),
+        bold: true,
+        color: pptxHex(LIGHT_INK),
+        fontFace: "Arial",
+    });
+
+    const rowY = cursorY + titleHeight;
+
+    if (suiteGroups.length === 0) {
+        slide.addText(t("defectManagementPage.sprintReport.statusCard.noPlanSelected"), {
+            x: M,
+            y: rowY,
+            w: innerW,
+            h: s(0.24),
+            fontSize: s(10),
+            italic: true,
+            color: pptxHex(LIGHT_INK_MUTED),
+            fontFace: "Arial",
+        });
+
+        return rowY + s(0.28) + s(0.15);
+    }
+
+    const suiteRowHeight = s(0.5);
+    let nextRowY = rowY;
+
+    for (const group of suiteGroups) {
+        pptxDrawSuiteProgressRow(slide, nextRowY, M, W, innerW, group, t, s);
+        nextRowY += suiteRowHeight;
+    }
+
+    return nextRowY + s(0.15);
+}
+
+function pptxDrawBugStatusSection(
+    slide: PptxGenJS.PresSlide,
+    cursorY: number,
+    M: number,
+    W: number,
+    innerW: number,
+    report: SprintDefectReport,
+    kpis: StatusCardKpis,
+    suiteGroups: SuiteProgressGroup[],
+    includeDsiSource: boolean,
+    naturalBugStatusBlock: number,
+    scale: number,
+    s: (n: number) => number,
+    t: TranslateFn
+): number {
+    const bugSources = [
+        ...suiteGroups.map((group) => group.label),
+        ...(includeDsiSource ? ["DSI"] : []),
+    ].join(", ");
+    const statusEntries = EMAIL_STATUS_ORDER.map(
+        (name) =>
+            [
+                name,
+                name === "Not Applicable" ? report.outOfScopeCount : report.byStatus[name] ?? 0,
+            ] as const
+    ).filter(([, count]) => count > 0);
+    const statusSegments = statusEntries.map(([name, count]) => ({
+        color: LIGHT_STATUS_COLORS[name],
+        pct: report.total ? (count / report.total) * 100 : 0,
+    }));
+    const severityTotal = Object.values(report.bySeverity).reduce((sum, count) => sum + count, 0);
+    const severityEntries = EMAIL_SEVERITY_KEYS.map(
+        (key) => [key, report.bySeverity[key] ?? 0] as const
+    );
+    const openSeverityCounts = report.effectiveDefects.reduce<Record<string, number>>(
+        (acc, bug) => {
+            if (bug.state === "Closed") {
+                return acc;
+            }
+
+            const key = bug.severity ?? "Unspecified";
+            acc[key] = (acc[key] ?? 0) + 1;
+            return acc;
+        },
+        {}
+    );
+    const openSeverityTotal = Object.values(openSeverityCounts).reduce(
+        (sum, count) => sum + count,
+        0
+    );
+    const openSeverityEntries = EMAIL_SEVERITY_KEYS.map(
+        (key) => [key, openSeverityCounts[key] ?? 0] as const
+    );
+
+    const y = cursorY;
+
+    slide.addText(`🐛 ${t("defectManagementPage.sprintReport.statusCard.bugStatusTitle")}`, {
+        x: M,
+        y,
+        w: innerW,
+        h: s(0.24),
+        fontSize: s(13),
+        bold: true,
+        color: pptxHex(LIGHT_INK),
+        fontFace: "Arial",
+    });
+    slide.addText(
+        t("defectManagementPage.sprintReport.statusCard.bugStatusSubtitle", {
+            sources: bugSources,
+        }),
+        {
+            x: M,
+            y: y + s(0.24),
+            w: innerW,
+            h: s(0.18),
+            fontSize: s(8.5),
+            color: pptxHex(LIGHT_INK_MUTED),
+            fontFace: "Arial",
+        }
+    );
+
+    let localY = y + s(0.32) + s(0.2);
+
+    slide.addText(
+        t("defectManagementPage.sprintReport.statusCard.bugsDetected", {
+            count: report.total,
+        }) +
+            ` – ${t("defectManagementPage.sprintReport.statusCard.bugStatusSummary", {
+                effective: report.effectiveCount,
+                outOfScope: report.outOfScopeCount,
+            })}`,
+        {
+            x: M,
+            y: localY,
+            w: innerW - 1.5,
+            h: s(0.22),
+            fontSize: s(10),
+            color: pptxHex(LIGHT_INK),
+            fontFace: "Arial",
+        }
+    );
+    slide.addText(
+        t("defectManagementPage.sprintReport.statusCard.stillOpen", { count: kpis.stillOpen }),
+        {
+            x: W - M - 1.5,
+            y: localY,
+            w: 1.5,
+            h: s(0.22),
+            fontSize: s(10),
+            bold: true,
+            align: "right",
+            color: pptxHex(LIGHT_STILL_OPEN),
+            fontFace: "Arial",
+        }
+    );
+
+    localY += s(0.24);
+    pptxProgressTrack(slide, M, localY, innerW, s(0.07), statusSegments);
+    localY += s(0.1);
+
+    slide.addText(
+        statusEntries.map(([name, count]) => statusCountLabel(t, name, count)).join("   |   "),
+        {
+            x: M,
+            y: localY,
+            w: innerW,
+            h: s(0.2),
+            fontSize: s(8.5),
+            color: pptxHex(LIGHT_INK_MUTED),
+            fontFace: "Arial",
+        }
+    );
+    localY += s(0.24);
+
+    pptxSeverityChipsRow(
+        slide,
+        { x: M, y: localY, width: innerW },
+        severityEntries,
+        severityTotal,
+        t("defectManagementPage.sprintReport.statusCard.severityCaption", {
+            count: report.effectiveCount,
+        }),
+        scale
+    );
+    localY += s(PPTX_SEVERITY_ROW_HEIGHT);
+
+    pptxSeverityChipsRow(
+        slide,
+        { x: M, y: localY, width: innerW },
+        openSeverityEntries,
+        openSeverityTotal,
+        t("defectManagementPage.sprintReport.statusCard.openSeverityCaption", {
+            count: openSeverityTotal,
+        }),
+        scale
+    );
+
+    return y + s(naturalBugStatusBlock);
+}
+
+function pptxDrawOriginBreakdownSection(
+    slide: PptxGenJS.PresSlide,
+    cursorY: number,
+    M: number,
+    innerW: number,
+    originDefs: unknown[],
+    originRowsData: string[][],
+    t: TranslateFn,
+    s: (n: number) => number
+): number {
+    if (originDefs.length === 0) {
+        return cursorY;
+    }
+
+    const titleHeight = s(0.32);
+    const rowHeight = s(0.24);
+
+    slide.addText(t("defectManagementPage.sprintReport.statusCard.originBreakdown.title"), {
+        x: M,
+        y: cursorY,
+        w: innerW,
+        h: titleHeight,
+        fontSize: s(13),
+        bold: true,
+        color: pptxHex(LIGHT_INK),
+        fontFace: "Arial",
+    });
+
+    let rowY = cursorY + titleHeight;
+
+    for (const row of originRowsData) {
+        slide.addTable([row.map((text) => ({ text }))], {
+            x: M,
+            y: rowY,
+            w: innerW,
+            colW: [innerW * 0.25, innerW * 0.55, innerW * 0.2],
+            rowH: rowHeight,
+            fontSize: s(9),
+            fontFace: "Arial",
+            border: { type: "solid", color: pptxHex(LIGHT_RULE), pt: 0.5 },
+            valign: "middle",
+        });
+        rowY += rowHeight;
+    }
+
+    return rowY;
+}
+
+// Builds real, editable PowerPoint shapes/text/tables (not a screenshot -
+// see exportStatusReportCardToPdf's identical reasoning) using the same
+// light palette as the email export, on a single Custom/Landscape slide
+// (matches PowerPoint's own "Slide Size" dialog) whose height is measured
+// from the actual content and set exactly - no wasted space below a fixed
+// page, and no shrinking either: a heavier report (more suites, more action
+// paragraphs, more bugs) just makes the slide taller.
+export async function exportStatusReportCardToPptx(
+    filename: string,
+    data: StatusReportCardEmailData,
+    t: TranslateFn
+): Promise<void> {
+    const {
+        headerTitle,
+        headerSubtitle,
+        suiteGroups,
+        report,
+        alertText,
+        actionsText,
+        dashboardUrl,
+        showOriginBreakdown = false,
+        includeDsiSource = true,
+    } = data;
+
+    const M = 0.45;
+    const W = 11;
+    const innerW = W - M * 2;
+
+    const { datePart, timePart } = formatEmailTimestamp(new Date());
+
+    const headerHeight = 0.85;
+    const headerGap = 0.15;
+    const bodyTop = M + headerHeight + headerGap;
+
+    const hasAlert = Boolean(alertText);
+    const hasDashboard = Boolean(dashboardUrl);
+    const actionParagraphs = actionsText
+        .split(/\n\s*\n/)
+        .map((paragraph) => paragraph.trim())
+        .filter(Boolean);
+    const { originDefs, originRowsData } = computeOriginBreakdown(report, showOriginBreakdown, t);
+
+    const heights = computePptxNaturalHeights({
+        hasAlert,
+        alertText,
+        innerW,
+        actionParagraphs,
+        suiteGroups,
+        hasDashboard,
+        originDefs,
+        originRowsData,
+    });
+
     // No shrinking - the slide is exactly as tall as the content needs.
     const scale = 1;
     const s = (n: number) => n * scale;
-    const H = bodyTop + naturalBodyTotal + M;
+    const H = bodyTop + heights.naturalBodyTotal + M;
 
     const pptx = new PptxGenJS();
     pptx.defineLayout({ name: "STATUS_CARD", width: W, height: H });
@@ -2676,591 +3484,43 @@ export async function exportStatusReportCardToPptx(
 
     let cursorY = bodyTop;
 
-    // Alert banner
-    if (hasAlert) {
-        const lineCount = estimateWrappedLineCount(`⚠ ${alertText}`, innerW - 0.35, s(11));
-        const textHeight = s(lineCount * 0.2 + 0.14);
+    cursorY = pptxDrawAlertBanner(slide, cursorY, M, innerW, alertText, heights.naturalAlertBlock, s);
 
-        slide.addShape("rect", {
-            x: M,
-            y: cursorY,
-            w: innerW,
-            h: textHeight,
-            fill: { color: pptxHex(LIGHT_ALERT_BG) },
-            line: { color: pptxHex(LIGHT_ALERT_BORDER), width: 0.5 },
-        });
-        slide.addShape("rect", {
-            x: M,
-            y: cursorY,
-            w: 0.05,
-            h: textHeight,
-            fill: { color: pptxHex(LIGHT_ALERT_BORDER) },
-            line: { type: "none" },
-        });
-        slide.addText(`⚠ ${alertText}`, {
-            x: M + 0.15,
-            y: cursorY,
-            w: innerW - 0.3,
-            h: textHeight,
-            fontSize: s(11),
-            color: pptxHex(LIGHT_ALERT_TEXT),
-            fontFace: "Arial",
-            valign: "middle",
-            wrap: true,
-        });
+    const kpis = computeStatusCardKpis(suiteGroups, report);
+    const kpiDefs = buildPptxKpiDefs(kpis, report, t);
+    const row2KpiDefs = buildPptxRow2KpiDefs(kpis, report, t);
 
-        cursorY += s(naturalAlertBlock);
-    }
+    pptxDrawKpiTiles(slide, cursorY, M, innerW, kpiDefs, row2KpiDefs, s);
+    cursorY += s(heights.naturalKpiBlock);
 
-    // KPI tiles
-    const totalTestCases = suiteGroups.reduce((sum, group) => sum + group.totalTestCases, 0);
-    const totalPassed = suiteGroups.reduce((sum, group) => sum + group.outcomeCounts.Passed, 0);
-    const totalNotApplicable = suiteGroups.reduce(
-        (sum, group) => sum + group.outcomeCounts.NotApplicable,
-        0
+    cursorY = pptxDrawDashboardButton(
+        slide,
+        cursorY,
+        M,
+        innerW,
+        dashboardUrl,
+        heights.naturalDashboardBlock,
+        t,
+        s
     );
-    const totalDecided = totalTestCases - totalNotApplicable;
-    const passRate = totalDecided ? Math.round((totalPassed / totalDecided) * 100) : 0;
-    const notApplicableRate = totalTestCases
-        ? Math.round((totalNotApplicable / totalTestCases) * 100)
-        : 0;
-
-    const bugsClosed = report.byStatusAll.Closed ?? 0;
-    const bugsClosedPct = report.total ? Math.round((bugsClosed / report.total) * 100) : 0;
-    const stillOpen = report.total - bugsClosed;
-    const reopenedPct = report.total
-        ? Math.round((report.reopenedCount / report.total) * 1000) / 10
-        : 0;
-    const avgClosureDays = Math.round(report.mttrDays ?? 0);
-
-    const kpiDefs = [
-        {
-            value: String(totalTestCases),
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"),
-        },
-        {
-            value: `${passRate}%`,
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.passRate"),
-        },
-        {
-            value: `${bugsClosed}/${report.total}`,
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosed", {
-                percent: bugsClosedPct,
-            }),
-        },
-        {
-            value: String(report.bySeverity["1 - Critical"] ?? 0),
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"),
-        },
-        {
-            value: String(report.reopenedCount),
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs", {
-                percent: reopenedPct,
-            }),
-        },
-        {
-            value: t("defectManagementPage.stats.days", { value: avgClosureDays }),
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime"),
-        },
-    ];
-
-    const kpiHeight = s(0.62);
-    const kpiGap = 0.06;
-    const kpiColumns = 6;
-    const kpiTileWidth = (innerW - kpiGap * (kpiColumns - 1)) / kpiColumns;
-
-    kpiDefs.forEach((kpi, index) => {
-        const kpiPalette = PPTX_KPI[index];
-        const tileX = M + index * (kpiTileWidth + kpiGap);
-
-        slide.addText(
-            [
-                {
-                    text: kpi.value,
-                    options: { fontSize: s(15), bold: true, breakLine: true },
-                },
-                { text: kpi.label, options: { fontSize: s(7) } },
-            ],
-            {
-                x: tileX,
-                y: cursorY,
-                w: kpiTileWidth,
-                h: kpiHeight,
-                align: "center",
-                valign: "middle",
-                color: pptxHex(kpiPalette.accent),
-                fontFace: "Arial",
-                fill: { color: pptxHex(kpiPalette.bg) },
-                line: { color: pptxHex(kpiPalette.accent), width: 0.75 },
-                shape: "roundRect",
-                rectRadius: 0.06,
-            }
-        );
-    });
-
-    const row2KpiDefs = [
-        {
-            value: `${report.effectiveCount}/${report.total}`,
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"),
-        },
-        {
-            value: String(report.withoutResolutionDateCount),
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"),
-        },
-        ...(report.outOfScopeCount > 0
-            ? [
-                {
-                    value: `${report.outOfScopeCount}/${report.total}`,
-                    label: t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"),
-                },
-            ]
-            : []),
-        {
-            value: `${notApplicableRate}%`,
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.notApplicableRate"),
-        },
-    ];
-
-    row2KpiDefs.forEach((kpi, index) => {
-        const kpiPalette = PPTX_KPI[6 + index];
-        const tileX = M + index * (kpiTileWidth + kpiGap);
-
-        slide.addText(
-            [
-                {
-                    text: kpi.value,
-                    options: { fontSize: s(15), bold: true, breakLine: true },
-                },
-                { text: kpi.label, options: { fontSize: s(7) } },
-            ],
-            {
-                x: tileX,
-                y: cursorY + kpiHeight + s(0.08),
-                w: kpiTileWidth,
-                h: kpiHeight,
-                align: "center",
-                valign: "middle",
-                color: pptxHex(kpiPalette.accent),
-                fontFace: "Arial",
-                fill: { color: pptxHex(kpiPalette.bg) },
-                line: { color: pptxHex(kpiPalette.accent), width: 0.75 },
-                shape: "roundRect",
-                rectRadius: 0.06,
-            }
-        );
-    });
-
-    cursorY += s(naturalKpiBlock);
-
-    // Dashboard link
-    if (hasDashboard) {
-        const buttonHeight = s(0.32);
-
-        slide.addText(
-            t("defectManagementPage.sprintReport.statusCard.openDashboard"),
-            {
-                x: M,
-                y: cursorY,
-                w: innerW,
-                h: buttonHeight,
-                align: "center",
-                valign: "middle",
-                fontSize: s(11),
-                bold: true,
-                color: "FFFFFF",
-                fontFace: "Arial",
-                fill: { color: pptxHex(LIGHT_BUTTON_BG) },
-                line: { type: "none" },
-                shape: "roundRect",
-                rectRadius: 0.2,
-                hyperlink: { url: dashboardUrl },
-            }
-        );
-
-        cursorY += s(naturalDashboardBlock);
-    }
-
-    // Actions Required
-    if (actionParagraphs.length > 0) {
-        const titleHeight = s(0.32);
-
-        slide.addText(
-            `📌 ${t("defectManagementPage.sprintReport.statusCard.actionsTitle")}`,
-            {
-                x: M,
-                y: cursorY,
-                w: innerW,
-                h: titleHeight,
-                fontSize: s(13),
-                bold: true,
-                color: pptxHex(LIGHT_INK),
-                fontFace: "Arial",
-            }
-        );
-        cursorY += titleHeight;
-
-        actionParagraphs.forEach((paragraph, index) => {
-            const palette = PPTX_ACTION_PALETTE[index % PPTX_ACTION_PALETTE.length];
-            const { lead, rest } = splitEmailActionLeadIn(paragraph);
-            const bodyText = lead ? `${lead} ${rest}` : rest;
-            const lineCount = estimateWrappedLineCount(bodyText, innerW - 0.35, s(10));
-            const boxHeight = s(lineCount * 0.18 + 0.12);
-
-            slide.addShape("rect", {
-                x: M,
-                y: cursorY,
-                w: innerW,
-                h: boxHeight,
-                fill: { color: pptxHex(palette.bg) },
-                line: { color: pptxHex(palette.border), width: 0.5 },
-            });
-            slide.addShape("rect", {
-                x: M,
-                y: cursorY,
-                w: 0.05,
-                h: boxHeight,
-                fill: { color: pptxHex(palette.border) },
-                line: { type: "none" },
-            });
-            slide.addText(bodyText, {
-                x: M + 0.15,
-                y: cursorY,
-                w: innerW - 0.3,
-                h: boxHeight,
-                fontSize: s(10),
-                color: pptxHex(LIGHT_INK),
-                fontFace: "Arial",
-                valign: "middle",
-                wrap: true,
-            });
-
-            cursorY += boxHeight + s(0.08);
-        });
-
-        cursorY += s(0.12);
-    }
-
-    // Suite Progress
-    {
-        const titleHeight = s(0.32);
-
-        slide.addText(
-            `📈 ${t("defectManagementPage.sprintReport.statusCard.suiteProgressTitle")}`,
-            {
-                x: M,
-                y: cursorY,
-                w: innerW,
-                h: titleHeight,
-                fontSize: s(13),
-                bold: true,
-                color: pptxHex(LIGHT_INK),
-                fontFace: "Arial",
-            }
-        );
-        cursorY += titleHeight;
-
-        if (suiteGroups.length === 0) {
-            slide.addText(
-                t("defectManagementPage.sprintReport.statusCard.noPlanSelected"),
-                {
-                    x: M,
-                    y: cursorY,
-                    w: innerW,
-                    h: s(0.24),
-                    fontSize: s(10),
-                    italic: true,
-                    color: pptxHex(LIGHT_INK_MUTED),
-                    fontFace: "Arial",
-                }
-            );
-            cursorY += s(0.28);
-        } else {
-            const suiteRowHeight = s(0.5);
-
-            for (const group of suiteGroups) {
-                const y = cursorY;
-                const executed = group.totalTestCases - group.outcomeCounts.NotRun;
-                const executedPct = group.totalTestCases
-                    ? Math.round((executed / group.totalTestCases) * 100)
-                    : 0;
-                const decided = group.totalTestCases - group.outcomeCounts.NotApplicable;
-                const groupPassRate = decided
-                    ? Math.round((group.outcomeCounts.Passed / decided) * 100)
-                    : 0;
-
-                const legendEntries = EMAIL_OUTCOME_ORDER.filter(
-                    (outcome) => group.outcomeCounts[outcome] > 0
-                );
-                const segments = legendEntries.map((outcome) => ({
-                    color: LIGHT_OUTCOME_COLORS[outcome],
-                    pct: group.totalTestCases
-                        ? (group.outcomeCounts[outcome] / group.totalTestCases) * 100
-                        : 0,
-                }));
-                const legendRuns = pptxLegendRuns(
-                    legendEntries.map((outcome) => ({
-                        color: LIGHT_OUTCOME_COLORS[outcome],
-                        label: `${group.outcomeCounts[outcome]} ${t(`outcome.${outcome}`)}`,
-                    })),
-                    LIGHT_INK_MUTED,
-                    s(8.5)
-                );
-
-                slide.addText(
-                    `${group.label} – ${t(
-                        "defectManagementPage.sprintReport.statusCard.casesCount",
-                        { count: group.totalTestCases }
-                    )}`,
-                    {
-                        x: M,
-                        y,
-                        w: innerW - 1.3,
-                        h: s(0.2),
-                        fontSize: s(10),
-                        bold: true,
-                        color: pptxHex(LIGHT_INK),
-                        fontFace: "Arial",
-                    }
-                );
-                slide.addText(
-                    `${executedPct}% ${t("defectManagementPage.sprintReport.statusCard.executed")}`,
-                    {
-                        x: W - M - 1.3,
-                        y,
-                        w: 1.3,
-                        h: s(0.2),
-                        fontSize: s(10),
-                        bold: true,
-                        align: "right",
-                        color: pptxHex(LIGHT_INK),
-                        fontFace: "Arial",
-                    }
-                );
-
-                pptxProgressTrack(slide, M, y + s(0.2), innerW, s(0.06), segments);
-
-                slide.addText(
-                    [
-                        ...legendRuns,
-                        {
-                            text: `   |   ${t("defectManagementPage.sprintReport.statusCard.passRate")}: ${groupPassRate}%`,
-                            options: { color: pptxHex(LIGHT_INK_MUTED), fontSize: s(8.5) },
-                        },
-                    ],
-                    {
-                        x: M,
-                        y: y + s(0.28),
-                        w: innerW,
-                        h: s(0.18),
-                        fontSize: s(8.5),
-                        color: pptxHex(LIGHT_INK_MUTED),
-                        fontFace: "Arial",
-                    }
-                );
-
-                cursorY += suiteRowHeight;
-            }
-        }
-
-        cursorY += s(0.15);
-    }
-
-    // Bug Status
-    const bugSources = [
-        ...suiteGroups.map((group) => group.label),
-        ...(includeDsiSource ? ["DSI"] : []),
-    ].join(", ");
-    const statusEntries = EMAIL_STATUS_ORDER.map(
-        (name) =>
-            [
-                name,
-                name === "Not Applicable"
-                    ? report.outOfScopeCount
-                    : report.byStatus[name] ?? 0,
-            ] as const
-    ).filter(([, count]) => count > 0);
-    const statusSegments = statusEntries.map(([name, count]) => ({
-        color: LIGHT_STATUS_COLORS[name],
-        pct: report.total ? (count / report.total) * 100 : 0,
-    }));
-    const severityTotal = Object.values(report.bySeverity).reduce((sum, count) => sum + count, 0);
-    const severityEntries = EMAIL_SEVERITY_KEYS.map(
-        (key) => [key, report.bySeverity[key] ?? 0] as const
+    cursorY = pptxDrawActionsSection(slide, cursorY, M, innerW, actionParagraphs, t, s);
+    cursorY = pptxDrawSuiteProgressSection(slide, cursorY, M, W, innerW, suiteGroups, t, s);
+    cursorY = pptxDrawBugStatusSection(
+        slide,
+        cursorY,
+        M,
+        W,
+        innerW,
+        report,
+        kpis,
+        suiteGroups,
+        includeDsiSource,
+        heights.naturalBugStatusBlock,
+        scale,
+        s,
+        t
     );
-    const openSeverityCounts = report.effectiveDefects.reduce<Record<string, number>>(
-        (acc, bug) => {
-            if (bug.state === "Closed") {
-                return acc;
-            }
-
-            const key = bug.severity ?? "Unspecified";
-            acc[key] = (acc[key] ?? 0) + 1;
-            return acc;
-        },
-        {}
-    );
-    const openSeverityTotal = Object.values(openSeverityCounts).reduce(
-        (sum, count) => sum + count,
-        0
-    );
-    const openSeverityEntries = EMAIL_SEVERITY_KEYS.map(
-        (key) => [key, openSeverityCounts[key] ?? 0] as const
-    );
-
-    {
-        const y = cursorY;
-
-        slide.addText(
-            `🐛 ${t("defectManagementPage.sprintReport.statusCard.bugStatusTitle")}`,
-            {
-                x: M,
-                y,
-                w: innerW,
-                h: s(0.24),
-                fontSize: s(13),
-                bold: true,
-                color: pptxHex(LIGHT_INK),
-                fontFace: "Arial",
-            }
-        );
-        slide.addText(
-            t("defectManagementPage.sprintReport.statusCard.bugStatusSubtitle", {
-                sources: bugSources,
-            }),
-            {
-                x: M,
-                y: y + s(0.24),
-                w: innerW,
-                h: s(0.18),
-                fontSize: s(8.5),
-                color: pptxHex(LIGHT_INK_MUTED),
-                fontFace: "Arial",
-            }
-        );
-
-        let localY = y + s(0.32) + s(0.2);
-
-        slide.addText(
-            t("defectManagementPage.sprintReport.statusCard.bugsDetected", {
-                count: report.total,
-            }) +
-                ` – ${t("defectManagementPage.sprintReport.statusCard.bugStatusSummary", {
-                    effective: report.effectiveCount,
-                    outOfScope: report.outOfScopeCount,
-                })}`,
-            {
-                x: M,
-                y: localY,
-                w: innerW - 1.5,
-                h: s(0.22),
-                fontSize: s(10),
-                color: pptxHex(LIGHT_INK),
-                fontFace: "Arial",
-            }
-        );
-        slide.addText(
-            t("defectManagementPage.sprintReport.statusCard.stillOpen", { count: stillOpen }),
-            {
-                x: W - M - 1.5,
-                y: localY,
-                w: 1.5,
-                h: s(0.22),
-                fontSize: s(10),
-                bold: true,
-                align: "right",
-                color: pptxHex(LIGHT_STILL_OPEN),
-                fontFace: "Arial",
-            }
-        );
-
-        localY += s(0.24);
-        pptxProgressTrack(slide, M, localY, innerW, s(0.07), statusSegments);
-        localY += s(0.1);
-
-        slide.addText(
-            statusEntries
-                .map(
-                    ([name, count]) =>
-                        `${count} ${t(`defectManagementPage.sprintReport.statusCard.statusLabels.${EMAIL_STATUS_LABEL_KEYS[name]}`)}`
-                )
-                .join("   |   "),
-            {
-                x: M,
-                y: localY,
-                w: innerW,
-                h: s(0.2),
-                fontSize: s(8.5),
-                color: pptxHex(LIGHT_INK_MUTED),
-                fontFace: "Arial",
-            }
-        );
-        localY += s(0.24);
-
-        pptxSeverityChipsRow(
-            slide,
-            M,
-            localY,
-            innerW,
-            severityEntries,
-            severityTotal,
-            t("defectManagementPage.sprintReport.statusCard.severityCaption", {
-                count: report.effectiveCount,
-            }),
-            scale
-        );
-        localY += s(PPTX_SEVERITY_ROW_HEIGHT);
-
-        pptxSeverityChipsRow(
-            slide,
-            M,
-            localY,
-            innerW,
-            openSeverityEntries,
-            openSeverityTotal,
-            t("defectManagementPage.sprintReport.statusCard.openSeverityCaption", {
-                count: openSeverityTotal,
-            }),
-            scale
-        );
-
-        cursorY += s(naturalBugStatusBlock);
-    }
-
-    // Origin breakdown
-    if (originDefs.length > 0) {
-        const titleHeight = s(0.32);
-        const rowHeight = s(0.24);
-
-        slide.addText(
-            t("defectManagementPage.sprintReport.statusCard.originBreakdown.title"),
-            {
-                x: M,
-                y: cursorY,
-                w: innerW,
-                h: titleHeight,
-                fontSize: s(13),
-                bold: true,
-                color: pptxHex(LIGHT_INK),
-                fontFace: "Arial",
-            }
-        );
-        cursorY += titleHeight;
-
-        for (const row of originRowsData) {
-            slide.addTable([row.map((text) => ({ text }))], {
-                x: M,
-                y: cursorY,
-                w: innerW,
-                colW: [innerW * 0.25, innerW * 0.55, innerW * 0.2],
-                rowH: rowHeight,
-                fontSize: s(9),
-                fontFace: "Arial",
-                border: { type: "solid", color: pptxHex(LIGHT_RULE), pt: 0.5 },
-                valign: "middle",
-            });
-            cursorY += rowHeight;
-        }
-    }
+    pptxDrawOriginBreakdownSection(slide, cursorY, M, innerW, originDefs, originRowsData, t, s);
 
     await pptx.writeFile({ fileName: filename });
 }

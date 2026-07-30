@@ -305,9 +305,10 @@ function findPreviousIterationNode(
 ): IterationNode | null {
     const dated = nodes
         .filter((n) => SPRINT_NODE_NAME_PATTERN.test(n.name) && n.startDate)
-        .sort((a, b) =>
-            a.startDate === b.startDate ? 0 : a.startDate! < b.startDate! ? -1 : 1
-        );
+        .sort((a, b) => {
+            if (a.startDate === b.startDate) return 0;
+            return a.startDate! < b.startDate! ? -1 : 1;
+        });
 
     const index = dated.findIndex((n) => n.path === node.path);
 

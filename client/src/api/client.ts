@@ -174,8 +174,9 @@ export function fetchAutomationDashboard(
     if (iteration) params.set("iteration", iteration);
 
     const qs = params.toString();
+    const url = qs ? `/api/automation?${qs}` : "/api/automation";
 
-    return getJson(`/api/automation${qs ? `?${qs}` : ""}`);
+    return getJson(url);
 }
 
 export function fetchExecutionTrend(): Promise<ExecutionTrendResponse> {

@@ -86,13 +86,19 @@ export function PlurifondSprintReportPage() {
                         suiteGroupDefs={PLURIFOND_SUITE_GROUP_DEFS}
                         defaultHeaderTitle="Test Funzionali - Plurifonds"
                         defaultHeaderSubtitle="Stato avanzamento test funzionali – Plurifonds"
-                        defaultActionsText={(report) =>
-                            `System Integrator: inserire entro la giornata di oggi le date di risoluzione previste per i ${report.effectiveCount} bug aperti.\n` +
-                            (report.outOfScopeCount > 0
-                                ? `* escluso${report.outOfScopeCount > 1 ? "i" : ""} ${report.outOfScopeCount} bug segnalat${report.outOfScopeCount > 1 ? "i" : "o"} come fuori ambito.\n\n`
-                                : "") +
-                            "Test funzionali: Avviati i test funzionali per Plurifonds in data 27/07: Rilevato un numero significativo di test case non eseguibili, poiché associati a funzionalità non ancora rilasciate ma incluse nel piano di test condiviso.\n\n"
-                        }
+                        defaultActionsText={(report) => {
+                            let outOfScopeLine = "";
+                            if (report.outOfScopeCount > 0) {
+                                const isPlural = report.outOfScopeCount > 1;
+                                outOfScopeLine = `* escluso${isPlural ? "i" : ""} ${report.outOfScopeCount} bug segnalat${isPlural ? "i" : "o"} come fuori ambito.\n\n`;
+                            }
+
+                            return (
+                                `System Integrator: inserire entro la giornata di oggi le date di risoluzione previste per i ${report.effectiveCount} bug aperti.\n` +
+                                outOfScopeLine +
+                                "Test funzionali: Avviati i test funzionali per Plurifonds in data 27/07: Rilevato un numero significativo di test case non eseguibili, poiché associati a funzionalità non ancora rilasciate ma incluse nel piano di test condiviso.\n\n"
+                            );
+                        }}
                         includeDsiSource={false}
                         includeDeadline={false}
                     />
