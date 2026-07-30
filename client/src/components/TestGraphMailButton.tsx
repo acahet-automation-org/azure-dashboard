@@ -17,10 +17,10 @@ const LABEL_KEY: Record<Status, string> = {
     error: "nav.testGraphMail",
 };
 
-// Sends a fixed test message to the signed-in user's own mailbox via the
-// same delegated Graph app registration used by the report "Send by email"
-// button (see mailGraphAuth.ts/api/graphMail.ts) - handy for confirming the
-// app registration/auth flow still works without generating a real report.
+// Only exercises sign-in against the delegated Graph app registration used
+// by the report "Send by email" button (see mailGraphAuth.ts/api/graphMail.ts)
+// - handy for confirming the app registration/auth flow still works without
+// sending a real (or test) email.
 export function TestGraphMailButton() {
     const { t } = useTranslation();
     const [status, setStatus] = useState<Status>("idle");
@@ -31,40 +31,7 @@ export function TestGraphMailButton() {
         setError(null);
 
         try {
-            const loginResponse = await acquireMailToken();
-
-            const response = await fetch(
-                "https://graph.microsoft.com/v1.0/me/sendMail",
-                {
-                    method: "POST",
-                    headers: {
-                        Authorization: `Bearer ${loginResponse.accessToken}`,
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        message: {
-                            subject: "Test Email",
-                            body: {
-                                contentType: "Text",
-                                content: "Hello from my frontend app!",
-                            },
-                            toRecipients: [
-                                {
-                                    emailAddress: {
-                                        address: loginResponse.account.username,
-                                    },
-                                },
-                            ],
-                        },
-                    }),
-                }
-            );
-
-            if (!response.ok) {
-                const body = await response.text();
-                throw new Error(`HTTP ${response.status}: ${body}`);
-            }
-
+            await acquireMailToken();
             setStatus("sent");
         } catch (err) {
             setStatus("error");
