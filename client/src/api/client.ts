@@ -24,6 +24,7 @@ import type {
 import { loginRequest } from "../authConfig";
 import { msalInstance } from "../msalInstance";
 import i18n from "../i18n";
+import type { Scope } from "../hooks/scopeContext";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 const skipAuth = import.meta.env.VITE_SKIP_AUTH === "true";
@@ -109,28 +110,56 @@ async function getJson<T>(url: string): Promise<T> {
     return res.json();
 }
 
-export function fetchSuites(): Promise<
+// Appends the global scope-bar selection (see ScopeContext) to a request -
+// named `scopeAreaPath`/`scopeIteration` on the wire, distinct from several
+// endpoints' own single-select `iteration`/`area` params (a page's local
+// filter, which narrows further within whatever this already scoped down
+// to - see the server's matching resolveScopeAreaPaths/resolveScopeIterations
+// in src/server.ts).
+function withScope(path: string, scope: Scope): string {
+    const params = new URLSearchParams();
+
+    if (scope.project) {
+        params.set("project", scope.project);
+    }
+
+    scope.areaPaths.forEach((areaPath) =>
+        params.append("scopeAreaPath", areaPath)
+    );
+    scope.iterations.forEach((iteration) =>
+        params.append("scopeIteration", iteration)
+    );
+
+    const qs = params.toString();
+
+    return qs ? `${path}${path.includes("?") ? "&" : "?"}${qs}` : path;
+}
+
+export function fetchSuites(
+    scope: Scope
+): Promise<
     Record<string, SuiteStat>
 > {
-    return getJson("/api/suites");
+    return getJson(withScope("/api/suites", scope));
 }
 
 export function fetchDashboard(
+    scope: Scope,
     iteration?: string
 ): Promise<DashboardResponse> {
     const qs = iteration
         ? `?iteration=${encodeURIComponent(iteration)}`
         : "";
 
-    return getJson(`/api/dashboard${qs}`);
+    return getJson(withScope(`/api/dashboard${qs}`, scope));
 }
 
-export function fetchRuns(): Promise<RunCard[]> {
-    return getJson("/api/runs");
+export function fetchRuns(scope: Scope): Promise<RunCard[]> {
+    return getJson(withScope("/api/runs", scope));
 }
 
-export function fetchPlans(): Promise<TestPlanSummary[]> {
-    return getJson("/api/plans");
+export function fetchPlans(scope: Scope): Promise<TestPlanSummary[]> {
+    return getJson(withScope("/api/plans", scope));
 }
 
 export function fetchProjects(): Promise<string[]> {
@@ -157,33 +186,40 @@ export function fetchAreaPaths(
 }
 
 export function fetchPlanSuites(
-    planId: number
+    planId: number,
+    scope: Scope
 ): Promise<TestSuiteSummary[]> {
-    return getJson(`/api/plans/${planId}/suites`);
+    return getJson(withScope(`/api/plans/${planId}/suites`, scope));
 }
 
 export function fetchPlanOverview(
-    planId: number
+    planId: number,
+    scope: Scope
 ): Promise<PlanOverviewResponse> {
-    return getJson(`/api/plans/${planId}/overview`);
+    return getJson(withScope(`/api/plans/${planId}/overview`, scope));
 }
 
 export function fetchPlanProgress(
-    planId: number
+    planId: number,
+    scope: Scope
 ): Promise<TestPlanProgressResponse> {
-    return getJson(`/api/plans/${planId}/progress`);
+    return getJson(withScope(`/api/plans/${planId}/progress`, scope));
 }
 
 export function fetchPlanProgressBugs(
     planId: number,
-    suiteIds: number[]
+    suiteIds: number[],
+    scope: Scope
 ): Promise<BugInfo[]> {
     const qs = suiteIds.length ? `?suiteIds=${suiteIds.join(",")}` : "";
 
-    return getJson(`/api/plans/${planId}/progress/bugs${qs}`);
+    return getJson(
+        withScope(`/api/plans/${planId}/progress/bugs${qs}`, scope)
+    );
 }
 
 export function fetchAutomationDashboard(
+    scope: Scope,
     planId?: number,
     iteration?: string
 ): Promise<AutomationDashboardResponse> {
@@ -195,14 +231,17 @@ export function fetchAutomationDashboard(
     const qs = params.toString();
     const url = qs ? `/api/automation?${qs}` : "/api/automation";
 
-    return getJson(url);
+    return getJson(withScope(url, scope));
 }
 
-export function fetchExecutionTrend(): Promise<ExecutionTrendResponse> {
-    return getJson("/api/execution-trend");
+export function fetchExecutionTrend(
+    scope: Scope
+): Promise<ExecutionTrendResponse> {
+    return getJson(withScope("/api/execution-trend", scope));
 }
 
 export function fetchDefects(
+    scope: Scope,
     filters?: DefectFilters
 ): Promise<DefectDashboardResponse> {
     const params = new URLSearchParams();
@@ -215,31 +254,35 @@ export function fetchDefects(
 
     const qs = params.toString();
 
-    return getJson(`/api/defects${qs ? `?${qs}` : ""}`);
+    return getJson(withScope(`/api/defects${qs ? `?${qs}` : ""}`, scope));
 }
 
 export function fetchReleaseReadiness(
+    scope: Scope,
     iteration?: string
 ): Promise<ReleaseReadinessResponse> {
     const qs = iteration
         ? `?iteration=${encodeURIComponent(iteration)}`
         : "";
 
-    return getJson(`/api/release-readiness${qs}`);
+    return getJson(withScope(`/api/release-readiness${qs}`, scope));
 }
 
-export function fetchNavBadges(): Promise<NavBadgesResponse> {
-    return getJson("/api/nav-badges");
+export function fetchNavBadges(scope: Scope): Promise<NavBadgesResponse> {
+    return getJson(withScope("/api/nav-badges", scope));
 }
 
-export function fetchCommonErrors(): Promise<CommonErrorsResponse> {
-    return getJson("/api/common-errors");
+export function fetchCommonErrors(
+    scope: Scope
+): Promise<CommonErrorsResponse> {
+    return getJson(withScope("/api/common-errors", scope));
 }
 
 export function fetchMyWorkItems(
-    mode: MyWorkItemsMode
+    mode: MyWorkItemsMode,
+    scope: Scope
 ): Promise<WorkItemSummary[]> {
-    return getJson(`/api/my-work-items?mode=${mode}`);
+    return getJson(withScope(`/api/my-work-items?mode=${mode}`, scope));
 }
 
 export async function sendEmailReport(payload: {
@@ -264,13 +307,17 @@ export async function sendEmailReport(payload: {
 }
 
 export async function deleteTestCases(
-    items: DeleteTestCaseItem[]
+    items: DeleteTestCaseItem[],
+    scope: Scope
 ): Promise<DeleteTestCasesResult> {
-    const res = await authorizedFetch("/api/test-cases/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items }),
-    });
+    const res = await authorizedFetch(
+        withScope("/api/test-cases/delete", scope),
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ items }),
+        }
+    );
 
     if (!res.ok) {
         await throwForErrorResponse(

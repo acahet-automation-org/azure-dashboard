@@ -19,6 +19,7 @@ import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { ExportMenu, type ExportFormat } from "../components/ExportMenu";
 import { fetchDashboard, sendEmailReport } from "../api/client";
+import { useScope } from "../hooks/useScope";
 import { computeGroupStats } from "../utils/stats";
 import {
     buildPdfBase64,
@@ -96,10 +97,18 @@ export function DashboardPage() {
     const { t, i18n } = useTranslation();
     const [searchParams] = useSearchParams();
     const [iteration, setIteration] = useState("");
+    const scope = useScope();
 
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["dashboard", iteration],
-        queryFn: () => fetchDashboard(iteration || undefined),
+        queryKey: [
+            "dashboard",
+            scope.project,
+            scope.areaPaths,
+            scope.iterations,
+            iteration,
+        ],
+        queryFn: () => fetchDashboard(scope, iteration || undefined),
+        enabled: scope.isComplete,
     });
 
     const initialSuite = searchParams.get("suite");
@@ -249,7 +258,11 @@ export function DashboardPage() {
         <PageLayout title={t("dashboardPage.title")}>
             <IterationFilter value={iteration} onChange={setIteration} />
 
-            {isLoading && <LoadingCardGrid />}
+            {!scope.isComplete && (
+                <EmptyState message={t("scopeBar.selectScopePrompt")} />
+            )}
+
+            {scope.isComplete && isLoading && <LoadingCardGrid />}
 
             {isError && (
                 <ErrorState message={error.message} onRetry={refetch} />

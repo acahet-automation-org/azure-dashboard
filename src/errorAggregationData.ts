@@ -3,27 +3,32 @@ import {
     getTestRunResults,
     getWorkItems,
 } from "./azdo.js";
+import { createPerProjectCache } from "./perProjectCache.js";
 import type {
     ErrorSummary,
     AffectedTestCase,
 } from "./types.js";
 
-let commonErrorsCache: ErrorSummary[] | null = null;
-let totalFailedResultsCache = 0;
-let cacheTimestamp = 0;
+interface CommonErrorsCacheEntry {
+    errors: ErrorSummary[];
+    totalFailedResults: number;
+}
 
 const CACHE_DURATION_MS = 5 * 60 * 1000;
 const TOP_N = 20;
 const AUTOMATION_STATUS_FIELD = "Microsoft.VSTS.TCM.AutomationStatus";
 
-export function getCommonErrorsCacheTimestamp(): number {
-    return cacheTimestamp;
+// Keyed per project - see the matching comment on dashboardCache in
+// dashboardData.ts.
+const commonErrorsCache =
+    createPerProjectCache<CommonErrorsCacheEntry>(CACHE_DURATION_MS);
+
+export function getCommonErrorsCacheTimestamp(project: string): number {
+    return commonErrorsCache.getTimestamp(project);
 }
 
-export function clearCommonErrorsCache(): void {
-    commonErrorsCache = null;
-    totalFailedResultsCache = 0;
-    cacheTimestamp = 0;
+export function clearCommonErrorsCache(project?: string): void {
+    commonErrorsCache.clear(project);
 }
 
 const URL_PATTERN = /https?:\/\/\S+/g;
@@ -73,7 +78,8 @@ function extractTestCaseTitle(
 }
 
 async function filterToAutomatedResults(
-    results: any[]
+    results: any[],
+    project: string
 ): Promise<any[]> {
     const testCaseIds = [
         ...new Set(
@@ -86,9 +92,11 @@ async function filterToAutomatedResults(
         ),
     ];
 
-    const testCases = await getWorkItems(testCaseIds, [
-        AUTOMATION_STATUS_FIELD,
-    ]);
+    const testCases = await getWorkItems(
+        testCaseIds,
+        [AUTOMATION_STATUS_FIELD],
+        project
+    );
 
     const automationStatusById = new Map<
         number,
@@ -111,15 +119,15 @@ async function filterToAutomatedResults(
 // TODO: the test/Runs/{runId}/results endpoint supports paging via
 // $top/continuationToken; not handled here, consistent with the rest
 // of this codebase not handling Azure DevOps paging either.
-async function buildCommonErrors(): Promise<{
+async function buildCommonErrors(project: string): Promise<{
     errors: ErrorSummary[];
     totalFailedResults: number;
 }> {
-    const runs = await getTestRuns();
+    const runs = await getTestRuns(project);
 
     const resultsByRun = await Promise.all(
         runs.map((run: any) =>
-            getTestRunResults(run.id)
+            getTestRunResults(run.id, project)
         )
     );
 
@@ -132,7 +140,7 @@ async function buildCommonErrors(): Promise<{
     );
 
     const automatedFailedResults =
-        await filterToAutomatedResults(failedResults);
+        await filterToAutomatedResults(failedResults, project);
 
     const grouped = new Map<
         string,
@@ -224,34 +232,23 @@ async function buildCommonErrors(): Promise<{
     };
 }
 
-export async function getCommonErrorsData(): Promise<{
+export async function getCommonErrorsData(project: string): Promise<{
     errors: ErrorSummary[];
     totalFailedResults: number;
 }> {
-    const now = Date.now();
+    const cached = commonErrorsCache.get(project);
 
-    if (
-        commonErrorsCache &&
-        now - cacheTimestamp <
-            CACHE_DURATION_MS
-    ) {
+    if (cached) {
         console.log("CACHE HIT");
 
-        return {
-            errors: commonErrorsCache,
-            totalFailedResults:
-                totalFailedResultsCache,
-        };
+        return cached;
     }
 
     console.log("CACHE MISS");
 
-    const { errors, totalFailedResults } =
-        await buildCommonErrors();
+    const entry = await buildCommonErrors(project);
 
-    commonErrorsCache = errors;
-    totalFailedResultsCache = totalFailedResults;
-    cacheTimestamp = now;
+    commonErrorsCache.set(project, entry);
 
-    return { errors, totalFailedResults };
+    return entry;
 }

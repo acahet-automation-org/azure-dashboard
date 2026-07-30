@@ -20,6 +20,7 @@ import { EmptyState } from "../components/EmptyState";
 import { ErrorGroupItem } from "../components/ErrorGroupItem";
 import { fetchCommonErrors } from "../api/client";
 import { categoryAxisWidth } from "../utils/chartAxis";
+import { useScope } from "../hooks/useScope";
 
 const useStyles = makeStyles({
     section: {
@@ -32,15 +33,21 @@ const useStyles = makeStyles({
 export function CommonErrorsPage() {
     const styles = useStyles();
     const { t } = useTranslation();
+    const scope = useScope();
 
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["common-errors"],
-        queryFn: fetchCommonErrors,
+        queryKey: ["common-errors", scope.project],
+        queryFn: () => fetchCommonErrors(scope),
+        enabled: scope.isComplete,
     });
 
     return (
         <PageLayout title={t("commonErrorsPage.title")}>
-            {isLoading && <LoadingCardGrid />}
+            {!scope.isComplete && (
+                <EmptyState message={t("scopeBar.selectScopePrompt")} />
+            )}
+
+            {scope.isComplete && isLoading && <LoadingCardGrid />}
 
             {isError && (
                 <ErrorState message={error.message} onRetry={refetch} />

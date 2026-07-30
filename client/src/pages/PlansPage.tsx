@@ -7,17 +7,24 @@ import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { fetchPlans } from "../api/client";
+import { useScope } from "../hooks/useScope";
 
 export function PlansPage() {
     const { t } = useTranslation();
+    const scope = useScope();
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["plans"],
-        queryFn: fetchPlans,
+        queryKey: ["plans", scope.project],
+        queryFn: () => fetchPlans(scope),
+        enabled: scope.isComplete,
     });
 
     return (
         <PageLayout title={t("plansPage.title")}>
-            {isLoading && <LoadingCardGrid count={10} />}
+            {!scope.isComplete && (
+                <EmptyState message={t("scopeBar.selectScopePrompt")} />
+            )}
+
+            {scope.isComplete && isLoading && <LoadingCardGrid count={10} />}
 
             {isError && (
                 <ErrorState message={error.message} onRetry={refetch} />

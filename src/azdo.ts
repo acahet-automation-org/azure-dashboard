@@ -101,11 +101,11 @@ function getProjectClients(project: string): ProjectClients {
     return clients;
 }
 
-// Falls back to the server's configured project for the many call sites
-// below that don't (yet) accept a `project` argument - see PROJECTS/
-// getProjects() further down for the full list of projects a caller can
-// choose from instead.
-const DEFAULT_PROJECT = process.env.AZDO_PROJECT!;
+// The server's baseline configured project - every function below defaults
+// to this when no explicit project is passed. Exported for background jobs
+// (see scheduler.ts) that run independent of any signed-in user's chosen
+// scope and therefore have no per-request project to thread through.
+export const DEFAULT_PROJECT = process.env.AZDO_PROJECT!;
 
 export const { azdo, azdoOdata } = getProjectClients(DEFAULT_PROJECT);
 
@@ -138,12 +138,15 @@ export function getProjects(): readonly string[] {
     return PROJECTS;
 }
 
-export async function getTestSuiteHierarchy(planId: number) {
+export async function getTestSuiteHierarchy(
+    planId: number,
+    project: string = DEFAULT_PROJECT
+) {
     const apply =
         `filter(( TestPlanId eq ${planId} ) and ( IdLevel3 ne null ))` +
         `/groupby((IdLevel1,IdLevel2,IdLevel3,TestPlanTitle,TitleLevel2,TitleLevel3,TestPlanId))`;
 
-    const response = await azdoOdata.get(
+    const response = await getAzdoOdata(project).get(
         `/TestSuites?$apply=${encodeURIComponent(apply)}`
     );
 
@@ -152,7 +155,8 @@ export async function getTestSuiteHierarchy(planId: number) {
 
 export async function getTestSuiteCurrentCounts(
     planId: number,
-    dateSK: number
+    dateSK: number,
+    project: string = DEFAULT_PROJECT
 ) {
     const apply =
         `filter(( TestPlanId eq ${planId} ) and ( DateSK eq ${dateSK} ))` +
@@ -165,23 +169,28 @@ export async function getTestSuiteCurrentCounts(
         `cast(ResultOutcome eq 'None', Edm.Int32) with sum as NotExecuted, ` +
         `cast(ResultOutcome ne 'None', Edm.Int32) with sum as Executed))`;
 
-    const response = await azdoOdata.get(
+    const response = await getAzdoOdata(project).get(
         `/TestPointHistorySnapshot?$apply=${encodeURIComponent(apply)}`
     );
 
     return response.data.value;
 }
 
-export async function getTestPlans() {
-    const response = await azdo.get(
+export async function getTestPlans(
+    project: string = DEFAULT_PROJECT
+) {
+    const response = await getAzdo(project).get(
         "/testplan/plans?api-version=7.1"
     );
 
     return response.data.value;
 }
 
-export async function getSuites(planId: number) {
-    const response = await azdo.get(
+export async function getSuites(
+    planId: number,
+    project: string = DEFAULT_PROJECT
+) {
+    const response = await getAzdo(project).get(
         `/testplan/plans/${planId}/suites?api-version=7.1`
     );
 
@@ -190,9 +199,10 @@ export async function getSuites(planId: number) {
 
 export async function getTestCases(
     planId: number,
-    suiteId: number
+    suiteId: number,
+    project: string = DEFAULT_PROJECT
 ) {
-    const response = await azdo.get(
+    const response = await getAzdo(project).get(
         `/testplan/plans/${planId}/suites/${suiteId}/testcase?api-version=7.1`
     );
 
@@ -200,9 +210,10 @@ export async function getTestCases(
 }
 
 export async function deleteTestCase(
-    id: number
+    id: number,
+    project: string = DEFAULT_PROJECT
 ): Promise<void> {
-    await azdo.delete(
+    await getAzdo(project).delete(
         `/test/testcases/${id}?api-version=7.1`
     );
 }
@@ -215,9 +226,10 @@ export async function deleteTestCase(
 export async function deleteTestCasesFromSuite(
     planId: number,
     suiteId: number,
-    testCaseIds: number[]
+    testCaseIds: number[],
+    project: string = DEFAULT_PROJECT
 ): Promise<void> {
-    await azdo.delete(
+    await getAzdo(project).delete(
         `/testplan/plans/${planId}/suites/${suiteId}/testcase` +
         `?testIds=${testCaseIds.join(",")}&api-version=7.1`
     );
@@ -225,9 +237,10 @@ export async function deleteTestCasesFromSuite(
 
 export async function getTestPoints(
     planId: number,
-    suiteId: number
+    suiteId: number,
+    project: string = DEFAULT_PROJECT
 ) {
-    const response = await azdo.get(
+    const response = await getAzdo(project).get(
         `/testplan/plans/${planId}/suites/${suiteId}/testpoint?api-version=7.1`
     );
 
@@ -241,13 +254,15 @@ export async function getTestPoints(
 // gets the full (and therefore most recent) set.
 const TEST_RUNS_PAGE_SIZE = 200;
 
-export async function getTestRuns() {
+export async function getTestRuns(
+    project: string = DEFAULT_PROJECT
+) {
     try {
         const runs: any[] = [];
         let skip = 0;
 
         while (true) {
-            const response = await azdo.get(
+            const response = await getAzdo(project).get(
                 `/test/runs?api-version=7.1&$top=${TEST_RUNS_PAGE_SIZE}&$skip=${skip}&includeRunDetails=true`
             );
 
@@ -277,10 +292,11 @@ export async function getTestRuns() {
 // than an empty stats array) lets callers tell "run exists, no stats yet"
 // apart from "run doesn't exist anymore" and drop the latter entirely.
 export async function getTestRunStatistics(
-    runId: number
+    runId: number,
+    project: string = DEFAULT_PROJECT
 ): Promise<any[] | null> {
     try {
-        const response = await azdo.get(
+        const response = await getAzdo(project).get(
             `/test/runs/${runId}/statistics?api-version=7.1`
         );
 
@@ -295,17 +311,20 @@ export async function getTestRunStatistics(
 }
 
 export async function getTestRunResults(
-    runId: number
+    runId: number,
+    project: string = DEFAULT_PROJECT
 ) {
-    const response = await azdo.get(
+    const response = await getAzdo(project).get(
         `/test/Runs/${runId}/results?api-version=7.1`
     );
 
     return response.data.value;
 }
 
-export async function getActiveBugIds(): Promise<number[]> {
-    const response = await azdo.post(
+export async function getActiveBugIds(
+    project: string = DEFAULT_PROJECT
+): Promise<number[]> {
+    const response = await getAzdo(project).post(
         "/wit/wiql?api-version=7.1",
         {
             query: `
@@ -321,8 +340,11 @@ export async function getActiveBugIds(): Promise<number[]> {
     );
 }
 
-export async function getWorkItem(id: number) {
-    const response = await azdo.get(
+export async function getWorkItem(
+    id: number,
+    project: string = DEFAULT_PROJECT
+) {
+    const response = await getAzdo(project).get(
         `/wit/workitems/${id}?$expand=relations&api-version=7.1`
     );
 
@@ -331,7 +353,8 @@ export async function getWorkItem(id: number) {
 
 export async function getWorkItems(
     ids: number[],
-    fields?: string[]
+    fields?: string[],
+    project: string = DEFAULT_PROJECT
 ) {
     if (!ids.length) {
         return [];
@@ -351,7 +374,7 @@ export async function getWorkItems(
         chunk: number[]
     ): Promise<any[]> => {
         try {
-            const response = await azdo.get(
+            const response = await getAzdo(project).get(
                 `/wit/workitems?ids=${chunk.join(
                     ","
                 )}${fieldsParam}&api-version=7.1`
@@ -414,10 +437,12 @@ const BUG_FIELDS = [
     "Custom.EstimatedResolutionDate",
 ];
 
-export async function getAllBugFields(): Promise<any[]> {
-    const ids = await getActiveBugIds();
+export async function getAllBugFields(
+    project: string = DEFAULT_PROJECT
+): Promise<any[]> {
+    const ids = await getActiveBugIds(project);
 
-    return getWorkItems(ids, BUG_FIELDS);
+    return getWorkItems(ids, BUG_FIELDS, project);
 }
 
 const STORY_FIELDS = [
@@ -426,8 +451,10 @@ const STORY_FIELDS = [
     "Microsoft.VSTS.Scheduling.StoryPoints",
 ];
 
-export async function getStoriesWithFields(): Promise<any[]> {
-    const response = await azdo.post(
+export async function getStoriesWithFields(
+    project: string = DEFAULT_PROJECT
+): Promise<any[]> {
+    const response = await getAzdo(project).post(
         "/wit/wiql?api-version=7.1",
         {
             query: `
@@ -442,21 +469,24 @@ export async function getStoriesWithFields(): Promise<any[]> {
         (w: { id: number }) => w.id
     );
 
-    return getWorkItems(ids, STORY_FIELDS);
+    return getWorkItems(ids, STORY_FIELDS, project);
 }
 
 export async function getWorkItemRevisions(
-    id: number
+    id: number,
+    project: string = DEFAULT_PROJECT
 ): Promise<any[]> {
-    const response = await azdo.get(
+    const response = await getAzdo(project).get(
         `/wit/workitems/${id}/revisions?api-version=7.1`
     );
 
     return response.data.value;
 }
 
-export async function getStoryCount(): Promise<number> {
-    const response = await azdo.post(
+export async function getStoryCount(
+    project: string = DEFAULT_PROJECT
+): Promise<number> {
+    const response = await getAzdo(project).post(
         "/wit/wiql?api-version=7.1",
         {
             query: `
@@ -477,7 +507,9 @@ export async function getStoryCount(): Promise<number> {
 // System.AssignedTo is returned. The one exception is SKIP_AUTH dev mode,
 // where there is no signed-in user to filter by and the PAT genuinely is the
 // one developer's own personal token, so @Me correctly means "me".
-export async function getActiveWorkItemIds(): Promise<
+export async function getActiveWorkItemIds(
+    project: string = DEFAULT_PROJECT
+): Promise<
     number[]
 > {
     const assignedToMe =
@@ -485,7 +517,7 @@ export async function getActiveWorkItemIds(): Promise<
             ? "AND [System.AssignedTo] = @Me\n          "
             : "";
 
-    const response = await azdo.post(
+    const response = await getAzdo(project).post(
         "/wit/wiql?api-version=7.1",
         {
             query: `
@@ -507,13 +539,15 @@ export async function getActiveWorkItemIds(): Promise<
 // SKIP_AUTH dev mode, where the PAT genuinely belongs to the one developer.
 // Otherwise callers must filter by the real user's identity themselves once
 // System.CreatedBy is returned.
-export async function getCreatedWorkItemIds(): Promise<number[]> {
+export async function getCreatedWorkItemIds(
+    project: string = DEFAULT_PROJECT
+): Promise<number[]> {
     const createdByMe =
         process.env.SKIP_AUTH === "true"
             ? "AND [System.CreatedBy] = @Me\n          "
             : "";
 
-    const response = await azdo.post(
+    const response = await getAzdo(project).post(
         "/wit/wiql?api-version=7.1",
         {
             query: `
@@ -535,9 +569,10 @@ export async function getCreatedWorkItemIds(): Promise<number[]> {
 // requires its own /comments request and scanning every work item in the
 // project would be far too slow.
 export async function getRecentlyChangedWorkItemIds(
-    days: number
+    days: number,
+    project: string = DEFAULT_PROJECT
 ): Promise<number[]> {
-    const response = await azdo.post(
+    const response = await getAzdo(project).post(
         "/wit/wiql?api-version=7.1",
         {
             query: `
@@ -559,9 +594,10 @@ export async function getRecentlyChangedWorkItemIds(
 // Name</a>`. There's no WIQL field to query comment text directly, so each
 // candidate work item's comments must be fetched and scanned individually.
 export async function getCommentMentions(
-    workItemId: number
+    workItemId: number,
+    project: string = DEFAULT_PROJECT
 ): Promise<string[]> {
-    const response = await azdo.get(
+    const response = await getAzdo(project).get(
         `/wit/workitems/${workItemId}/comments?api-version=7.1-preview.4`
     );
 
@@ -606,10 +642,12 @@ export async function getFollowedWorkItemIds(): Promise<
         .filter((id: number) => Number.isInteger(id));
 }
 
-export async function getBugWorkItemTypeStates(): Promise<
+export async function getBugWorkItemTypeStates(
+    project: string = DEFAULT_PROJECT
+): Promise<
     { name: string; color: string; category: string }[]
 > {
-    const response = await azdo.get(
+    const response = await getAzdo(project).get(
         "/wit/workitemtypes/Bug/states?api-version=7.1"
     );
 
@@ -689,22 +727,24 @@ export async function getAreaPaths(
     );
 }
 
-export function buildWorkItemUrl(id: number): string {
+export function buildWorkItemUrl(
+    id: number,
+    project: string = DEFAULT_PROJECT
+): string {
     const org = process.env.AZDO_ORG;
-    const encodedProject = encodeURIComponent(
-        process.env.AZDO_PROJECT!
-    );
+    const encodedProject = encodeURIComponent(project);
 
     return `https://dev.azure.com/${org}/${encodedProject}/_workitems/edit/${id}`;
 }
 
-export function buildTestRunUrl(runId: number): string {
+export function buildTestRunUrl(
+    runId: number,
+    project: string = DEFAULT_PROJECT
+): string {
     const org = process.env.AZDO_ORG;
-    const project = encodeURIComponent(
-        process.env.AZDO_PROJECT!
-    );
+    const encodedProject = encodeURIComponent(project);
 
-    return `https://dev.azure.com/${org}/${project}/_TestManagement/Runs?runId=${runId}&_a=runCharts`;
+    return `https://dev.azure.com/${org}/${encodedProject}/_TestManagement/Runs?runId=${runId}&_a=runCharts`;
 }
 
 export function extractWorkItemIds(

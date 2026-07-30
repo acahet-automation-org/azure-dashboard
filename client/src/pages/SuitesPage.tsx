@@ -10,6 +10,7 @@ import { EmptyState } from "../components/EmptyState";
 import { ExportMenu, type ExportFormat } from "../components/ExportMenu";
 import { fetchSuites } from "../api/client";
 import { exportToCsv, exportToExcel, exportToPdf } from "../utils/export";
+import { useScope } from "../hooks/useScope";
 
 const useStyles = makeStyles({
     toolbar: {
@@ -22,9 +23,11 @@ const useStyles = makeStyles({
 export function SuitesPage() {
     const styles = useStyles();
     const { t } = useTranslation();
+    const scope = useScope();
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["suites"],
-        queryFn: fetchSuites,
+        queryKey: ["suites", scope.project, scope.areaPaths, scope.iterations],
+        queryFn: () => fetchSuites(scope),
+        enabled: scope.isComplete,
     });
 
     const handleExport = (format: ExportFormat) => {
@@ -59,7 +62,11 @@ export function SuitesPage() {
                 />
             </div>
 
-            {isLoading && <LoadingCardGrid />}
+            {!scope.isComplete && (
+                <EmptyState message={t("scopeBar.selectScopePrompt")} />
+            )}
+
+            {scope.isComplete && isLoading && <LoadingCardGrid />}
 
             {isError && (
                 <ErrorState message={error.message} onRetry={refetch} />

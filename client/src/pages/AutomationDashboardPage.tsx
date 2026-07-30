@@ -30,6 +30,7 @@ import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { IterationFilter } from "../components/IterationFilter";
 import { fetchAutomationDashboard, fetchPlans } from "../api/client";
+import { useScope } from "../hooks/useScope";
 import { categoryAxisWidth } from "../utils/chartAxis";
 
 const useStyles = makeStyles({
@@ -62,19 +63,30 @@ export function AutomationDashboardPage() {
         number | undefined
     >(undefined);
     const [iteration, setIteration] = useState("");
+    const scope = useScope();
 
     const { data: plans } = useQuery({
-        queryKey: ["plans"],
-        queryFn: fetchPlans,
+        queryKey: ["plans", scope.project],
+        queryFn: () => fetchPlans(scope),
+        enabled: scope.isComplete,
     });
 
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["automation", selectedPlanId ?? "all", iteration],
+        queryKey: [
+            "automation",
+            selectedPlanId ?? "all",
+            iteration,
+            scope.project,
+            scope.areaPaths,
+            scope.iterations,
+        ],
         queryFn: () =>
             fetchAutomationDashboard(
+                scope,
                 selectedPlanId,
                 iteration || undefined
             ),
+        enabled: scope.isComplete,
     });
 
     const automatedPlanIds = new Set(
@@ -136,7 +148,11 @@ export function AutomationDashboardPage() {
                 </Field>
             </div>
 
-            {isLoading && <LoadingCardGrid />}
+            {!scope.isComplete && (
+                <EmptyState message={t("scopeBar.selectScopePrompt")} />
+            )}
+
+            {scope.isComplete && isLoading && <LoadingCardGrid />}
 
             {isError && (
                 <ErrorState message={error.message} onRetry={refetch} />
