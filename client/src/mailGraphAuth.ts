@@ -56,3 +56,27 @@ async function acquireMailTokenUncached(): Promise<AuthenticationResult> {
 
     return loginResponse;
 }
+
+export function getSignedInMailAccount() {
+    return (
+        mailMsalInstance.getActiveAccount() ??
+        mailMsalInstance.getAllAccounts()[0] ??
+        null
+    );
+}
+
+// Full sign-out (popup navigates to the identity provider's end_session
+// endpoint) rather than just clearing the local MSAL cache - so a
+// subsequent Login doesn't silently SSO back in via the browser's existing
+// Microsoft session.
+export async function signOutOfMail(): Promise<void> {
+    await ensureMailMsalInitialized();
+
+    const account = getSignedInMailAccount();
+
+    if (!account) {
+        return;
+    }
+
+    await mailMsalInstance.logoutPopup({ account });
+}
