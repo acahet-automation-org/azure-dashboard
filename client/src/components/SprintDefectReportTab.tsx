@@ -25,7 +25,12 @@ import { StatusReportCard } from "./StatusReportCard";
 import type { SuiteProgressGroup } from "./StatusReportCard";
 import { fetchPlanOverview, fetchPlans } from "../api/client";
 import { useScope } from "../hooks/useScope";
-import { sendGraphMailReport } from "../api/graphMail";
+import {
+    DEFAULT_REPORT_CC,
+    DEFAULT_REPORT_RECIPIENTS,
+    parseAddressList,
+    sendGraphMailReport,
+} from "../api/graphMail";
 import {
     buildStatusReportCardEmailBodyHtml,
     buildStatusReportCardEmailDocument,
