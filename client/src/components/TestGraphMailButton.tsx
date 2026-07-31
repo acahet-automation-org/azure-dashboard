@@ -1,90 +1,102 @@
-import { useState } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { Button, Spinner, Text } from "@fluentui/react-components";
-import { MailRegular } from "@fluentui/react-icons";
+import { PersonRegular, SignOutRegular } from "@fluentui/react-icons";
 import { useTranslation } from "react-i18next";
-import { acquireMailToken } from "../mailGraphAuth";
-
-type Status = "idle" | "sending" | "sent" | "error";
+import {
+    acquireMailToken,
+    getSignedInMailAccount,
+    signOutOfMail,
+} from "../mailGraphAuth";
+import { ensureMailMsalInitialized } from "../mailMsalInstance";
 
 // Matches TopBar's own error color (rail bar stays dark regardless of
 // light/dark theme, so a theme token here would resolve to the wrong color).
 const ERROR_COLOR = "#ff9b93";
 
-const LABEL_KEY: Record<Status, string> = {
-    idle: "nav.testGraphMail",
-    sending: "nav.testGraphMailSending",
-    sent: "nav.testGraphMailSuccess",
-    error: "nav.testGraphMail",
+type ButtonState = "loggedOut" | "loggingIn" | "loggedIn" | "loggingOut";
+
+const LABEL_KEY: Record<ButtonState, string> = {
+    loggedOut: "nav.testGraphLogin",
+    loggingIn: "nav.testGraphSigningIn",
+    loggedIn: "nav.testGraphLogout",
+    loggingOut: "nav.testGraphSigningOut",
 };
 
-// Sends a fixed test message to the signed-in user's own mailbox via the
-// same delegated Graph app registration used by the report "Send by email"
-// button (see mailGraphAuth.ts/api/graphMail.ts) - handy for confirming the
-// app registration/auth flow still works without generating a real report.
+const ICON: Record<ButtonState, ReactElement> = {
+    loggedOut: <PersonRegular />,
+    loggingIn: <Spinner size="tiny" />,
+    loggedIn: <SignOutRegular />,
+    loggingOut: <Spinner size="tiny" />,
+};
+
+// Toggles sign-in/sign-out against the delegated Graph app registration used
+// by the report "Send by email" button (see mailGraphAuth.ts/api/graphMail.ts)
+// - handy for confirming the app registration/auth flow still works, and for
+// switching accounts, without sending a real (or test) email.
 export function TestGraphMailButton() {
     const { t } = useTranslation();
-    const [status, setStatus] = useState<Status>("idle");
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [isBusy, setIsBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    useEffect(() => {
+        let cancelled = false;
+
+        ensureMailMsalInitialized().then(() => {
+            if (!cancelled) {
+                setIsLoggedIn(getSignedInMailAccount() != null);
+            }
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     const handleClick = async () => {
-        setStatus("sending");
+        setIsBusy(true);
         setError(null);
 
         try {
-            const loginResponse = await acquireMailToken();
-
-            const response = await fetch(
-                "https://graph.microsoft.com/v1.0/me/sendMail",
-                {
-                    method: "POST",
-                    headers: {
-                        Authorization: `Bearer ${loginResponse.accessToken}`,
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        message: {
-                            subject: "Test Email",
-                            body: {
-                                contentType: "Text",
-                                content: "Hello from my frontend app!",
-                            },
-                            toRecipients: [
-                                {
-                                    emailAddress: {
-                                        address: loginResponse.account.username,
-                                    },
-                                },
-                            ],
-                        },
-                    }),
-                }
-            );
-
-            if (!response.ok) {
-                const body = await response.text();
-                throw new Error(`HTTP ${response.status}: ${body}`);
+            if (isLoggedIn) {
+                await signOutOfMail();
+                setIsLoggedIn(false);
+            } else {
+                await acquireMailToken();
+                setIsLoggedIn(true);
             }
-
-            setStatus("sent");
         } catch (err) {
-            setStatus("error");
             setError(err instanceof Error ? err.message : String(err));
+        } finally {
+            setIsBusy(false);
         }
     };
+
+    let buttonState: ButtonState;
+
+    if (isBusy) {
+        buttonState = isLoggedIn ? "loggingOut" : "loggingIn";
+    } else {
+        buttonState = isLoggedIn ? "loggedIn" : "loggedOut";
+    }
+
+    const failedKey = isLoggedIn
+        ? "nav.testGraphLogoutFailed"
+        : "nav.testGraphLoginFailed";
 
     return (
         <>
             <Button
                 appearance="secondary"
-                icon={status === "sending" ? <Spinner size="tiny" /> : <MailRegular />}
-                disabled={status === "sending"}
+                icon={ICON[buttonState]}
+                disabled={isBusy}
                 onClick={handleClick}
             >
-                {t(LABEL_KEY[status])}
+                {t(LABEL_KEY[buttonState])}
             </Button>
-            {status === "error" && error && (
+            {error && (
                 <Text role="alert" style={{ color: ERROR_COLOR }}>
-                    {t("nav.testGraphMailFailed", { message: error })}
+                    {t(failedKey, { message: error })}
                 </Text>
             )}
         </>
