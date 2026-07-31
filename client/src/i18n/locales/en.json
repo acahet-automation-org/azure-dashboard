@@ -31,12 +31,25 @@
         "testGraphMailSuccess": "Test email sent",
         "testGraphMailFailed": "Test email failed: {{message}}",
         "collapseSidebar": "Collapse sidebar",
-        "expandSidebar": "Expand sidebar"
+        "expandSidebar": "Expand sidebar",
+        "switchView": "Switch view"
     },
     "signInPage": {
         "title": "QA Dashboard",
         "subtitle": "Sign in with your Microsoft account to continue.",
         "signIn": "Sign in with Microsoft"
+    },
+    "viewModeSelectPage": {
+        "title": "What would you like to view?",
+        "subtitle": "Choose a view to continue. You can switch later from the sidebar.",
+        "functional": {
+            "title": "Functional Testing",
+            "description": "Test plans, suites, execution, defects and sprint reporting."
+        },
+        "automation": {
+            "title": "Automation (Playwright)",
+            "description": "Automation coverage, pipeline health, flaky tests and common errors."
+        }
     },
     "outcome": {
         "Passed": "Passed",
@@ -188,6 +201,11 @@
             "coverageByModule": "Automation Coverage by Module",
             "flakyTestRanking": "Flaky Test Ranking",
             "pipelineSuccessTrend": "Pipeline Success Trend"
+        },
+        "flakyTable": {
+            "testName": "Test",
+            "flakeCount": "Failures",
+            "lastFailed": "Last Failed"
         }
     },
     "testExecutionPage": {
