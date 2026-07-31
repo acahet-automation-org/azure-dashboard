@@ -51,7 +51,16 @@ async function bootApp() {
 
     await msalInstance.initialize();
 
-    const redirectResponse = await msalInstance.handleRedirectPromise();
+    // A stuck/mismatched redirect state (e.g. session storage cleared mid-flight
+    // during the AAD redirect) makes MSAL throw here. It already clears its own
+    // interaction_in_progress flag when that happens, so the safe recovery is to
+    // swallow the error and boot normally rather than leave the app unrendered.
+    let redirectResponse = null;
+    try {
+        redirectResponse = await msalInstance.handleRedirectPromise();
+    } catch (error) {
+        console.error("Failed to process MSAL redirect response", error);
+    }
 
     if (redirectResponse?.account) {
         msalInstance.setActiveAccount(redirectResponse.account);
