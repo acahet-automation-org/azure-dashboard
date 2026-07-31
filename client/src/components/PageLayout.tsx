@@ -27,7 +27,7 @@ const useStyles = makeStyles({
         marginLeft: SIDEBAR_COLLAPSED_WIDTH,
     },
     content: {
-        maxWidth: "1200px",
+        maxWidth: "clamp(1200px, 92vw, 2200px)",
         width: "100%",
         margin: "0 auto",
         padding: tokens.spacingHorizontalL,

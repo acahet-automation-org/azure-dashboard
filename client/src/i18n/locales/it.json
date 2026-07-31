@@ -180,6 +180,7 @@
     },
     "automationDashboardPage": {
         "title": "Dashboard di Automazione",
+        "subtitle": "Telemetria Live",
         "minutes": "{{value}} min",
         "planFilter": {
             "label": "Piano di Test",
@@ -199,17 +200,66 @@
             "avgPipelineDuration": "Durata Media Pipeline",
             "testExecutionTime": "Tempo di Esecuzione Test"
         },
-        "charts": {
-            "coverageByModule": "Copertura di Automazione per Modulo",
-            "executionSplit": "Automatizzati vs. Manuali",
-            "flakyTestRanking": "Classifica Test Instabili",
-            "pipelineSuccessTrend": "Andamento Successo Pipeline"
+        "summary": {
+            "qualityScore": "Punteggio Qualità",
+            "readiness": "Prontezza",
+            "passRate": "Percentuale di Successo",
+            "autoCoverage": "Copertura Auto",
+            "criticalBugs": "Bug Critici",
+            "criticalBugsSubtitle": "Richiede Azione",
+            "regression": "Regressione",
+            "pipelineSuccess": "Pipeline",
+            "escapedBugs": "Bug Sfuggiti",
+            "escapedBugsSubtitle": "Produzione",
+            "readinessStatus": {
+                "ready": "Pronto",
+                "atRisk": "A Rischio",
+                "blocked": "Bloccato"
+            }
         },
-        "flakyTable": {
+        "charts": {
+            "executionTrend": "Andamento Esecuzione Test",
+            "executionTrendSubtitle": "Ultimi 14 Giorni",
+            "executionStatus": "Stato di Esecuzione",
+            "dailyVelocity": "Velocità di Esecuzione Giornaliera",
+            "dailyVelocitySubtitle": "Test / Giorno",
+            "passRateAndDuration": "Percentuale di Successo & Durata",
+            "defectsBySeverity": "Difetti per Gravità",
+            "moduleRisk": "Rischio per Modulo",
+            "rootCauses": "Cause Principali",
+            "topFailingTests": "Test con Più Fallimenti"
+        },
+        "executionStatusLegend": {
+            "passed": "Superati",
+            "failed": "Falliti",
+            "blocked": "Bloccati",
+            "notRun": "Non Eseguiti"
+        },
+        "riskLevel": {
+            "low": "Basso",
+            "medium": "Medio",
+            "high": "Alto"
+        },
+        "severity": {
+            "critical": "Critica",
+            "high": "Alta",
+            "medium": "Media",
+            "low": "Bassa"
+        },
+        "failingTable": {
             "requiresAttention": "Richiede Attenzione",
+            "viewAll": "Vedi Tutti i Test",
             "testName": "Test",
-            "flakeCount": "Fallimenti",
-            "lastFailed": "Ultimo Fallimento"
+            "module": "Modulo",
+            "failures": "Fallimenti",
+            "lastFailure": "Ultimo Fallimento",
+            "owner": "Team",
+            "status": "Stato",
+            "statusValue": {
+                "critical": "Critico",
+                "warning": "Da Verificare",
+                "ok": "Sotto Controllo"
+            }
         }
     },
     "testExecutionPage": {

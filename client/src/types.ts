@@ -140,19 +140,93 @@ export interface PipelineSuccessTrendPoint {
     successRatePct: number;
 }
 
+export interface ExecutionTrendPoint {
+    date: string;
+    passed: number;
+    failed: number;
+}
+
+export interface ExecutionStatusBreakdown {
+    passedPct: number;
+    failedPct: number;
+    blockedPct: number;
+    notRunPct: number;
+}
+
+export interface DailyVelocityPoint {
+    date: string;
+    executions: number;
+}
+
+export interface DefectsBySeverity {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+}
+
+export type RiskLevel = "low" | "medium" | "high";
+
+export interface ModuleRiskItem {
+    module: string;
+    risk: RiskLevel;
+}
+
+export interface RootCauseItem {
+    label: string;
+    pct: number;
+}
+
+export type FailingTestStatus = "critical" | "warning" | "ok";
+
+export interface TopFailingTestItem {
+    testCaseId: number;
+    testName: string;
+    module: string;
+    failures: number;
+    lastFailedDate?: string;
+    owner: string;
+    status: FailingTestStatus;
+}
+
 export interface AutomationCharts {
     coverageByModule: CoverageByModule[];
     flakyTestRanking: FlakyTestRankItem[];
     pipelineSuccessTrend: PipelineSuccessTrendPoint[];
+    executionTrend: ExecutionTrendPoint[];
+    executionStatusBreakdown: ExecutionStatusBreakdown;
+    dailyVelocity: DailyVelocityPoint[];
+    defectsBySeverity: DefectsBySeverity;
+    moduleRisk: ModuleRiskItem[];
+    rootCauses: RootCauseItem[];
+    topFailingTests: TopFailingTestItem[];
+}
+
+export type ReleaseReadinessStatus = "ready" | "atRisk" | "blocked";
+
+export interface AutomationSummary {
+    qualityScorePct: number;
+    qualityScoreDeltaPct: number;
+    releaseReadiness: ReleaseReadinessStatus;
+    criticalBugsCount: number;
+    regressionCompletionPct: number;
+    escapedDefectsCount: number;
+}
+
+export interface AutomationPlanSummary {
+    id: number;
+    name: string;
 }
 
 export interface AutomationDashboardResponse {
     kpis: AutomationKpis;
     ciCd: CiCdMetrics;
+    summary: AutomationSummary;
     charts: AutomationCharts;
     cacheTimestamp: number;
     planId: number | null;
     automatedPlanIds: number[];
+    automatedPlans: AutomationPlanSummary[];
 }
 
 export interface DashboardStats {
