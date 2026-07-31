@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
@@ -18,13 +18,30 @@ import {
     makeStyles,
     tokens,
 } from "@fluentui/react-components";
-import { ChevronDownRegular } from "@fluentui/react-icons";
+import {
+    ChevronDownRegular,
+    BeakerRegular,
+    PersonRegular,
+    ShieldCheckmarkRegular,
+    CheckmarkCircleRegular,
+    WarningRegular,
+    RocketRegular,
+    DismissCircleRegular,
+    TimerRegular,
+    ClockRegular,
+    ChartMultipleRegular,
+    PulseRegular,
+    ListRegular,
+} from "@fluentui/react-icons";
 import {
     ResponsiveContainer,
     BarChart,
     Bar,
     LineChart,
     Line,
+    PieChart,
+    Pie,
+    Cell,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -40,6 +57,9 @@ import { IterationFilter } from "../components/IterationFilter";
 import { fetchAutomationDashboard, fetchPlans } from "../api/client";
 import { useScope } from "../hooks/useScope";
 import { categoryAxisWidth } from "../utils/chartAxis";
+
+const AUTOMATED_COLOR = "#0078d4";
+const MANUAL_COLOR = "#c4c4c4";
 
 const useStyles = makeStyles({
     filterRow: {
@@ -63,6 +83,10 @@ const useStyles = makeStyles({
         gap: tokens.spacingVerticalXS,
         minWidth: 0,
     },
+    kpiCardBad: {
+        backgroundColor: tokens.colorPaletteRedBackground1,
+        border: `1px solid ${tokens.colorPaletteRedBorder1}`,
+    },
     kpiHeader: {
         display: "flex",
         alignItems: "center",
@@ -76,29 +100,34 @@ const useStyles = makeStyles({
         textTransform: "uppercase",
         letterSpacing: "0.02em",
     },
+    kpiIcon: {
+        display: "flex",
+        flexShrink: 0,
+        fontSize: "16px",
+    },
+    iconGood: {
+        color: tokens.colorPaletteGreenForeground1,
+    },
+    iconWarn: {
+        color: tokens.colorPaletteYellowForeground1,
+    },
+    iconBad: {
+        color: tokens.colorPaletteRedForeground1,
+    },
+    iconNeutral: {
+        color: tokens.colorNeutralForeground3,
+    },
     kpiValue: {
         fontSize: tokens.fontSizeHero700,
         fontWeight: tokens.fontWeightBold,
         lineHeight: tokens.lineHeightHero700,
     },
-    statusDot: {
-        flexShrink: 0,
-        width: "8px",
-        height: "8px",
-        borderRadius: tokens.borderRadiusCircular,
-    },
-    dotGood: {
-        backgroundColor: tokens.colorPaletteGreenForeground1,
-    },
-    dotWarn: {
-        backgroundColor: tokens.colorPaletteYellowForeground1,
-    },
-    dotBad: {
-        backgroundColor: tokens.colorPaletteRedForeground1,
+    kpiValueBad: {
+        color: tokens.colorPaletteRedForeground1,
     },
     chartsGrid: {
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
+        gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
         gap: tokens.spacingHorizontalM,
     },
     tableCard: {
@@ -107,6 +136,44 @@ const useStyles = makeStyles({
         flexDirection: "column",
         gap: tokens.spacingVerticalS,
     },
+    tableHeaderRow: {
+        display: "flex",
+        alignItems: "center",
+        gap: tokens.spacingHorizontalS,
+    },
+    statusDot: {
+        flexShrink: 0,
+        width: "8px",
+        height: "8px",
+        borderRadius: tokens.borderRadiusCircular,
+    },
+    dotBad: {
+        backgroundColor: tokens.colorPaletteRedForeground1,
+    },
+    dotWarn: {
+        backgroundColor: tokens.colorPaletteYellowForeground1,
+    },
+    rowLabel: {
+        display: "flex",
+        alignItems: "center",
+        gap: tokens.spacingHorizontalS,
+    },
+    donutLegend: {
+        display: "flex",
+        justifyContent: "center",
+        gap: tokens.spacingHorizontalL,
+        fontSize: tokens.fontSizeBase200,
+    },
+    legendItem: {
+        display: "flex",
+        alignItems: "center",
+        gap: tokens.spacingHorizontalXS,
+    },
+    legendSwatch: {
+        width: "10px",
+        height: "10px",
+        borderRadius: tokens.borderRadiusCircular,
+    },
 });
 
 type KpiStatus = "good" | "warn" | "bad";
@@ -114,29 +181,37 @@ type KpiStatus = "good" | "warn" | "bad";
 function KpiCard({
     label,
     value,
+    icon,
     status,
 }: {
     label: string;
     value: string | number;
+    icon: ReactNode;
     status?: KpiStatus;
 }) {
     const styles = useStyles();
-    const dotClass =
+    const iconClass =
         status === "good"
-            ? styles.dotGood
+            ? styles.iconGood
             : status === "warn"
-              ? styles.dotWarn
-              : styles.dotBad;
+              ? styles.iconWarn
+              : status === "bad"
+                ? styles.iconBad
+                : styles.iconNeutral;
 
     return (
-        <Card className={styles.kpiCard}>
+        <Card
+            className={`${styles.kpiCard} ${status === "bad" ? styles.kpiCardBad : ""}`}
+        >
             <div className={styles.kpiHeader}>
                 <span className={styles.kpiLabel}>{label}</span>
-                {status && (
-                    <span className={`${styles.statusDot} ${dotClass}`} />
-                )}
+                <span className={`${styles.kpiIcon} ${iconClass}`}>{icon}</span>
             </div>
-            <span className={styles.kpiValue}>{value}</span>
+            <span
+                className={`${styles.kpiValue} ${status === "bad" ? styles.kpiValueBad : ""}`}
+            >
+                {value}
+            </span>
         </Card>
     );
 }
@@ -189,6 +264,13 @@ export function AutomationDashboardPage() {
 
     const hasNoAutomatedTests =
         Boolean(data) && data!.kpis.automatedTests === 0;
+
+    const splitChartData = data
+        ? [
+              { name: t("automationDashboardPage.kpis.automatedTests"), value: data.kpis.automatedTests, color: AUTOMATED_COLOR },
+              { name: t("automationDashboardPage.kpis.manualTests"), value: data.kpis.manualTests, color: MANUAL_COLOR },
+          ].filter((entry) => entry.value > 0)
+        : [];
 
     return (
         <PageLayout title={t("automationDashboardPage.title")}>
@@ -248,14 +330,17 @@ export function AutomationDashboardPage() {
                 <>
                     <div className={styles.kpiGrid}>
                         <KpiCard
+                            icon={<BeakerRegular />}
                             label={t("automationDashboardPage.kpis.automatedTests")}
                             value={data.kpis.automatedTests}
                         />
                         <KpiCard
+                            icon={<PersonRegular />}
                             label={t("automationDashboardPage.kpis.manualTests")}
                             value={data.kpis.manualTests}
                         />
                         <KpiCard
+                            icon={<ShieldCheckmarkRegular />}
                             label={t("automationDashboardPage.kpis.automationCoveragePct")}
                             value={`${data.kpis.automationCoveragePct}%`}
                             status={
@@ -267,6 +352,7 @@ export function AutomationDashboardPage() {
                             }
                         />
                         <KpiCard
+                            icon={<CheckmarkCircleRegular />}
                             label={t("automationDashboardPage.kpis.automationSuccessRate")}
                             value={`${data.kpis.automationSuccessRatePct}%`}
                             status={
@@ -278,6 +364,7 @@ export function AutomationDashboardPage() {
                             }
                         />
                         <KpiCard
+                            icon={<WarningRegular />}
                             label={t("automationDashboardPage.kpis.flakyTests")}
                             value={data.kpis.flakyTestsCount}
                             status={
@@ -289,6 +376,7 @@ export function AutomationDashboardPage() {
                             }
                         />
                         <KpiCard
+                            icon={<RocketRegular />}
                             label={t("automationDashboardPage.ciCd.pipelineSuccessRate")}
                             value={`${data.ciCd.pipelineSuccessRatePct}%`}
                             status={
@@ -300,16 +388,19 @@ export function AutomationDashboardPage() {
                             }
                         />
                         <KpiCard
+                            icon={<DismissCircleRegular />}
                             label={t("automationDashboardPage.ciCd.pipelineFailureRate")}
                             value={`${data.ciCd.pipelineFailureRatePct}%`}
                         />
                         <KpiCard
+                            icon={<TimerRegular />}
                             label={t("automationDashboardPage.ciCd.avgPipelineDuration")}
                             value={t("automationDashboardPage.minutes", {
                                 value: data.ciCd.avgPipelineDurationMinutes,
                             })}
                         />
                         <KpiCard
+                            icon={<ClockRegular />}
                             label={t("automationDashboardPage.ciCd.testExecutionTime")}
                             value={t("automationDashboardPage.minutes", {
                                 value: data.ciCd.testExecutionTimeMinutes,
@@ -319,29 +410,76 @@ export function AutomationDashboardPage() {
 
                     <div className={styles.chartsGrid}>
                         {hasNoAutomatedTests ? (
-                            <ChartCard title={t("automationDashboardPage.charts.coverageByModule")}>
+                            <ChartCard
+                                icon={<ChartMultipleRegular />}
+                                title={t("automationDashboardPage.charts.coverageByModule")}
+                            >
                                 <EmptyState
                                     message={t("automationDashboardPage.emptyForPlan")}
                                 />
                             </ChartCard>
                         ) : (
-                            <ChartCard title={t("automationDashboardPage.charts.coverageByModule")}>
-                                <ResponsiveContainer width="100%" height={280}>
+                            <ChartCard
+                                icon={<ChartMultipleRegular />}
+                                title={t("automationDashboardPage.charts.coverageByModule")}
+                            >
+                                <ResponsiveContainer width="100%" height={260}>
                                     <BarChart data={data.charts.coverageByModule}>
                                         <CartesianGrid strokeDasharray="3 3" />
                                         <XAxis dataKey="module" />
                                         <YAxis />
                                         <Tooltip />
                                         <Legend />
-                                        <Bar dataKey="automated" stackId="tests" fill="#0078d4" />
-                                        <Bar dataKey="manual" stackId="tests" fill="#c4c4c4" />
+                                        <Bar dataKey="automated" stackId="tests" fill={AUTOMATED_COLOR} />
+                                        <Bar dataKey="manual" stackId="tests" fill={MANUAL_COLOR} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </ChartCard>
                         )}
 
-                        <ChartCard title={t("automationDashboardPage.charts.pipelineSuccessTrend")}>
-                            <ResponsiveContainer width="100%" height={280}>
+                        {splitChartData.length > 0 && (
+                            <ChartCard
+                                icon={<PulseRegular />}
+                                title={t("automationDashboardPage.charts.executionSplit")}
+                            >
+                                <ResponsiveContainer width="100%" height={200}>
+                                    <PieChart>
+                                        <Pie
+                                            data={splitChartData}
+                                            dataKey="value"
+                                            nameKey="name"
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={50}
+                                            outerRadius={85}
+                                            paddingAngle={2}
+                                        >
+                                            {splitChartData.map((entry) => (
+                                                <Cell key={entry.name} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                                <div className={styles.donutLegend}>
+                                    {splitChartData.map((entry) => (
+                                        <span key={entry.name} className={styles.legendItem}>
+                                            <span
+                                                className={styles.legendSwatch}
+                                                style={{ backgroundColor: entry.color }}
+                                            />
+                                            {entry.name}
+                                        </span>
+                                    ))}
+                                </div>
+                            </ChartCard>
+                        )}
+
+                        <ChartCard
+                            icon={<RocketRegular />}
+                            title={t("automationDashboardPage.charts.pipelineSuccessTrend")}
+                        >
+                            <ResponsiveContainer width="100%" height={260}>
                                 <LineChart data={data.charts.pipelineSuccessTrend}>
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="date" tick={{ fontSize: 11 }} />
@@ -359,8 +497,11 @@ export function AutomationDashboardPage() {
                         </ChartCard>
 
                         {!hasNoAutomatedTests && (
-                            <ChartCard title={t("automationDashboardPage.charts.flakyTestRanking")}>
-                                <ResponsiveContainer width="100%" height={280}>
+                            <ChartCard
+                                icon={<WarningRegular />}
+                                title={t("automationDashboardPage.charts.flakyTestRanking")}
+                            >
+                                <ResponsiveContainer width="100%" height={260}>
                                     <BarChart
                                         data={data.charts.flakyTestRanking}
                                         layout="vertical"
@@ -388,9 +529,15 @@ export function AutomationDashboardPage() {
 
                     {!hasNoAutomatedTests && data.charts.flakyTestRanking.length > 0 && (
                         <Card className={styles.tableCard}>
-                            <Title3 as="h3">
-                                {t("automationDashboardPage.charts.flakyTestRanking")}
-                            </Title3>
+                            <div className={styles.tableHeaderRow}>
+                                <ListRegular />
+                                <Title3 as="h3">
+                                    {t("automationDashboardPage.charts.flakyTestRanking")}
+                                </Title3>
+                                <Badge color="danger" appearance="tint">
+                                    {t("automationDashboardPage.flakyTable.requiresAttention")}
+                                </Badge>
+                            </div>
                             <Table
                                 aria-label={t(
                                     "automationDashboardPage.charts.flakyTestRanking"
@@ -412,7 +559,18 @@ export function AutomationDashboardPage() {
                                 <TableBody>
                                     {data.charts.flakyTestRanking.map((item) => (
                                         <TableRow key={item.testCaseId}>
-                                            <TableCell>{item.testName}</TableCell>
+                                            <TableCell>
+                                                <span className={styles.rowLabel}>
+                                                    <span
+                                                        className={`${styles.statusDot} ${
+                                                            item.flakeCount >= 5
+                                                                ? styles.dotBad
+                                                                : styles.dotWarn
+                                                        }`}
+                                                    />
+                                                    {item.testName}
+                                                </span>
+                                            </TableCell>
                                             <TableCell>
                                                 <Badge
                                                     color={

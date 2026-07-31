@@ -201,10 +201,12 @@
         },
         "charts": {
             "coverageByModule": "Automation Coverage by Module",
+            "executionSplit": "Automated vs. Manual",
             "flakyTestRanking": "Flaky Test Ranking",
             "pipelineSuccessTrend": "Pipeline Success Trend"
         },
         "flakyTable": {
+            "requiresAttention": "Requires Attention",
             "testName": "Test",
             "flakeCount": "Failures",
             "lastFailed": "Last Failed"

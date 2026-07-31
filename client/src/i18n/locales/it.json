@@ -201,10 +201,12 @@
         },
         "charts": {
             "coverageByModule": "Copertura di Automazione per Modulo",
+            "executionSplit": "Automatizzati vs. Manuali",
             "flakyTestRanking": "Classifica Test Instabili",
             "pipelineSuccessTrend": "Andamento Successo Pipeline"
         },
         "flakyTable": {
+            "requiresAttention": "Richiede Attenzione",
             "testName": "Test",
             "flakeCount": "Fallimenti",
             "lastFailed": "Ultimo Fallimento"
