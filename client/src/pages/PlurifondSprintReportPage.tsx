@@ -23,18 +23,18 @@ const useStyles = makeStyles({
     },
 });
 
-// Plurifond bugs are always scoped to these three suites (matched on the
-// bug's Custom.Suite field, same as the org-wide Sprint Report's suite
-// filter) - fixed rather than user-editable, so "suites" is left out of the
-// DefectFilterBar fields below.
-const PLURIFOND_BUG_SUITES = ["Tranche 1", "Tranche 2", "Tranche 3"];
+// Plurifond bugs default to these three suites (matched on the bug's
+// Custom.Suite field, same as the org-wide Sprint Report's suite filter),
+// but the selection is user-editable via the "suites" field on the
+// DefectFilterBar below, same as SprintReportPage.
+const DEFAULT_BUG_SUITES = ["Tranche 1", "Tranche 2", "Tranche 3"];
 
 const EMPTY_FILTERS: DefectFilters = {
     iteration: "",
     area: "",
     environment: "",
     targetVersion: "",
-    suites: PLURIFOND_BUG_SUITES,
+    suites: DEFAULT_BUG_SUITES,
 };
 
 // Plurifond Sprint 1 only tracks Test Factory for now - the whole plan
@@ -84,7 +84,7 @@ export function PlurifondSprintReportPage() {
                             availableFilters={data.stats.availableFilters}
                             filters={filters}
                             onChange={setFilters}
-                            fields={["iteration", "area"]}
+                            fields={["iteration", "area", "suites"]}
                         />
 
                         <IterationFilter
