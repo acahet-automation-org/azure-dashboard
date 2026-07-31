@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useIsRestrictedOwner } from "../../hooks/useIsRestrictedOwner";
 import { useScope } from "../../hooks/useScope";
+import { useViewMode } from "../../hooks/useViewMode";
 import {
     Button,
     Text,
@@ -18,7 +18,7 @@ import {
     ClipboardTaskListLtrRegular,
     DocumentBulletListRegular,
     ArrowTrendingRegular,
-    RocketRegular,
+    ArrowSwapRegular,
     GaugeRegular,
     ErrorCircleRegular,
     PlayRegular,
@@ -29,7 +29,6 @@ import {
     FlagRegular,
     ChevronLeftRegular,
     ChevronRightRegular,
-    ChevronDownRegular,
     type FluentIcon,
 } from "@fluentui/react-icons";
 import { useTranslation } from "react-i18next";
@@ -159,23 +158,15 @@ const useStyles = makeStyles({
         whiteSpace: "nowrap",
         flexGrow: 1,
     },
-    groupChildren: {
-        display: "flex",
-        flexDirection: "column",
-        gap: tokens.spacingVerticalXXS,
-        paddingLeft: tokens.spacingHorizontalXL,
-    },
-    groupChevron: {
-        display: "flex",
-        alignItems: "center",
-        transitionProperty: "transform",
-        transitionDuration: tokens.durationFast,
-    },
-    groupChevronOpen: {
-        transform: "rotate(0deg)",
-    },
-    groupChevronClosed: {
-        transform: "rotate(-90deg)",
+    switchViewButton: {
+        color: RAIL_FG,
+        width: "100%",
+        justifyContent: "flex-start",
+        gap: tokens.spacingHorizontalS,
+        ":hover": {
+            color: RAIL_FG_ACTIVE,
+            backgroundColor: "rgba(255, 255, 255, 0.06)",
+        },
     },
     badge: {
         flexShrink: 0,
@@ -244,8 +235,6 @@ const AUTOMATION_ITEMS: NavItem[] = [
     { key: "automation-dashboard", labelKey: "nav.automationDashboard", to: "/automation-dashboard", icon: GaugeRegular },
     { key: "common-errors", labelKey: "nav.commonErrors", to: "/common-errors", icon: ErrorCircleRegular },
 ];
-
-const AUTOMATION_PATHS = AUTOMATION_ITEMS.map((item) => item.to);
 
 const RESTRICTED_ITEM_KEYS = new Set(["plan-progress", "remove-test-cases"]);
 
@@ -322,68 +311,6 @@ function NavRow({
     );
 }
 
-// A native <button> rather than Fluent's <Button> - Button brings its own
-// root padding/min-height/line-height that fought .navItem's sizing and
-// made this row render smaller/misaligned next to the NavLink-based rows
-// above it, since .navItem is a full CSS reset built to stand on its own.
-function AutomationToggle({
-    collapsed,
-    active,
-    open,
-    onToggle,
-}: {
-    collapsed: boolean;
-    active: boolean;
-    open: boolean;
-    onToggle: () => void;
-}) {
-    const styles = useStyles();
-    const { t } = useTranslation();
-    const label = t("nav.automation");
-
-    const row = (
-        <button
-            type="button"
-            className={mergeClasses(styles.navItem, active && styles.navItemActive)}
-            onClick={onToggle}
-            aria-expanded={open}
-        >
-            <span
-                className={mergeClasses(
-                    styles.navIndicator,
-                    active && styles.navIndicatorActive
-                )}
-            />
-            <span className={styles.navIcon}>
-                <RocketRegular />
-            </span>
-            {!collapsed && (
-                <>
-                    <span className={styles.navLabel}>{label}</span>
-                    <span
-                        className={mergeClasses(
-                            styles.groupChevron,
-                            open ? styles.groupChevronOpen : styles.groupChevronClosed
-                        )}
-                    >
-                        <ChevronDownRegular />
-                    </span>
-                </>
-            )}
-        </button>
-    );
-
-    if (!collapsed) {
-        return row;
-    }
-
-    return (
-        <Tooltip content={label} relationship="label" positioning="after">
-            {row}
-        </Tooltip>
-    );
-}
-
 export function Sidebar({
     collapsed,
     onToggleCollapse,
@@ -393,21 +320,18 @@ export function Sidebar({
 }) {
     const styles = useStyles();
     const { t } = useTranslation();
-    const location = useLocation();
     const isRestrictedOwner = useIsRestrictedOwner();
     const visibleMainItems = MAIN_ITEMS.filter(
         (item) => isRestrictedOwner || !RESTRICTED_ITEM_KEYS.has(item.key)
     );
-    const [automationOpen, setAutomationOpen] = useState(
-        AUTOMATION_PATHS.includes(location.pathname)
-    );
 
     const scope = useScope();
+    const { mode, setMode } = useViewMode();
 
     const { data: badges } = useQuery({
         queryKey: ["nav-badges", scope.project, scope.areaPaths, scope.iterations],
         queryFn: () => fetchNavBadges(scope),
-        enabled: scope.isComplete,
+        enabled: scope.isComplete && mode !== "automation",
         staleTime: 5 * 60 * 1000,
     });
 
@@ -461,6 +385,16 @@ export function Sidebar({
                             collapsed={collapsed}
                         />
                     </>
+                ) : mode === "automation" ? (
+                    <>
+                        {AUTOMATION_ITEMS.map((item) => (
+                            <NavRow
+                                key={item.key}
+                                item={item}
+                                collapsed={collapsed}
+                            />
+                        ))}
+                    </>
                 ) : (
                     <>
                         {visibleMainItems.map((item) => (
@@ -476,50 +410,40 @@ export function Sidebar({
                             />
                         ))}
 
-                        <AutomationToggle
-                            collapsed={collapsed}
-                            active={AUTOMATION_PATHS.includes(location.pathname)}
-                            open={automationOpen}
-                            onToggle={() => setAutomationOpen((open) => !open)}
-                        />
-
-                        {!collapsed && automationOpen && (
-                            <div className={styles.groupChildren}>
-                                {AUTOMATION_ITEMS.map((item) => (
-                                    <NavRow
-                                        key={item.key}
-                                        item={item}
-                                        collapsed={collapsed}
-                                    />
-                                ))}
-                            </div>
+                        {releaseReadinessEnabled && (
+                            <NavRow
+                                item={{
+                                    key: "release-readiness",
+                                    labelKey: "nav.releaseReadiness",
+                                    to: "/release-readiness",
+                                    icon: FlagRegular,
+                                }}
+                                collapsed={collapsed}
+                            />
                         )}
-
-                        {collapsed &&
-                            AUTOMATION_ITEMS.map((item) => (
-                                <NavRow
-                                    key={item.key}
-                                    item={item}
-                                    collapsed={collapsed}
-                                />
-                            ))}
                     </>
-                )}
-
-                {releaseReadinessEnabled && (
-                    <NavRow
-                        item={{
-                            key: "release-readiness",
-                            labelKey: "nav.releaseReadiness",
-                            to: "/release-readiness",
-                            icon: FlagRegular,
-                        }}
-                        collapsed={collapsed}
-                    />
                 )}
             </div>
 
             <div className={styles.footer}>
+                {!showOnlyDefectAndRelease && mode && (
+                    <Tooltip
+                        content={t("nav.switchView")}
+                        relationship="label"
+                        positioning="after"
+                    >
+                        <Button
+                            appearance="transparent"
+                            className={styles.switchViewButton}
+                            icon={<ArrowSwapRegular />}
+                            aria-label={t("nav.switchView")}
+                            onClick={() => setMode(null)}
+                        >
+                            {!collapsed && t("nav.switchView")}
+                        </Button>
+                    </Tooltip>
+                )}
+
                 <Tooltip
                     content={t(
                         collapsed ? "nav.expandSidebar" : "nav.collapseSidebar"

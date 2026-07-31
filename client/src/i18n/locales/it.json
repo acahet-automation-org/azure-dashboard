@@ -33,12 +33,25 @@
         "testGraphLoginFailed": "Accesso non riuscito: {{message}}",
         "testGraphLogoutFailed": "Disconnessione non riuscita: {{message}}",
         "collapseSidebar": "Comprimi barra laterale",
-        "expandSidebar": "Espandi barra laterale"
+        "expandSidebar": "Espandi barra laterale",
+        "switchView": "Cambia vista"
     },
     "signInPage": {
         "title": "QA Dashboard",
         "subtitle": "Accedi con il tuo account Microsoft per continuare.",
         "signIn": "Accedi con Microsoft"
+    },
+    "viewModeSelectPage": {
+        "title": "Cosa vuoi visualizzare?",
+        "subtitle": "Scegli una vista per continuare. Potrai cambiarla in seguito dalla barra laterale.",
+        "functional": {
+            "title": "Test Funzionali",
+            "description": "Piani di test, suite, esecuzione, difetti e report di sprint."
+        },
+        "automation": {
+            "title": "Automazione (Playwright)",
+            "description": "Copertura di automazione, salute della pipeline, test instabili ed errori comuni."
+        }
     },
     "outcome": {
         "Passed": "Passed",
@@ -190,6 +203,11 @@
             "coverageByModule": "Copertura di Automazione per Modulo",
             "flakyTestRanking": "Classifica Test Instabili",
             "pipelineSuccessTrend": "Andamento Successo Pipeline"
+        },
+        "flakyTable": {
+            "testName": "Test",
+            "flakeCount": "Fallimenti",
+            "lastFailed": "Ultimo Fallimento"
         }
     },
     "testExecutionPage": {

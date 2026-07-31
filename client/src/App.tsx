@@ -3,8 +3,13 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthenticatedTemplate, UnauthenticatedTemplate } from "@azure/msal-react";
 import { Spinner } from "@fluentui/react-components";
 import { SignInPage } from "./pages/SignInPage";
+import { ViewModeSelectPage } from "./pages/ViewModeSelectPage";
 import { useIsRestrictedOwner } from "./hooks/useIsRestrictedOwner";
 import { ScopeProvider } from "./hooks/ScopeProvider";
+import { useScope } from "./hooks/useScope";
+import { ViewModeProvider } from "./hooks/ViewModeProvider";
+import { useViewMode } from "./hooks/useViewMode";
+import type { ViewMode } from "./hooks/viewModeContext";
 
 const SuitesPage = lazy(() => import("./pages/SuitesPage").then((m) => ({ default: m.SuitesPage })));
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
@@ -54,6 +59,26 @@ function RestrictedRoute({ children }: { children: ReactNode }) {
     return <>{children}</>;
 }
 
+// Keeps a typed/bookmarked URL from crossing into the other view - once a
+// mode is chosen (see ViewModeSelectPage), only its own routes are
+// reachable. `mode` is null before the picker has ever been shown (no
+// project selected yet), so routes stay open during that pre-gate state
+// rather than redirecting in a loop.
+function ModeRoute({ allow, children }: { allow: ViewMode; children: ReactNode }) {
+    const { mode } = useViewMode();
+
+    if (mode && mode !== allow) {
+        return (
+            <Navigate
+                to={mode === "automation" ? "/automation-dashboard" : "/"}
+                replace
+            />
+        );
+    }
+
+    return <>{children}</>;
+}
+
 function PageFallback() {
     return (
         <div style={{ display: "flex", justifyContent: "center", padding: "48px" }}>
@@ -74,6 +99,8 @@ const showOnlyDefectAndRelease =
     import.meta.env.VITE_SHOW_ONLY_DEFECT_AND_RELEASE === "true";
 
 function AppRoutes() {
+    const { mode } = useViewMode();
+
     return (
         <Suspense fallback={<PageFallback />}>
             <Routes>
@@ -91,39 +118,140 @@ function AppRoutes() {
                     </>
                 ) : (
                     <>
-                        <Route path="/" element={<SuitesPage />} />
-                        <Route path="/dashboard" element={<DashboardPage />} />
-                        <Route path="/last-10-runs" element={<RunsPage />} />
-                        <Route path="/plans" element={<PlansPage />} />
-                        <Route path="/plans/:planId" element={<PlanDetailPage />} />
-                        <Route path="/plan-overview" element={<PlanOverviewPage />} />
+                        <Route
+                            path="/"
+                            element={
+                                mode === "automation" ? (
+                                    <Navigate to="/automation-dashboard" replace />
+                                ) : (
+                                    <SuitesPage />
+                                )
+                            }
+                        />
+                        <Route
+                            path="/dashboard"
+                            element={
+                                <ModeRoute allow="functional">
+                                    <DashboardPage />
+                                </ModeRoute>
+                            }
+                        />
+                        <Route
+                            path="/last-10-runs"
+                            element={
+                                <ModeRoute allow="functional">
+                                    <RunsPage />
+                                </ModeRoute>
+                            }
+                        />
+                        <Route
+                            path="/plans"
+                            element={
+                                <ModeRoute allow="functional">
+                                    <PlansPage />
+                                </ModeRoute>
+                            }
+                        />
+                        <Route
+                            path="/plans/:planId"
+                            element={
+                                <ModeRoute allow="functional">
+                                    <PlanDetailPage />
+                                </ModeRoute>
+                            }
+                        />
+                        <Route
+                            path="/plan-overview"
+                            element={
+                                <ModeRoute allow="functional">
+                                    <PlanOverviewPage />
+                                </ModeRoute>
+                            }
+                        />
                         <Route
                             path="/plan-progress"
                             element={
-                                <RestrictedRoute>
-                                    <PlanProgressPage />
-                                </RestrictedRoute>
+                                <ModeRoute allow="functional">
+                                    <RestrictedRoute>
+                                        <PlanProgressPage />
+                                    </RestrictedRoute>
+                                </ModeRoute>
                             }
                         />
-                        <Route path="/automation-dashboard" element={<AutomationDashboardPage />} />
-                        <Route path="/test-execution" element={<TestExecutionPage />} />
-                        <Route path="/defects" element={<DefectManagementPage />} />
-                        <Route path="/sprint-report" element={<SprintReportPage />} />
-                        <Route path="/plurifond-sprint-report" element={<PlurifondSprintReportPage />} />
-                        <Route path="/common-errors" element={<CommonErrorsPage />} />
-                        <Route path="/my-work-items" element={<MyWorkItemsPage />} />
+                        <Route
+                            path="/automation-dashboard"
+                            element={
+                                <ModeRoute allow="automation">
+                                    <AutomationDashboardPage />
+                                </ModeRoute>
+                            }
+                        />
+                        <Route
+                            path="/test-execution"
+                            element={
+                                <ModeRoute allow="functional">
+                                    <TestExecutionPage />
+                                </ModeRoute>
+                            }
+                        />
+                        <Route
+                            path="/defects"
+                            element={
+                                <ModeRoute allow="functional">
+                                    <DefectManagementPage />
+                                </ModeRoute>
+                            }
+                        />
+                        <Route
+                            path="/sprint-report"
+                            element={
+                                <ModeRoute allow="functional">
+                                    <SprintReportPage />
+                                </ModeRoute>
+                            }
+                        />
+                        <Route
+                            path="/plurifond-sprint-report"
+                            element={
+                                <ModeRoute allow="functional">
+                                    <PlurifondSprintReportPage />
+                                </ModeRoute>
+                            }
+                        />
+                        <Route
+                            path="/common-errors"
+                            element={
+                                <ModeRoute allow="automation">
+                                    <CommonErrorsPage />
+                                </ModeRoute>
+                            }
+                        />
+                        <Route
+                            path="/my-work-items"
+                            element={
+                                <ModeRoute allow="functional">
+                                    <MyWorkItemsPage />
+                                </ModeRoute>
+                            }
+                        />
                         <Route
                             path="/remove-test-cases"
                             element={
-                                <RestrictedRoute>
-                                    <RemoveTestCasesPage />
-                                </RestrictedRoute>
+                                <ModeRoute allow="functional">
+                                    <RestrictedRoute>
+                                        <RemoveTestCasesPage />
+                                    </RestrictedRoute>
+                                </ModeRoute>
                             }
                         />
                         {releaseReadinessEnabled && (
                             <Route
                                 path="/release-readiness"
-                                element={<ReleaseReadinessPage />}
+                                element={
+                                    <ModeRoute allow="functional">
+                                        <ReleaseReadinessPage />
+                                    </ModeRoute>
+                                }
                             />
                         )}
                     </>
@@ -133,11 +261,28 @@ function AppRoutes() {
     );
 }
 
+// Once a project is selected (see ScopeBar), gate the app behind the
+// Functional/Automation choice until one is made - showOnlyDefectAndRelease
+// locks the app to a single fixed view already, so that mode has no picker
+// to show.
+function AppGate() {
+    const scope = useScope();
+    const { mode } = useViewMode();
+
+    if (!showOnlyDefectAndRelease && scope.isComplete && !mode) {
+        return <ViewModeSelectPage />;
+    }
+
+    return <AppRoutes />;
+}
+
 function App() {
     if (skipAuth) {
         return (
             <ScopeProvider>
-                <AppRoutes />
+                <ViewModeProvider>
+                    <AppGate />
+                </ViewModeProvider>
             </ScopeProvider>
         );
     }
@@ -146,7 +291,9 @@ function App() {
         <>
             <AuthenticatedTemplate>
                 <ScopeProvider>
-                    <AppRoutes />
+                    <ViewModeProvider>
+                        <AppGate />
+                    </ViewModeProvider>
                 </ScopeProvider>
             </AuthenticatedTemplate>
 
