@@ -80,6 +80,10 @@ function AppRoutes() {
                     <>
                         <Route path="/defects" element={<DefectManagementPage />} />
                         <Route path="/sprint-report" element={<SprintReportPage />} />
+                        <Route
+                            path="/plurifond-sprint-report"
+                            element={<PlurifondSprintReportPage />}
+                        />
                         {releaseReadinessEnabled && (
                             <Route
                                 path="/release-readiness"

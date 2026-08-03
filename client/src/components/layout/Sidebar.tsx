@@ -456,6 +456,14 @@ export function Sidebar({
                             }
                             collapsed={collapsed}
                         />
+                        <NavRow
+                            item={
+                                MAIN_ITEMS.find(
+                                    (item) => item.key === "plurifond-sprint-report"
+                                )!
+                            }
+                            collapsed={collapsed}
+                        />
                     </>
                 ) : (
                     <>

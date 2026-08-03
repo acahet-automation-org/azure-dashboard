@@ -422,9 +422,9 @@
                     "reopenedBugs": "Bug riaperti ({{percent}}%)",
                     "avgClosureTime": "Tempo medio chiusura\nbug (gg)",
                     "effectiveBugsDetected": "Bug Effettivi Rilevati",
-                    "outOfScopeBugsDetected": "Bug Out of Scope",
+                    "outOfScopeBugsDetected": "Bug Out of Scope\n(afferente a funzionalità non ancora rilasciate)",
                     "withoutResolutionDate": "Bug Senza Data di Risoluzione",
-                    "notApplicableRate": "Casi di Test N/A"
+                    "notApplicableRate": "Casi di Test\nNon Applicabili\n('Not applicable')"
                 },
                 "originBreakdown": {
                     "title": "Bug per Suite",
