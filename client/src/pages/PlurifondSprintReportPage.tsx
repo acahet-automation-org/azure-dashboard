@@ -25,7 +25,7 @@ const useStyles = makeStyles({
 // bug's Custom.Suite field, same as the org-wide Sprint Report's suite
 // filter) - fixed rather than user-editable, so "suites" is left out of the
 // DefectFilterBar fields below.
-const PLURIFOND_BUG_SUITES = ["Tranche 1"];
+const PLURIFOND_BUG_SUITES = ["Tranche 1", "Tranche 2"];
 
 const EMPTY_FILTERS: DefectFilters = {
     iteration: "",
