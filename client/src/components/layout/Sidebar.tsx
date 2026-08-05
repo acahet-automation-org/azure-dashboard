@@ -33,6 +33,7 @@ import {
 } from "@fluentui/react-icons";
 import { useTranslation } from "react-i18next";
 import { fetchNavBadges } from "../../api/client";
+import { useScope } from "../../hooks/useScope";
 import {
     SIDEBAR_WIDTH,
     SIDEBAR_COLLAPSED_WIDTH,
@@ -235,6 +236,7 @@ const MAIN_ITEMS: NavItem[] = [
     { key: "defects", labelKey: "nav.defects", to: "/defects", icon: BugRegular },
     { key: "sprint-report", labelKey: "nav.sprintReport", to: "/sprint-report", icon: DocumentTextRegular },
     { key: "plurifond-sprint-report", labelKey: "nav.plurifondSprintReport", to: "/plurifond-sprint-report", icon: DocumentTextRegular },
+    { key: "dynamic-sprint-report", labelKey: "nav.dynamicSprintReport", to: "/dynamic-sprint-report", icon: DocumentTextRegular },
     { key: "my-work-items", labelKey: "nav.myWorkItems", to: "/my-work-items", icon: PersonRegular },
     { key: "remove-test-cases", labelKey: "nav.removeTestCases", to: "/remove-test-cases", icon: DeleteRegular },
 ];
@@ -401,10 +403,13 @@ export function Sidebar({
         AUTOMATION_PATHS.includes(location.pathname)
     );
 
+    const scope = useScope();
+
     const { data: badges } = useQuery({
-        queryKey: ["nav-badges"],
-        queryFn: fetchNavBadges,
+        queryKey: ["nav-badges", scope.project],
+        queryFn: () => fetchNavBadges(scope.project),
         staleTime: 5 * 60 * 1000,
+        enabled: scope.isComplete,
     });
 
     const defectBadgeCount = badges?.openCriticalHighDefects ?? 0;
@@ -460,6 +465,14 @@ export function Sidebar({
                             item={
                                 MAIN_ITEMS.find(
                                     (item) => item.key === "plurifond-sprint-report"
+                                )!
+                            }
+                            collapsed={collapsed}
+                        />
+                        <NavRow
+                            item={
+                                MAIN_ITEMS.find(
+                                    (item) => item.key === "dynamic-sprint-report"
                                 )!
                             }
                             collapsed={collapsed}

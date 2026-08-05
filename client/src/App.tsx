@@ -31,6 +31,9 @@ const SprintReportPage = lazy(() =>
 const PlurifondSprintReportPage = lazy(() =>
     import("./pages/PlurifondSprintReportPage").then((m) => ({ default: m.PlurifondSprintReportPage }))
 );
+const DynamicSprintReportPage = lazy(() =>
+    import("./pages/DynamicSprintReportPage").then((m) => ({ default: m.DynamicSprintReportPage }))
+);
 const CommonErrorsPage = lazy(() => import("./pages/CommonErrorsPage").then((m) => ({ default: m.CommonErrorsPage })));
 const MyWorkItemsPage = lazy(() => import("./pages/MyWorkItemsPage").then((m) => ({ default: m.MyWorkItemsPage })));
 const RemoveTestCasesPage = lazy(() =>
@@ -84,6 +87,10 @@ function AppRoutes() {
                             path="/plurifond-sprint-report"
                             element={<PlurifondSprintReportPage />}
                         />
+                        <Route
+                            path="/dynamic-sprint-report"
+                            element={<DynamicSprintReportPage />}
+                        />
                         {releaseReadinessEnabled && (
                             <Route
                                 path="/release-readiness"
@@ -113,6 +120,7 @@ function AppRoutes() {
                         <Route path="/defects" element={<DefectManagementPage />} />
                         <Route path="/sprint-report" element={<SprintReportPage />} />
                         <Route path="/plurifond-sprint-report" element={<PlurifondSprintReportPage />} />
+                        <Route path="/dynamic-sprint-report" element={<DynamicSprintReportPage />} />
                         <Route path="/common-errors" element={<CommonErrorsPage />} />
                         <Route path="/my-work-items" element={<MyWorkItemsPage />} />
                         <Route

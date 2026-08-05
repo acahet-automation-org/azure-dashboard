@@ -184,6 +184,7 @@ export function SprintDefectReportTab({
     defaultActionsText,
     includeDsiSource = true,
     includeDeadline = true,
+    project,
 }: {
     stats: DefectStats;
     suiteGroupDefs?: SuiteGroupDef[];
@@ -194,6 +195,10 @@ export function SprintDefectReportTab({
     includeDsiSource?: boolean;
     // Off for Plurifond (no shared UAT deadline for this report yet).
     includeDeadline?: boolean;
+    // Scopes the plan/plan-overview lookups below to a specific Azure DevOps
+    // project - omitted by the two existing hardcoded pages, which keep
+    // resolving against the server's default configured project.
+    project?: string;
 }) {
     const { t } = useTranslation();
     const styles = useStyles();
@@ -211,6 +216,34 @@ export function SprintDefectReportTab({
     const [groupLabels, setGroupLabels] = useState<string[]>(
         suiteGroupDefs.map((def) => def.label)
     );
+
+    // `suiteGroupDefs` is a static constant on the two hardcoded pages, so
+    // this never mattered there - but the dynamic Sprint Report page starts
+    // with an empty array (before its plan overview data loads) and
+    // populates it asynchronously, and useState's initializer only runs
+    // once on mount. Without this, groupLabels would stay stuck at its
+    // initial (possibly empty) value forever, leaving every group's label
+    // undefined once real defs arrive. Adjusting state during render
+    // (rather than in an effect) per
+    // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes -
+    // comparing against the previous *defs* (not groupLabels itself) is
+    // what lets a manually-edited label survive unrelated re-renders
+    // instead of being reset back to the default every time.
+    const [prevSuiteGroupDefLabels, setPrevSuiteGroupDefLabels] = useState(
+        suiteGroupDefs.map((def) => def.label)
+    );
+    const nextSuiteGroupDefLabels = suiteGroupDefs.map((def) => def.label);
+    const suiteGroupDefLabelsChanged =
+        prevSuiteGroupDefLabels.length !== nextSuiteGroupDefLabels.length ||
+        prevSuiteGroupDefLabels.some(
+            (label, i) => label !== nextSuiteGroupDefLabels[i]
+        );
+
+    if (suiteGroupDefLabelsChanged) {
+        setPrevSuiteGroupDefLabels(nextSuiteGroupDefLabels);
+        setGroupLabels(nextSuiteGroupDefLabels);
+    }
+
     const [isExportingCard, setIsExportingCard] = useState(false);
     const [isExportingPptx, setIsExportingPptx] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
@@ -240,8 +273,8 @@ export function SprintDefectReportTab({
     // plan ID) rather than the whole-org /api/dashboard, which is cached
     // for 5 minutes and can lag behind a plan that was just populated.
     const { data: plans, isLoading: plansLoading } = useQuery({
-        queryKey: ["plans"],
-        queryFn: fetchPlans,
+        queryKey: ["plans", project],
+        queryFn: () => fetchPlans(project),
     });
 
     const planIdByName = new Map(
@@ -262,8 +295,8 @@ export function SprintDefectReportTab({
 
     const planOverviewQueries = useQueries({
         queries: distinctPlanIds.map((planId) => ({
-            queryKey: ["plan-overview", planId],
-            queryFn: () => fetchPlanOverview(planId),
+            queryKey: ["plan-overview", planId, project],
+            queryFn: () => fetchPlanOverview(planId, project),
         })),
     });
 

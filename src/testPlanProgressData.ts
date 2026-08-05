@@ -14,7 +14,7 @@ import type {
 } from "./types.js";
 
 const cache = new Map<
-    number,
+    string,
     { data: TestPlanProgressResponse; timestamp: number }
 >();
 
@@ -61,9 +61,13 @@ function todayDateSK(): number {
 }
 
 export async function computeTestPlanProgress(
-    planId: number
+    planId: number,
+    project?: string
 ): Promise<TestPlanProgressResponse> {
-    const cached = cache.get(planId);
+    // Plan IDs are only unique within a project - key by both, same fix as
+    // planOverviewData.ts's computePlanOverview.
+    const cacheKey = `${project ?? ""}:${planId}`;
+    const cached = cache.get(cacheKey);
     const now = Date.now();
 
     if (cached && now - cached.timestamp < CACHE_DURATION_MS) {
@@ -71,8 +75,8 @@ export async function computeTestPlanProgress(
     }
 
     const [hierarchyRows, countRows] = await Promise.all([
-        getTestSuiteHierarchy(planId),
-        getTestSuiteCurrentCounts(planId, todayDateSK()),
+        getTestSuiteHierarchy(planId, project),
+        getTestSuiteCurrentCounts(planId, todayDateSK(), project),
     ]);
 
     const countsByLevel3 = new Map<number, TestPlanProgressCounts>();
@@ -140,7 +144,7 @@ export async function computeTestPlanProgress(
         nodes: [...level1ById.values()],
     };
 
-    cache.set(planId, { data, timestamp: now });
+    cache.set(cacheKey, { data, timestamp: now });
 
     return data;
 }
@@ -161,12 +165,13 @@ export function clearTestPlanProgressBugsCache(): void {
 // getTestPoints below.
 export async function computeTestPlanProgressBugs(
     planId: number,
-    suiteIds?: number[]
+    suiteIds?: number[],
+    project?: string
 ): Promise<BugInfo[]> {
     const normalizedSuiteIds = suiteIds?.length
         ? [...new Set(suiteIds)].sort((a, b) => a - b)
         : [];
-    const cacheKey = `${planId}:${normalizedSuiteIds.join(",")}`;
+    const cacheKey = `${project ?? ""}:${planId}:${normalizedSuiteIds.join(",")}`;
     const cached = bugsCache.get(cacheKey);
     const now = Date.now();
 
@@ -176,15 +181,15 @@ export async function computeTestPlanProgressBugs(
 
     const targetSuiteIds = normalizedSuiteIds.length
         ? normalizedSuiteIds
-        : (await getSuites(planId)).map((suite: any) => suite.id);
+        : (await getSuites(planId, project)).map((suite: any) => suite.id);
 
     const bugsById = new Map<number, BugInfo>();
 
     await Promise.all(
         targetSuiteIds.map(async (suiteId: number) => {
             const [testCases, testPoints] = await Promise.all([
-                getTestCases(planId, suiteId),
-                getTestPoints(planId, suiteId),
+                getTestCases(planId, suiteId, project),
+                getTestPoints(planId, suiteId, project),
             ]);
 
             const outcomesByTestCase: Record<number, string[]> = {};
@@ -214,7 +219,9 @@ export async function computeTestPlanProgressBugs(
                         "",
                         suiteId,
                         outcomesByTestCase,
-                        lastRunByTestCase
+                        lastRunByTestCase,
+                        undefined,
+                        project
                     )
                 )
             );

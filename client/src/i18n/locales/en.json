@@ -17,6 +17,7 @@
         "defects": "Defect Management",
         "sprintReport": "Sprint Report",
         "plurifondSprintReport": "Plurifond Sprint Report",
+        "dynamicSprintReport": "Sprint Report (any project)",
         "commonErrors": "Common Errors",
         "myWorkItems": "My Work Items",
         "removeTestCases": "Remove Test Cases",
@@ -443,6 +444,16 @@
     "plurifondSprintReportPage": {
         "title": "Plurifond Sprint Report"
     },
+    "dynamicSprintReportPage": {
+        "title": "Sprint Report",
+        "testPlansLabel": "Test Plans",
+        "testPlansPlaceholder": "Select test plans...",
+        "selectedTestPlans": "{{count}} selected",
+        "selectProjectPrompt": "Select a project in the scope bar above to get started.",
+        "selectSprintPrompt": "Select a sprint in the scope bar above to load the report.",
+        "defaultHeaderTitle": "Sprint Status Report",
+        "defaultHeaderSubtitle": "Test execution status"
+    },
     "commonErrorsPage": {
         "title": "Common Errors",
         "empty": "No failed test results with error messages found.",
@@ -472,6 +483,15 @@
             "following": "Following",
             "bugsOnly": "Bugs only"
         }
+    },
+    "scopeBar": {
+        "projectLabel": "Project",
+        "projectPlaceholder": "Select a project...",
+        "areaPathLabel": "Area Path",
+        "sprintLabel": "Sprint",
+        "allSprints": "All Sprints",
+        "changeScope": "Change scope",
+        "done": "Done"
     },
     "filterBar": {
         "areaPath": "Area Path",

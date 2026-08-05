@@ -14,6 +14,7 @@ import {
     fetchSuites,
     fetchExecutionTrend,
 } from "../api/client";
+import { useScope } from "../hooks/useScope";
 
 const useStyles = makeStyles({
     section: {
@@ -26,20 +27,24 @@ const useStyles = makeStyles({
 export function TestExecutionPage() {
     const styles = useStyles();
     const { t } = useTranslation();
+    const scope = useScope();
 
     const dashboardQuery = useQuery({
-        queryKey: ["dashboard"],
-        queryFn: () => fetchDashboard(),
+        queryKey: ["dashboard", undefined, scope.project],
+        queryFn: () => fetchDashboard(undefined, scope.project),
+        enabled: scope.isComplete,
     });
 
     const suitesQuery = useQuery({
-        queryKey: ["suites"],
-        queryFn: fetchSuites,
+        queryKey: ["suites", scope.project],
+        queryFn: () => fetchSuites(scope.project),
+        enabled: scope.isComplete,
     });
 
     const trendQuery = useQuery({
-        queryKey: ["execution-trend"],
-        queryFn: fetchExecutionTrend,
+        queryKey: ["execution-trend", scope.project],
+        queryFn: () => fetchExecutionTrend(scope.project),
+        enabled: scope.isComplete,
     });
 
     const isLoading =

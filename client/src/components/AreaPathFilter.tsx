@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Dropdown, Option, Field, makeStyles, tokens } from "@fluentui/react-components";
 import { ChevronDownRegular } from "@fluentui/react-icons";
-import { fetchIterations } from "../api/client";
+import { fetchAreaPaths } from "../api/client";
 
 const useStyles = makeStyles({
     field: {
@@ -20,17 +20,18 @@ const useStyles = makeStyles({
     },
 });
 
-// Sourced straight from Azure DevOps's classification-nodes tree (real
-// sprints, including empty/future ones) rather than derived from bugs seen
-// in the currently fetched page of data - kept deliberately generic
-// (value/onChange, no DefectFilters dependency) so any page can drop it in
-// and wire it to whatever iteration field it needs.
-export function IterationFilter({
+// Sourced from Azure DevOps's Area Path classification-node tree, scoped to
+// a specific project - mirrors IterationFilter's shape (value/onChange, no
+// DefectFilters dependency) so it can be dropped into any page that already
+// knows which project it's working with.
+export function AreaPathFilter({
+    project,
     value,
     onChange,
     label,
     className,
 }: {
+    project: string;
     value: string;
     onChange: (value: string) => void;
     label?: string;
@@ -38,29 +39,29 @@ export function IterationFilter({
 }) {
     const styles = useStyles();
     const { t } = useTranslation();
-    const allIterations = t("iterationFilter.all");
+    const allAreas = t("filterBar.allAreas");
 
-    const { data: iterations } = useQuery({
-        queryKey: ["iterations"],
-        queryFn: fetchIterations,
+    const { data: areas } = useQuery({
+        queryKey: ["areas", project],
+        queryFn: () => fetchAreaPaths(project),
     });
 
     return (
         <Field
-            label={label ?? t("iterationFilter.label")}
+            label={label ?? t("filterBar.areaPath")}
             className={className ?? styles.field}
         >
             <Dropdown
                 expandIcon={<ChevronDownRegular className={styles.chevron} />}
                 button={{ className: styles.dropdownButton }}
-                value={value || allIterations}
+                value={value || allAreas}
                 selectedOptions={value ? [value] : [""]}
                 onOptionSelect={(_, data) => onChange(data.optionValue ?? "")}
             >
-                <Option value="">{allIterations}</Option>
-                {(iterations ?? []).map((iteration) => (
-                    <Option key={iteration.id} value={iteration.path}>
-                        {iteration.name}
+                <Option value="">{allAreas}</Option>
+                {(areas ?? []).map((area) => (
+                    <Option key={area.id} value={area.path}>
+                        {area.name}
                     </Option>
                 ))}
             </Dropdown>

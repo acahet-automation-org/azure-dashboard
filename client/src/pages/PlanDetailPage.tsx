@@ -25,6 +25,7 @@ import { EmptyState } from "../components/EmptyState";
 import { SuiteTreeItem } from "../components/SuiteTreeItem";
 import { ExportMenu, type ExportFormat } from "../components/ExportMenu";
 import { fetchPlanSuites } from "../api/client";
+import { useScope } from "../hooks/useScope";
 import { exportToCsv, exportToExcel, exportToPdf } from "../utils/export";
 import type { ExportableRow } from "../utils/export";
 import type { TestPlanSummary, TestSuiteSummary } from "../types";
@@ -94,10 +95,12 @@ export function PlanDetailPage() {
     const plan = (
         location.state as { plan?: TestPlanSummary } | undefined
     )?.plan;
+    const scope = useScope();
 
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["plan-suites", planId],
-        queryFn: () => fetchPlanSuites(Number(planId)),
+        queryKey: ["plan-suites", planId, scope.project],
+        queryFn: () => fetchPlanSuites(Number(planId), scope.project),
+        enabled: scope.isComplete,
     });
 
     const title = plan?.name ?? t("planDetailPage.title", { id: planId });

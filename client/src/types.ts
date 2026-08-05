@@ -71,6 +71,15 @@ export interface SuiteStat {
     openBugs: number;
 }
 
+export interface ProjectSummary {
+    id: string;
+    name: string;
+}
+
+// Same shape as the Iteration classification tree - used for the Area Path
+// selector on the dynamic Sprint Report page.
+export type AreaPathNode = IterationNode;
+
 export interface TestPlanSummary {
     id: number;
     name: string;

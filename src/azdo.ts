@@ -84,12 +84,95 @@ for (const instance of [azdo, azdoOrg, azdoOdata]) {
     attachAuthErrorInterceptor(instance);
 }
 
-export async function getTestSuiteHierarchy(planId: number) {
+// Every project-scoped function below accepts an optional trailing `project`
+// param that defaults to the configured AZDO_PROJECT - this lets the dynamic
+// multi-project Sprint Report page target an arbitrary project while every
+// existing call site (which passes nothing) keeps hitting the same fixed
+// `azdo` client/baseURL as before, unaffected.
+const projectClients = new Map<string, AxiosInstance>();
+
+function clientFor(project?: string): AxiosInstance {
+    const resolvedProject = project ?? process.env.AZDO_PROJECT!;
+
+    if (resolvedProject === process.env.AZDO_PROJECT) {
+        return azdo;
+    }
+
+    let instance = projectClients.get(resolvedProject);
+
+    if (!instance) {
+        instance = axios.create({
+            baseURL: `https://dev.azure.com/${process.env.AZDO_ORG}/${encodeURIComponent(
+                resolvedProject
+            )}/_apis`,
+            headers: {
+                Authorization: `Basic ${auth}`,
+                "Content-Type": "application/json",
+            },
+        });
+
+        attachAuthErrorInterceptor(instance);
+        projectClients.set(resolvedProject, instance);
+    }
+
+    return instance;
+}
+
+// Same per-project client-factory treatment as `clientFor` above, but for
+// the Analytics OData host (a different domain, analytics.dev.azure.com,
+// so it needs its own Map/factory rather than reusing clientFor).
+const odataProjectClients = new Map<string, AxiosInstance>();
+
+function odataClientFor(project?: string): AxiosInstance {
+    const resolvedProject = project ?? process.env.AZDO_PROJECT!;
+
+    if (resolvedProject === process.env.AZDO_PROJECT) {
+        return azdoOdata;
+    }
+
+    let instance = odataProjectClients.get(resolvedProject);
+
+    if (!instance) {
+        instance = axios.create({
+            baseURL: `https://analytics.dev.azure.com/${process.env.AZDO_ORG}/${encodeURIComponent(
+                resolvedProject
+            )}/_odata/v4.0-preview`,
+            headers: {
+                Authorization: `Basic ${auth}`,
+            },
+        });
+
+        attachAuthErrorInterceptor(instance);
+        odataProjectClients.set(resolvedProject, instance);
+    }
+
+    return instance;
+}
+
+export interface ProjectSummary {
+    id: string;
+    name: string;
+}
+
+// Org-scoped (not per-project) - lists every project the shared PAT can see,
+// which is what feeds the dynamic Sprint Report page's project picker.
+export async function getProjects(): Promise<ProjectSummary[]> {
+    const response = await azdoOrg.get(
+        "/projects?api-version=7.1"
+    );
+
+    return (response.data.value ?? []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+    }));
+}
+
+export async function getTestSuiteHierarchy(planId: number, project?: string) {
     const apply =
         `filter(( TestPlanId eq ${planId} ) and ( IdLevel3 ne null ))` +
         `/groupby((IdLevel1,IdLevel2,IdLevel3,TestPlanTitle,TitleLevel2,TitleLevel3,TestPlanId))`;
 
-    const response = await azdoOdata.get(
+    const response = await odataClientFor(project).get(
         `/TestSuites?$apply=${encodeURIComponent(apply)}`
     );
 
@@ -98,7 +181,8 @@ export async function getTestSuiteHierarchy(planId: number) {
 
 export async function getTestSuiteCurrentCounts(
     planId: number,
-    dateSK: number
+    dateSK: number,
+    project?: string
 ) {
     const apply =
         `filter(( TestPlanId eq ${planId} ) and ( DateSK eq ${dateSK} ))` +
@@ -111,23 +195,23 @@ export async function getTestSuiteCurrentCounts(
         `cast(ResultOutcome eq 'None', Edm.Int32) with sum as NotExecuted, ` +
         `cast(ResultOutcome ne 'None', Edm.Int32) with sum as Executed))`;
 
-    const response = await azdoOdata.get(
+    const response = await odataClientFor(project).get(
         `/TestPointHistorySnapshot?$apply=${encodeURIComponent(apply)}`
     );
 
     return response.data.value;
 }
 
-export async function getTestPlans() {
-    const response = await azdo.get(
+export async function getTestPlans(project?: string) {
+    const response = await clientFor(project).get(
         "/testplan/plans?api-version=7.1"
     );
 
     return response.data.value;
 }
 
-export async function getSuites(planId: number) {
-    const response = await azdo.get(
+export async function getSuites(planId: number, project?: string) {
+    const response = await clientFor(project).get(
         `/testplan/plans/${planId}/suites?api-version=7.1`
     );
 
@@ -136,9 +220,10 @@ export async function getSuites(planId: number) {
 
 export async function getTestCases(
     planId: number,
-    suiteId: number
+    suiteId: number,
+    project?: string
 ) {
-    const response = await azdo.get(
+    const response = await clientFor(project).get(
         `/testplan/plans/${planId}/suites/${suiteId}/testcase?api-version=7.1`
     );
 
@@ -146,9 +231,10 @@ export async function getTestCases(
 }
 
 export async function deleteTestCase(
-    id: number
+    id: number,
+    project?: string
 ): Promise<void> {
-    await azdo.delete(
+    await clientFor(project).delete(
         `/test/testcases/${id}?api-version=7.1`
     );
 }
@@ -161,9 +247,10 @@ export async function deleteTestCase(
 export async function deleteTestCasesFromSuite(
     planId: number,
     suiteId: number,
-    testCaseIds: number[]
+    testCaseIds: number[],
+    project?: string
 ): Promise<void> {
-    await azdo.delete(
+    await clientFor(project).delete(
         `/testplan/plans/${planId}/suites/${suiteId}/testcase` +
         `?testIds=${testCaseIds.join(",")}&api-version=7.1`
     );
@@ -171,9 +258,10 @@ export async function deleteTestCasesFromSuite(
 
 export async function getTestPoints(
     planId: number,
-    suiteId: number
+    suiteId: number,
+    project?: string
 ) {
-    const response = await azdo.get(
+    const response = await clientFor(project).get(
         `/testplan/plans/${planId}/suites/${suiteId}/testpoint?api-version=7.1`
     );
 
@@ -187,13 +275,13 @@ export async function getTestPoints(
 // gets the full (and therefore most recent) set.
 const TEST_RUNS_PAGE_SIZE = 200;
 
-export async function getTestRuns() {
+export async function getTestRuns(project?: string) {
     try {
         const runs: any[] = [];
         let skip = 0;
 
         while (true) {
-            const response = await azdo.get(
+            const response = await clientFor(project).get(
                 `/test/runs?api-version=7.1&$top=${TEST_RUNS_PAGE_SIZE}&$skip=${skip}&includeRunDetails=true`
             );
 
@@ -223,10 +311,11 @@ export async function getTestRuns() {
 // than an empty stats array) lets callers tell "run exists, no stats yet"
 // apart from "run doesn't exist anymore" and drop the latter entirely.
 export async function getTestRunStatistics(
-    runId: number
+    runId: number,
+    project?: string
 ): Promise<any[] | null> {
     try {
-        const response = await azdo.get(
+        const response = await clientFor(project).get(
             `/test/runs/${runId}/statistics?api-version=7.1`
         );
 
@@ -241,23 +330,30 @@ export async function getTestRunStatistics(
 }
 
 export async function getTestRunResults(
-    runId: number
+    runId: number,
+    project?: string
 ) {
-    const response = await azdo.get(
+    const response = await clientFor(project).get(
         `/test/Runs/${runId}/results?api-version=7.1`
     );
 
     return response.data.value;
 }
 
-export async function getActiveBugIds(): Promise<number[]> {
-    const response = await azdo.post(
+export async function getActiveBugIds(project?: string): Promise<number[]> {
+    // Azure DevOps' WIQL endpoint does NOT implicitly scope results to the
+    // project in the request URL - without an explicit TeamProject clause it
+    // silently returns org-wide results regardless of which project's client
+    // posts the query (confirmed empirically: two different projects'
+    // clients returned identical bug IDs until this clause was added).
+    const response = await clientFor(project).post(
         "/wit/wiql?api-version=7.1",
         {
             query: `
         SELECT [System.Id]
         FROM WorkItems
         WHERE [System.WorkItemType] = 'Bug'
+          AND [System.TeamProject] = @project
       `,
         }
     );
@@ -267,8 +363,8 @@ export async function getActiveBugIds(): Promise<number[]> {
     );
 }
 
-export async function getWorkItem(id: number) {
-    const response = await azdo.get(
+export async function getWorkItem(id: number, project?: string) {
+    const response = await clientFor(project).get(
         `/wit/workitems/${id}?$expand=relations&api-version=7.1`
     );
 
@@ -277,7 +373,8 @@ export async function getWorkItem(id: number) {
 
 export async function getWorkItems(
     ids: number[],
-    fields?: string[]
+    fields?: string[],
+    project?: string
 ) {
     if (!ids.length) {
         return [];
@@ -297,7 +394,7 @@ export async function getWorkItems(
         chunk: number[]
     ): Promise<any[]> => {
         try {
-            const response = await azdo.get(
+            const response = await clientFor(project).get(
                 `/wit/workitems?ids=${chunk.join(
                     ","
                 )}${fieldsParam}&api-version=7.1`
@@ -360,10 +457,10 @@ const BUG_FIELDS = [
     "Custom.EstimatedResolutionDate",
 ];
 
-export async function getAllBugFields(): Promise<any[]> {
-    const ids = await getActiveBugIds();
+export async function getAllBugFields(project?: string): Promise<any[]> {
+    const ids = await getActiveBugIds(project);
 
-    return getWorkItems(ids, BUG_FIELDS);
+    return getWorkItems(ids, BUG_FIELDS, project);
 }
 
 const STORY_FIELDS = [
@@ -372,14 +469,15 @@ const STORY_FIELDS = [
     "Microsoft.VSTS.Scheduling.StoryPoints",
 ];
 
-export async function getStoriesWithFields(): Promise<any[]> {
-    const response = await azdo.post(
+export async function getStoriesWithFields(project?: string): Promise<any[]> {
+    const response = await clientFor(project).post(
         "/wit/wiql?api-version=7.1",
         {
             query: `
         SELECT [System.Id]
         FROM WorkItems
         WHERE [System.WorkItemType] IN ('User Story', 'Product Backlog Item', 'Requirement')
+          AND [System.TeamProject] = @project
       `,
         }
     );
@@ -388,27 +486,29 @@ export async function getStoriesWithFields(): Promise<any[]> {
         (w: { id: number }) => w.id
     );
 
-    return getWorkItems(ids, STORY_FIELDS);
+    return getWorkItems(ids, STORY_FIELDS, project);
 }
 
 export async function getWorkItemRevisions(
-    id: number
+    id: number,
+    project?: string
 ): Promise<any[]> {
-    const response = await azdo.get(
+    const response = await clientFor(project).get(
         `/wit/workitems/${id}/revisions?api-version=7.1`
     );
 
     return response.data.value;
 }
 
-export async function getStoryCount(): Promise<number> {
-    const response = await azdo.post(
+export async function getStoryCount(project?: string): Promise<number> {
+    const response = await clientFor(project).post(
         "/wit/wiql?api-version=7.1",
         {
             query: `
         SELECT [System.Id]
         FROM WorkItems
         WHERE [System.WorkItemType] IN ('User Story', 'Product Backlog Item', 'Requirement')
+          AND [System.TeamProject] = @project
       `,
         }
     );
@@ -423,7 +523,7 @@ export async function getStoryCount(): Promise<number> {
 // System.AssignedTo is returned. The one exception is SKIP_AUTH dev mode,
 // where there is no signed-in user to filter by and the PAT genuinely is the
 // one developer's own personal token, so @Me correctly means "me".
-export async function getActiveWorkItemIds(): Promise<
+export async function getActiveWorkItemIds(project?: string): Promise<
     number[]
 > {
     const assignedToMe =
@@ -431,13 +531,14 @@ export async function getActiveWorkItemIds(): Promise<
             ? "AND [System.AssignedTo] = @Me\n          "
             : "";
 
-    const response = await azdo.post(
+    const response = await clientFor(project).post(
         "/wit/wiql?api-version=7.1",
         {
             query: `
         SELECT [System.Id]
         FROM WorkItems
         WHERE [System.State] <> 'Removed'
+          AND [System.TeamProject] = @project
           ${assignedToMe}
         ORDER BY [Microsoft.VSTS.Common.Priority] ASC, [System.ChangedDate] DESC
       `,
@@ -453,19 +554,20 @@ export async function getActiveWorkItemIds(): Promise<
 // SKIP_AUTH dev mode, where the PAT genuinely belongs to the one developer.
 // Otherwise callers must filter by the real user's identity themselves once
 // System.CreatedBy is returned.
-export async function getCreatedWorkItemIds(): Promise<number[]> {
+export async function getCreatedWorkItemIds(project?: string): Promise<number[]> {
     const createdByMe =
         process.env.SKIP_AUTH === "true"
             ? "AND [System.CreatedBy] = @Me\n          "
             : "";
 
-    const response = await azdo.post(
+    const response = await clientFor(project).post(
         "/wit/wiql?api-version=7.1",
         {
             query: `
         SELECT [System.Id]
         FROM WorkItems
         WHERE [System.State] <> 'Removed'
+          AND [System.TeamProject] = @project
           ${createdByMe}
         ORDER BY [System.CreatedDate] DESC
       `,
@@ -481,15 +583,17 @@ export async function getCreatedWorkItemIds(): Promise<number[]> {
 // requires its own /comments request and scanning every work item in the
 // project would be far too slow.
 export async function getRecentlyChangedWorkItemIds(
-    days: number
+    days: number,
+    project?: string
 ): Promise<number[]> {
-    const response = await azdo.post(
+    const response = await clientFor(project).post(
         "/wit/wiql?api-version=7.1",
         {
             query: `
         SELECT [System.Id]
         FROM WorkItems
         WHERE [System.State] <> 'Removed'
+          AND [System.TeamProject] = @project
           AND [System.ChangedDate] >= @Today - ${days}
         ORDER BY [System.ChangedDate] DESC
       `,
@@ -505,9 +609,10 @@ export async function getRecentlyChangedWorkItemIds(
 // Name</a>`. There's no WIQL field to query comment text directly, so each
 // candidate work item's comments must be fetched and scanned individually.
 export async function getCommentMentions(
-    workItemId: number
+    workItemId: number,
+    project?: string
 ): Promise<string[]> {
-    const response = await azdo.get(
+    const response = await clientFor(project).get(
         `/wit/workitems/${workItemId}/comments?api-version=7.1-preview.4`
     );
 
@@ -552,10 +657,10 @@ export async function getFollowedWorkItemIds(): Promise<
         .filter((id: number) => Number.isInteger(id));
 }
 
-export async function getBugWorkItemTypeStates(): Promise<
+export async function getBugWorkItemTypeStates(project?: string): Promise<
     { name: string; color: string; category: string }[]
 > {
-    const response = await azdo.get(
+    const response = await clientFor(project).get(
         "/wit/workitemtypes/Bug/states?api-version=7.1"
     );
 
@@ -577,7 +682,10 @@ export interface IterationNode {
 // System.IterationPath / a test plan's `iteration` field (confirmed against
 // live data: both are e.g. "Nuova Frontiera\Front Office Auto\Sprint 2", not
 // "Front Office Auto\Sprint 2").
-function flattenIterationTree(
+// Shared by getIterations/getAreaPaths - both classification-node trees
+// (iterations, areas) have the same shape and need the same depth-first
+// flatten into one path-qualified row per node.
+function flattenClassificationTree(
     node: any,
     parentPath: string
 ): IterationNode[] {
@@ -592,7 +700,7 @@ function flattenIterationTree(
     };
 
     const children = (node.children ?? []).flatMap((child: any) =>
-        flattenIterationTree(child, path)
+        flattenClassificationTree(child, path)
     );
 
     return [self, ...children];
@@ -603,16 +711,29 @@ function flattenIterationTree(
 // from System.IterationPath values seen on fetched bugs), this includes
 // empty/future sprints too. Same path format as DefectFilterOptions though,
 // so either can be used to filter the same iterationPath/iteration fields.
-export async function getIterations(): Promise<IterationNode[]> {
-    const response = await azdo.get(
+export async function getIterations(project?: string): Promise<IterationNode[]> {
+    const response = await clientFor(project).get(
         "/wit/classificationnodes/iterations?$depth=20&api-version=7.1"
     );
 
     // The root node itself is just the project name, not a real iteration -
     // only its children are actual sprints - but its name still seeds every
-    // child's path (see flattenIterationTree).
+    // child's path (see flattenClassificationTree).
     return (response.data.children ?? []).flatMap((child: any) =>
-        flattenIterationTree(child, response.data.name ?? "")
+        flattenClassificationTree(child, response.data.name ?? "")
+    );
+}
+
+// Same tree shape/semantics as getIterations, but for the Area Path
+// classification tree - used by the dynamic Sprint Report page's Area Path
+// selector.
+export async function getAreaPaths(project?: string): Promise<IterationNode[]> {
+    const response = await clientFor(project).get(
+        "/wit/classificationnodes/areas?$depth=20&api-version=7.1"
+    );
+
+    return (response.data.children ?? []).flatMap((child: any) =>
+        flattenClassificationTree(child, response.data.name ?? "")
     );
 }
 

@@ -39,8 +39,8 @@ import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { BugsTable } from "../components/BugsTable";
-import { IterationFilter } from "../components/IterationFilter";
 import { fetchPlans, fetchPlanOverview, sendEmailReport } from "../api/client";
+import { useScope } from "../hooks/useScope";
 import {
     buildEmailReportHtml,
     buildPlanOverviewFilename,
@@ -248,12 +248,12 @@ function computeRates(
 
     const executionRate = totalTestCases
         ? Math.round(
-              ((totalTestCases -
-                  outcomeCounts.NotRun -
-                  outcomeCounts.NotApplicable) /
-                  totalTestCases) *
-                  1000
-          ) / 10
+            ((totalTestCases -
+                outcomeCounts.NotRun -
+                outcomeCounts.NotApplicable) /
+                totalTestCases) *
+            1000
+        ) / 10
         : 0;
 
     return { passRate, passRateExclNA, executionRate };
@@ -321,15 +321,15 @@ async function captureOverviewCharts(
         ),
         data.bugsByState.length > 0
             ? captureChartImage(
-                  refs.bugState,
-                  t("planOverviewPage.charts.bugsByState")
-              )
+                refs.bugState,
+                t("planOverviewPage.charts.bugsByState")
+            )
             : Promise.resolve(null),
         bugsBySuiteData.length > 0
             ? captureChartImage(
-                  refs.bugsBySuite,
-                  t("planOverviewPage.charts.bugsBySuite")
-              )
+                refs.bugsBySuite,
+                t("planOverviewPage.charts.bugsBySuite")
+            )
             : Promise.resolve(null),
     ]);
 
@@ -346,8 +346,8 @@ export function PlanOverviewPage() {
     const [selectedSuiteName, setSelectedSuiteName] = useState<
         string | undefined
     >(undefined);
-    const [iteration, setIteration] = useState("");
     const [isExporting, setIsExporting] = useState(false);
+    const scope = useScope();
 
     const outcomeChartRef = useRef<HTMLDivElement>(null);
     const suiteChartRef = useRef<HTMLDivElement>(null);
@@ -360,18 +360,19 @@ export function PlanOverviewPage() {
     });
 
     const { data: plans } = useQuery({
-        queryKey: ["plans"],
-        queryFn: fetchPlans,
+        queryKey: ["plans", scope.project],
+        queryFn: () => fetchPlans(scope.project),
+        enabled: scope.isComplete,
     });
 
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["plan-overview", selectedPlanId],
-        queryFn: () => fetchPlanOverview(selectedPlanId!),
-        enabled: selectedPlanId != null,
+        queryKey: ["plan-overview", selectedPlanId, scope.project],
+        queryFn: () => fetchPlanOverview(selectedPlanId!, scope.project),
+        enabled: scope.isComplete && selectedPlanId != null,
     });
 
-    const plansInIteration = iteration
-        ? plans?.filter((p) => p.iteration === iteration)
+    const plansInIteration = scope.sprint
+        ? plans?.filter((p) => p.iteration === scope.sprint)
         : plans;
 
     const selectedPlanName = plans?.find(
@@ -384,9 +385,9 @@ export function PlanOverviewPage() {
 
     const bugsBySuiteData = data
         ? computeBugsBySuiteData(
-              data.suites,
-              t("planOverviewPage.charts.otherSuites")
-          )
+            data.suites,
+            t("planOverviewPage.charts.otherSuites")
+        )
         : [];
 
     const { passRate, passRateExclNA, executionRate } = data
@@ -402,8 +403,8 @@ export function PlanOverviewPage() {
         passRateExclNA: suitePassRateExclNA,
         executionRate: suiteExecutionRate,
     } = selectedSuite
-        ? computeRates(selectedSuite.totalTestCases, selectedSuite.outcomeCounts)
-        : ZERO_RATES;
+            ? computeRates(selectedSuite.totalTestCases, selectedSuite.outcomeCounts)
+            : ZERO_RATES;
 
     const selectedSuiteOutcomeChartData = selectedSuite
         ? outcomeCountsToChartData(selectedSuite.outcomeCounts)
@@ -582,17 +583,6 @@ export function PlanOverviewPage() {
             )}
 
             <div className={styles.toolbar}>
-                <IterationFilter
-                    value={iteration}
-                    onChange={(value) => {
-                        setIteration(value);
-                        setSelectedPlanId(undefined);
-                        setSelectedSuiteName(undefined);
-                        emailReportMutation.reset();
-                    }}
-                    className={styles.filterField}
-                />
-
                 <Field
                     label={t("planOverviewPage.planFilter.label")}
                     className={styles.filterField}
@@ -772,52 +762,52 @@ export function PlanOverviewPage() {
                             )}
                         >
                             <div ref={outcomeChartRef}>
-                            <ResponsiveContainer width="100%" height={280}>
-                                <PieChart>
-                                    <Pie
-                                        data={outcomeChartData}
-                                        dataKey="count"
-                                        nameKey="outcome"
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={55}
-                                        outerRadius={95}
-                                        paddingAngle={2}
-                                        label={renderPieValueLabel}
-                                        labelLine={false}
-                                    >
-                                        {outcomeChartData.map((entry) => (
-                                            <Cell
-                                                key={entry.outcome}
-                                                fill={
-                                                    OUTCOME_COLORS[
+                                <ResponsiveContainer width="100%" height={280}>
+                                    <PieChart>
+                                        <Pie
+                                            data={outcomeChartData}
+                                            dataKey="count"
+                                            nameKey="outcome"
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={55}
+                                            outerRadius={95}
+                                            paddingAngle={2}
+                                            label={renderPieValueLabel}
+                                            labelLine={false}
+                                        >
+                                            {outcomeChartData.map((entry) => (
+                                                <Cell
+                                                    key={entry.outcome}
+                                                    fill={
+                                                        OUTCOME_COLORS[
                                                         entry.outcome
-                                                    ]
-                                                }
-                                            />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip
-                                        formatter={(
-                                            value,
-                                            _name,
-                                            item: { payload?: { outcome: string } }
-                                        ) => [
-                                            value,
-                                            t(
-                                                `outcome.${item.payload?.outcome ?? ""}`
-                                            ),
-                                        ]}
-                                    />
-                                </PieChart>
-                            </ResponsiveContainer>
-                            <PieColorLegend
-                                items={outcomeChartData.map((entry) => ({
-                                    key: entry.outcome,
-                                    label: t(`outcome.${entry.outcome}`),
-                                    color: OUTCOME_COLORS[entry.outcome],
-                                }))}
-                            />
+                                                        ]
+                                                    }
+                                                />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip
+                                            formatter={(
+                                                value,
+                                                _name,
+                                                item: { payload?: { outcome: string } }
+                                            ) => [
+                                                    value,
+                                                    t(
+                                                        `outcome.${item.payload?.outcome ?? ""}`
+                                                    ),
+                                                ]}
+                                        />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                                <PieColorLegend
+                                    items={outcomeChartData.map((entry) => ({
+                                        key: entry.outcome,
+                                        label: t(`outcome.${entry.outcome}`),
+                                        color: OUTCOME_COLORS[entry.outcome],
+                                    }))}
+                                />
                             </div>
                         </ChartCard>
 
@@ -825,28 +815,28 @@ export function PlanOverviewPage() {
                             title={t("planOverviewPage.charts.testsBySuite")}
                         >
                             <div ref={suiteChartRef}>
-                            <ResponsiveContainer width="100%" height={280}>
-                                <BarChart
-                                    data={data.testsBySuite}
-                                    layout="vertical"
-                                    margin={{ left: 24 }}
-                                >
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis type="number" allowDecimals={false} />
-                                    <YAxis
-                                        type="category"
-                                        dataKey="suiteName"
-                                        width={categoryAxisWidth(
-                                            data.testsBySuite.map(
-                                                (s) => s.suiteName
-                                            )
-                                        )}
-                                        tick={{ fontSize: 12 }}
-                                    />
-                                    <Tooltip />
-                                    <Bar dataKey="count" fill="#0078d4" />
-                                </BarChart>
-                            </ResponsiveContainer>
+                                <ResponsiveContainer width="100%" height={280}>
+                                    <BarChart
+                                        data={data.testsBySuite}
+                                        layout="vertical"
+                                        margin={{ left: 24 }}
+                                    >
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis type="number" allowDecimals={false} />
+                                        <YAxis
+                                            type="category"
+                                            dataKey="suiteName"
+                                            width={categoryAxisWidth(
+                                                data.testsBySuite.map(
+                                                    (s) => s.suiteName
+                                                )
+                                            )}
+                                            tick={{ fontSize: 12 }}
+                                        />
+                                        <Tooltip />
+                                        <Bar dataKey="count" fill="#0078d4" />
+                                    </BarChart>
+                                </ResponsiveContainer>
                             </div>
                         </ChartCard>
 
@@ -855,41 +845,40 @@ export function PlanOverviewPage() {
                         >
                             {data.bugsByState.length > 0 ? (
                                 <div ref={bugStateChartRef}>
-                                <ResponsiveContainer width="100%" height={280}>
-                                    <BarChart
-                                        data={data.bugsByState}
-                                        layout="vertical"
-                                        margin={{ left: 24 }}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis
-                                            type="number"
-                                            allowDecimals={false}
-                                        />
-                                        <YAxis
-                                            type="category"
-                                            dataKey="state"
-                                            width={categoryAxisWidth(
-                                                data.bugsByState.map(
-                                                    (s) => s.state
-                                                )
-                                            )}
-                                            tick={{ fontSize: 12 }}
-                                        />
-                                        <Tooltip />
-                                        <Bar dataKey="count">
-                                            {data.bugsByState.map((entry) => (
-                                                <Cell
-                                                    key={entry.state}
-                                                    fill={`#${
-                                                        entry.color ??
-                                                        FALLBACK_STATE_COLOR
-                                                    }`}
-                                                />
-                                            ))}
-                                        </Bar>
-                                    </BarChart>
-                                </ResponsiveContainer>
+                                    <ResponsiveContainer width="100%" height={280}>
+                                        <BarChart
+                                            data={data.bugsByState}
+                                            layout="vertical"
+                                            margin={{ left: 24 }}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis
+                                                type="number"
+                                                allowDecimals={false}
+                                            />
+                                            <YAxis
+                                                type="category"
+                                                dataKey="state"
+                                                width={categoryAxisWidth(
+                                                    data.bugsByState.map(
+                                                        (s) => s.state
+                                                    )
+                                                )}
+                                                tick={{ fontSize: 12 }}
+                                            />
+                                            <Tooltip />
+                                            <Bar dataKey="count">
+                                                {data.bugsByState.map((entry) => (
+                                                    <Cell
+                                                        key={entry.state}
+                                                        fill={`#${entry.color ??
+                                                            FALLBACK_STATE_COLOR
+                                                            }`}
+                                                    />
+                                                ))}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
                                 </div>
                             ) : (
                                 <EmptyState
@@ -905,37 +894,37 @@ export function PlanOverviewPage() {
                         >
                             {bugsBySuiteData.length > 0 ? (
                                 <div ref={bugsBySuiteChartRef}>
-                                <ResponsiveContainer width="100%" height={280}>
-                                    <PieChart>
-                                        <Pie
-                                            data={bugsBySuiteData}
-                                            dataKey="count"
-                                            nameKey="suiteName"
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={55}
-                                            outerRadius={95}
-                                            paddingAngle={2}
-                                            label={renderPieValueLabel}
-                                            labelLine={false}
-                                        >
-                                            {bugsBySuiteData.map((entry) => (
-                                                <Cell
-                                                    key={entry.suiteName}
-                                                    fill={entry.color}
-                                                />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                                <PieColorLegend
-                                    items={bugsBySuiteData.map((entry) => ({
-                                        key: entry.suiteName,
-                                        label: entry.suiteName,
-                                        color: entry.color,
-                                    }))}
-                                />
+                                    <ResponsiveContainer width="100%" height={280}>
+                                        <PieChart>
+                                            <Pie
+                                                data={bugsBySuiteData}
+                                                dataKey="count"
+                                                nameKey="suiteName"
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={55}
+                                                outerRadius={95}
+                                                paddingAngle={2}
+                                                label={renderPieValueLabel}
+                                                labelLine={false}
+                                            >
+                                                {bugsBySuiteData.map((entry) => (
+                                                    <Cell
+                                                        key={entry.suiteName}
+                                                        fill={entry.color}
+                                                    />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                    <PieColorLegend
+                                        items={bugsBySuiteData.map((entry) => ({
+                                            key: entry.suiteName,
+                                            label: entry.suiteName,
+                                            color: entry.color,
+                                        }))}
+                                    />
                                 </div>
                             ) : (
                                 <EmptyState
@@ -1028,56 +1017,56 @@ export function PlanOverviewPage() {
                                 )}
                             >
                                 <div ref={selectedSuiteOutcomeChartRef}>
-                                <ResponsiveContainer width="100%" height={280}>
-                                    <PieChart>
-                                        <Pie
-                                            data={selectedSuiteOutcomeChartData}
-                                            dataKey="count"
-                                            nameKey="outcome"
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={55}
-                                            outerRadius={95}
-                                            paddingAngle={2}
-                                            label={renderPieValueLabel}
-                                            labelLine={false}
-                                        >
-                                            {selectedSuiteOutcomeChartData.map(
-                                                (entry) => (
-                                                    <Cell
-                                                        key={entry.outcome}
-                                                        fill={
-                                                            OUTCOME_COLORS[
+                                    <ResponsiveContainer width="100%" height={280}>
+                                        <PieChart>
+                                            <Pie
+                                                data={selectedSuiteOutcomeChartData}
+                                                dataKey="count"
+                                                nameKey="outcome"
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={55}
+                                                outerRadius={95}
+                                                paddingAngle={2}
+                                                label={renderPieValueLabel}
+                                                labelLine={false}
+                                            >
+                                                {selectedSuiteOutcomeChartData.map(
+                                                    (entry) => (
+                                                        <Cell
+                                                            key={entry.outcome}
+                                                            fill={
+                                                                OUTCOME_COLORS[
                                                                 entry.outcome
-                                                            ]
-                                                        }
-                                                    />
-                                                )
-                                            )}
-                                        </Pie>
-                                        <Tooltip
-                                            formatter={(
-                                                value,
-                                                _name,
-                                                item: { payload?: { outcome: string } }
-                                            ) => [
-                                                value,
-                                                t(
-                                                    `outcome.${item.payload?.outcome ?? ""}`
-                                                ),
-                                            ]}
-                                        />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                                <PieColorLegend
-                                    items={selectedSuiteOutcomeChartData.map(
-                                        (entry) => ({
-                                            key: entry.outcome,
-                                            label: t(`outcome.${entry.outcome}`),
-                                            color: OUTCOME_COLORS[entry.outcome],
-                                        })
-                                    )}
-                                />
+                                                                ]
+                                                            }
+                                                        />
+                                                    )
+                                                )}
+                                            </Pie>
+                                            <Tooltip
+                                                formatter={(
+                                                    value,
+                                                    _name,
+                                                    item: { payload?: { outcome: string } }
+                                                ) => [
+                                                        value,
+                                                        t(
+                                                            `outcome.${item.payload?.outcome ?? ""}`
+                                                        ),
+                                                    ]}
+                                            />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                    <PieColorLegend
+                                        items={selectedSuiteOutcomeChartData.map(
+                                            (entry) => ({
+                                                key: entry.outcome,
+                                                label: t(`outcome.${entry.outcome}`),
+                                                color: OUTCOME_COLORS[entry.outcome],
+                                            })
+                                        )}
+                                    />
                                 </div>
                             </ChartCard>
 

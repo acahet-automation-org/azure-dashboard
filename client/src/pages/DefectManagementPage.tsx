@@ -11,6 +11,7 @@ import { DefectQualityTab } from "../components/DefectQualityTab";
 import { DefectResourceTab } from "../components/DefectResourceTab";
 import { SprintDefectStatsTab } from "../components/SprintDefectStatsTab";
 import { fetchDefects } from "../api/client";
+import { useScope } from "../hooks/useScope";
 import type { DefectFilters } from "../types";
 
 type DefectTab = "sprintReport" | "overview" | "quality" | "resource";
@@ -36,12 +37,22 @@ const EMPTY_FILTERS: DefectFilters = {
 export function DefectManagementPage() {
     const { t } = useTranslation();
     const styles = useStyles();
-    const [filters, setFilters] = useState<DefectFilters>(EMPTY_FILTERS);
+    const scope = useScope();
+    const [localFilters, setLocalFilters] = useState<DefectFilters>(EMPTY_FILTERS);
     const [tab, setTab] = useState<DefectTab>("sprintReport");
 
+    // Iteration/area come from the global scope bar, not a page-local
+    // dropdown - environment/suites/targetVersion stay page-local filters.
+    const filters: DefectFilters = {
+        ...localFilters,
+        iteration: scope.sprint,
+        area: scope.areaPath,
+    };
+
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["defects", filters],
-        queryFn: () => fetchDefects(filters),
+        queryKey: ["defects", filters, scope.project],
+        queryFn: () => fetchDefects(filters, scope.project),
+        enabled: scope.isComplete,
     });
 
     return (
@@ -57,7 +68,8 @@ export function DefectManagementPage() {
                     <DefectFilterBar
                         availableFilters={data.stats.availableFilters}
                         filters={filters}
-                        onChange={setFilters}
+                        onChange={setLocalFilters}
+                        fields={["environment", "suites", "targetVersion"]}
                     />
 
                     <div className={styles.toolbar}>

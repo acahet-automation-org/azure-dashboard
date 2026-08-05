@@ -2,7 +2,7 @@ import "dotenv/config";
 import express, { type Response } from "express";
 import cors from "cors";
 import { requireAuth } from "./auth.js";
-import { AzdoAuthError, getIterations } from "./azdo.js";
+import { AzdoAuthError, getIterations, getAreaPaths, getProjects } from "./azdo.js";
 import {
     getDashboardData,
     clearDashboardCache,
@@ -87,10 +87,11 @@ function sendApiError(res: Response, error: any): void {
     res.status(500).json({ message: error.message });
 }
 
-app.get("/api/suites", async (_, res) => {
+app.get("/api/suites", async (req, res) => {
     try {
+        const project = req.query.project as string | undefined;
         const allTestCases =
-            await getDashboardData();
+            await getDashboardData(project);
 
         res.json(
             computeSuiteStats(allTestCases)
@@ -102,8 +103,9 @@ app.get("/api/suites", async (_, res) => {
 
 app.get("/api/dashboard", async (req, res) => {
     try {
+        const project = req.query.project as string | undefined;
         const allTestCases =
-            await getDashboardData();
+            await getDashboardData(project);
 
         const iteration = req.query.iteration as
             | string
@@ -119,27 +121,33 @@ app.get("/api/dashboard", async (req, res) => {
             stats: computeDashboardStats(
                 scoped
             ),
-            cacheTimestamp: getCacheTimestamp(),
+            cacheTimestamp: getCacheTimestamp(project),
         });
     } catch (error: any) {
         sendApiError(res, error);
     }
 });
 
-app.get("/api/runs", async (_, res) => {
+app.get("/api/runs", async (req, res) => {
     try {
-        res.json(await computeRunCards());
+        res.json(
+            await computeRunCards(
+                req.query.project as string | undefined
+            )
+        );
     } catch (error: any) {
         sendApiError(res, error);
     }
 });
 
-app.get("/api/execution-trend", async (_, res) => {
+app.get("/api/execution-trend", async (req, res) => {
     try {
+        const project = req.query.project as string | undefined;
+
         const [trend, allTestCases] =
             await Promise.all([
-                computeExecutionTrend(),
-                getDashboardData(),
+                computeExecutionTrend(project),
+                getDashboardData(project),
             ]);
 
         res.json({
@@ -151,17 +159,39 @@ app.get("/api/execution-trend", async (_, res) => {
     }
 });
 
-app.get("/api/iterations", async (_, res) => {
+app.get("/api/projects", async (_, res) => {
     try {
-        res.json(await getIterations());
+        res.json(await getProjects());
     } catch (error: any) {
         sendApiError(res, error);
     }
 });
 
-app.get("/api/plans", async (_, res) => {
+app.get("/api/areas", async (req, res) => {
     try {
-        res.json(await computeTestPlans());
+        res.json(
+            await getAreaPaths(req.query.project as string | undefined)
+        );
+    } catch (error: any) {
+        sendApiError(res, error);
+    }
+});
+
+app.get("/api/iterations", async (req, res) => {
+    try {
+        res.json(
+            await getIterations(req.query.project as string | undefined)
+        );
+    } catch (error: any) {
+        sendApiError(res, error);
+    }
+});
+
+app.get("/api/plans", async (req, res) => {
+    try {
+        res.json(
+            await computeTestPlans(req.query.project as string | undefined)
+        );
     } catch (error: any) {
         sendApiError(res, error);
     }
@@ -171,7 +201,12 @@ app.get("/api/plans/:planId/suites", async (req, res) => {
     try {
         const planId = Number(req.params.planId);
 
-        res.json(await computePlanSuites(planId));
+        res.json(
+            await computePlanSuites(
+                planId,
+                req.query.project as string | undefined
+            )
+        );
     } catch (error: any) {
         sendApiError(res, error);
     }
@@ -181,7 +216,12 @@ app.get("/api/plans/:planId/overview", async (req, res) => {
     try {
         const planId = Number(req.params.planId);
 
-        res.json(await computePlanOverview(planId));
+        res.json(
+            await computePlanOverview(
+                planId,
+                req.query.project as string | undefined
+            )
+        );
     } catch (error: any) {
         sendApiError(res, error);
     }
@@ -191,7 +231,12 @@ app.get("/api/plans/:planId/progress", async (req, res) => {
     try {
         const planId = Number(req.params.planId);
 
-        res.json(await computeTestPlanProgress(planId));
+        res.json(
+            await computeTestPlanProgress(
+                planId,
+                req.query.project as string | undefined
+            )
+        );
     } catch (error: any) {
         sendApiError(res, error);
     }
@@ -208,7 +253,13 @@ app.get("/api/plans/:planId/progress/bugs", async (req, res) => {
                   .filter(Number.isFinite)
             : undefined;
 
-        res.json(await computeTestPlanProgressBugs(planId, suiteIds));
+        res.json(
+            await computeTestPlanProgressBugs(
+                planId,
+                suiteIds,
+                req.query.project as string | undefined
+            )
+        );
     } catch (error: any) {
         sendApiError(res, error);
     }
@@ -226,7 +277,8 @@ app.get("/api/release-readiness", async (req, res) => {
     try {
         res.json(
             await computeReleaseReadiness(
-                req.query.iteration as string | undefined
+                req.query.iteration as string | undefined,
+                req.query.project as string | undefined
             )
         );
     } catch (error: any) {
@@ -238,9 +290,10 @@ app.get("/api/release-readiness", async (req, res) => {
     }
 });
 
-app.get("/api/nav-badges", async (_, res) => {
+app.get("/api/nav-badges", async (req, res) => {
     try {
-        const records = await getDefectData();
+        const project = req.query.project as string | undefined;
+        const records = await getDefectData(project);
         const counts = countOpenBySeverity(records);
 
         res.json({
@@ -281,7 +334,8 @@ app.post("/api/test-cases/delete", async (req, res) => {
     }
 
     try {
-        const result = await deleteTestCases(items);
+        const project = req.body?.project as string | undefined;
+        const result = await deleteTestCases(items, project);
 
         if (result.deleted.length > 0) {
             clearAutomationCache();
@@ -308,7 +362,8 @@ app.get("/api/automation", async (req, res) => {
                 Number.isFinite(planId)
                     ? planId
                     : undefined,
-                iteration
+                iteration,
+                req.query.project as string | undefined
             )
         );
     } catch (error: any) {
@@ -318,11 +373,13 @@ app.get("/api/automation", async (req, res) => {
 
 app.get("/api/defects", async (req, res) => {
     try {
+        const project = req.query.project as string | undefined;
+
         const [records, storyCount, storyPointsByArea, allSuiteNames] =
             await Promise.all([
-                getDefectData(),
-                getStoryCount(),
-                getStoryPointsByArea(),
+                getDefectData(project),
+                getStoryCount(project),
+                getStoryPointsByArea(project),
                 getAllSuiteNames(),
             ]);
 
@@ -353,23 +410,24 @@ app.get("/api/defects", async (req, res) => {
                 records,
                 allSuiteNames
             ),
-            cacheTimestamp: getDefectCacheTimestamp(),
+            cacheTimestamp: getDefectCacheTimestamp(project),
         });
     } catch (error: any) {
         sendApiError(res, error);
     }
 });
 
-app.get("/api/common-errors", async (_, res) => {
+app.get("/api/common-errors", async (req, res) => {
     try {
+        const project = req.query.project as string | undefined;
         const { errors, totalFailedResults } =
-            await getCommonErrorsData();
+            await getCommonErrorsData(project);
 
         res.json({
             errors,
             totalFailedResults,
             cacheTimestamp:
-                getCommonErrorsCacheTimestamp(),
+                getCommonErrorsCacheTimestamp(project),
         });
     } catch (error: any) {
         sendApiError(res, error);
@@ -378,15 +436,16 @@ app.get("/api/common-errors", async (_, res) => {
 app.get("/api/my-work-items", async (req, res) => {
     try {
         const mode = req.query.mode;
+        const project = req.query.project as string | undefined;
 
         const items =
             mode === "mentioned"
-                ? await getMentionedWorkItems()
+                ? await getMentionedWorkItems(project)
                 : mode === "following"
-                    ? await getFollowedWorkItems()
+                    ? await getFollowedWorkItems(project)
                     : mode === "created"
-                        ? await getCreatedWorkItems()
-                        : await getAssignedWorkItems();
+                        ? await getCreatedWorkItems(project)
+                        : await getAssignedWorkItems(project);
 
         res.json(items);
     } catch (error: any) {

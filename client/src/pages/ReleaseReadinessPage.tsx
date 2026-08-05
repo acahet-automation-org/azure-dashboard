@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
@@ -16,8 +15,8 @@ import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { StatCard } from "../components/StatCard";
 import { BugsTable } from "../components/BugsTable";
-import { IterationFilter } from "../components/IterationFilter";
 import { fetchReleaseReadiness } from "../api/client";
+import { useScope } from "../hooks/useScope";
 import type { RagStatus, ReleaseGateCriterion } from "../types";
 
 const RAG_BADGE_COLOR: Record<RagStatus, "success" | "warning" | "danger"> = {
@@ -153,17 +152,16 @@ function PassRateDeltaValue({
 export function ReleaseReadinessPage() {
     const styles = useStyles();
     const { t } = useTranslation();
-    const [iteration, setIteration] = useState("");
+    const scope = useScope();
 
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["release-readiness", iteration],
-        queryFn: () => fetchReleaseReadiness(iteration || undefined),
+        queryKey: ["release-readiness", scope.sprint, scope.project],
+        queryFn: () => fetchReleaseReadiness(scope.sprint || undefined, scope.project),
+        enabled: scope.isComplete,
     });
 
     return (
         <PageLayout title={t("releaseReadinessPage.title")}>
-            <IterationFilter value={iteration} onChange={setIteration} />
-
             {isLoading && <LoadingCardGrid count={3} />}
 
             {isError && <ErrorState message={error.message} onRetry={refetch} />}
@@ -241,16 +239,16 @@ export function ReleaseReadinessPage() {
                                     <Text className={styles.criterionValues}>
                                         {criterion.actual != null
                                             ? t(
-                                                  "releaseReadinessPage.gate.actualTarget",
-                                                  {
-                                                      actual: criterion.actual,
-                                                      target: criterion.target,
-                                                  }
-                                              )
+                                                "releaseReadinessPage.gate.actualTarget",
+                                                {
+                                                    actual: criterion.actual,
+                                                    target: criterion.target,
+                                                }
+                                            )
                                             : t(
-                                                  "releaseReadinessPage.gate.notTrackedNote",
-                                                  { target: criterion.target }
-                                              )}
+                                                "releaseReadinessPage.gate.notTrackedNote",
+                                                { target: criterion.target }
+                                            )}
                                     </Text>
 
                                     {criterion.id === "testsPassed" && (
@@ -288,8 +286,8 @@ export function ReleaseReadinessPage() {
                                     data.sprint.hasEnded
                                         ? t("releaseReadinessPage.stats.carryOver")
                                         : t(
-                                              "releaseReadinessPage.stats.notYetExecuted"
-                                          )
+                                            "releaseReadinessPage.stats.notYetExecuted"
+                                        )
                                 }
                                 value={data.completion.notExecutedCount}
                             />
