@@ -408,7 +408,7 @@
                 "stillOpen": "{{count}} ancora aperti",
                 "statusLabels": {
                     "closed": "Chiusi",
-                    "resolved": "Da verificare (retest DSI)",
+                    "resolved": "Da verificare",
                     "inProgress": "In lavorazione",
                     "new": "Nuovi (da prendere in carico)",
                     "notApplicable": "Non applicabile (out of scope)"
