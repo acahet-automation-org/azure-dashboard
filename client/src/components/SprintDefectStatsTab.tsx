@@ -124,7 +124,7 @@ function statusBucketOf(state: string): string {
         return "new";
     }
 
-    if (state === "Resolved") {
+    if (state === "Resolved" || state === "Da verificare" || state === "In verifica") {
         return "resolved";
     }
 

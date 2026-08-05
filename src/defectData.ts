@@ -747,8 +747,11 @@ function computeOutOfScopeBySuite(
 
 // "Resolved" gets its own bucket (fixed by dev, pending QA/DSI retest) since
 // it's a meaningfully different state of work than "New" or actively being
-// worked on; anything else non-terminal (Active, Committed, ...) still
-// collapses into "In Progress".
+// worked on. "Da verificare" and "In verifica" are this project's own
+// verification-step states (see BUG_STATE_ORDER in bugState.ts) and count
+// toward the same bucket rather than collapsing into "In Progress" alongside
+// "In Lavorazione" - anything else non-terminal (Active, Committed, ...)
+// still collapses into "In Progress".
 function statusBucket(
     state: string
 ): "New" | "Resolved" | "Closed" | "In Progress" {
@@ -756,7 +759,7 @@ function statusBucket(
         return "New";
     }
 
-    if (state === "Resolved") {
+    if (state === "Resolved" || state === "Da verificare" || state === "In verifica") {
         return "Resolved";
     }
 
@@ -897,9 +900,14 @@ export function computeSprintDefectReport(
         })),
         reopenedCount: records.filter((r) => r.reopenedCount > 0).length,
         mttrDays: computeMttrDays(records),
-        withoutResolutionDateCount: records.filter(
-            (r) => r.state !== "Closed" && !r.estimatedResolutionDate
-        ).length,
+        // Closed and Resolved/Da verificare/In verifica bugs are already
+        // fixed (just pending or past QA sign-off), so a missing estimate
+        // isn't actionable the way it is for a bug still New/In Lavorazione -
+        // reuses statusBucket() so this stays in sync with that bucketing.
+        withoutResolutionDateCount: records.filter((r) => {
+            const bucket = statusBucket(r.state);
+            return bucket !== "Closed" && bucket !== "Resolved" && !r.estimatedResolutionDate;
+        }).length,
     };
 }
 
