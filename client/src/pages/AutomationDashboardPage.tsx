@@ -28,8 +28,8 @@ import { ChartCard } from "../components/ChartCard";
 import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
-import { IterationFilter } from "../components/IterationFilter";
 import { fetchAutomationDashboard, fetchPlans } from "../api/client";
+import { useScope } from "../context/ScopeContext";
 import { categoryAxisWidth } from "../utils/chartAxis";
 
 const useStyles = makeStyles({
@@ -61,20 +61,23 @@ export function AutomationDashboardPage() {
     const [selectedPlanId, setSelectedPlanId] = useState<
         number | undefined
     >(undefined);
-    const [iteration, setIteration] = useState("");
+    const scope = useScope();
 
     const { data: plans } = useQuery({
-        queryKey: ["plans"],
-        queryFn: fetchPlans,
+        queryKey: ["plans", scope.project],
+        queryFn: () => fetchPlans(scope.project),
+        enabled: scope.isComplete,
     });
 
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["automation", selectedPlanId ?? "all", iteration],
+        queryKey: ["automation", selectedPlanId ?? "all", scope.sprint, scope.project],
         queryFn: () =>
             fetchAutomationDashboard(
                 selectedPlanId,
-                iteration || undefined
+                scope.sprint || undefined,
+                scope.project
             ),
+        enabled: scope.isComplete,
     });
 
     const automatedPlanIds = new Set(
@@ -95,14 +98,6 @@ export function AutomationDashboardPage() {
     return (
         <PageLayout title={t("automationDashboardPage.title")}>
             <div className={styles.filterRow}>
-                <IterationFilter
-                    value={iteration}
-                    onChange={(value) => {
-                        setIteration(value);
-                        setSelectedPlanId(undefined);
-                    }}
-                />
-
                 <Field
                     label={t("automationDashboardPage.planFilter.label")}
                     className={styles.filterField}

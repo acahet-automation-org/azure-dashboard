@@ -23,13 +23,13 @@ import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { ProgressSummaryCards } from "../components/ProgressSummaryCards";
 import { BugsTable } from "../components/BugsTable";
-import { IterationFilter } from "../components/IterationFilter";
 import {
     fetchPlans,
     fetchPlanProgress,
     fetchPlanProgressBugs,
     sendEmailReport,
 } from "../api/client";
+import { useScope } from "../context/ScopeContext";
 import {
     collectLeafOptions,
     filterProgressTree,
@@ -93,8 +93,8 @@ export function PlanProgressPage() {
         number | undefined
     >(undefined);
     const [selectedSuiteIds, setSelectedSuiteIds] = useState<number[]>([]);
-    const [iteration, setIteration] = useState("");
     const [isExporting, setIsExporting] = useState(false);
+    const scope = useScope();
 
     const runChartRef = useRef<HTMLDivElement>(null);
     const passRateChartRef = useRef<HTMLDivElement>(null);
@@ -104,25 +104,26 @@ export function PlanProgressPage() {
     });
 
     const { data: plans } = useQuery({
-        queryKey: ["plans"],
-        queryFn: fetchPlans,
+        queryKey: ["plans", scope.project],
+        queryFn: () => fetchPlans(scope.project),
+        enabled: scope.isComplete,
     });
 
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["plan-progress", selectedPlanId],
-        queryFn: () => fetchPlanProgress(selectedPlanId!),
-        enabled: selectedPlanId != null,
+        queryKey: ["plan-progress", selectedPlanId, scope.project],
+        queryFn: () => fetchPlanProgress(selectedPlanId!, scope.project),
+        enabled: scope.isComplete && selectedPlanId != null,
     });
 
     const { data: bugs, isLoading: isBugsLoading } = useQuery({
-        queryKey: ["plan-progress-bugs", selectedPlanId, selectedSuiteIds],
+        queryKey: ["plan-progress-bugs", selectedPlanId, selectedSuiteIds, scope.project],
         queryFn: () =>
-            fetchPlanProgressBugs(selectedPlanId!, selectedSuiteIds),
-        enabled: selectedPlanId != null,
+            fetchPlanProgressBugs(selectedPlanId!, selectedSuiteIds, scope.project),
+        enabled: scope.isComplete && selectedPlanId != null,
     });
 
-    const plansInIteration = iteration
-        ? plans?.filter((p) => p.iteration === iteration)
+    const plansInIteration = scope.sprint
+        ? plans?.filter((p) => p.iteration === scope.sprint)
         : plans;
 
     const selectedPlanName = plans?.find(
@@ -274,17 +275,6 @@ export function PlanProgressPage() {
             )}
 
             <div className={styles.toolbar}>
-                <IterationFilter
-                    value={iteration}
-                    onChange={(value) => {
-                        setIteration(value);
-                        setSelectedPlanId(undefined);
-                        setSelectedSuiteIds([]);
-                        emailReportMutation.reset();
-                    }}
-                    className={styles.filterField}
-                />
-
                 <Field
                     label={t("planProgressPage.planFilter.label")}
                     className={styles.filterField}

@@ -380,10 +380,11 @@ export function countOpenBySeverity(
 // behaviour: every functional test case/defect regardless of sprint,
 // labelled with the hand-maintained "current" sprint from sprints.ts.
 export async function computeReleaseReadiness(
-    iteration?: string
+    iteration?: string,
+    project?: string
 ): Promise<ReleaseReadinessResponse> {
     const now = Date.now();
-    const cacheKey = iteration ?? "";
+    const cacheKey = `${project ?? ""}:${iteration ?? ""}`;
     const cached = cache.get(cacheKey);
 
     if (cached && now - cached.timestamp < CACHE_DURATION_MS) {
@@ -391,10 +392,10 @@ export async function computeReleaseReadiness(
     }
 
     const [allTestCases, defects, trend, iterationNodes] = await Promise.all([
-        getDashboardData(),
-        getDefectData(),
-        computeExecutionTrend(),
-        getIterations(),
+        getDashboardData(project),
+        getDefectData(project),
+        computeExecutionTrend(project),
+        getIterations(project),
     ]);
 
     const functionalTestCases = allTestCases.filter((tc) =>

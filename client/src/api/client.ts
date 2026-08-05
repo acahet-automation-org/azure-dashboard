@@ -20,6 +20,8 @@ import type {
     ReleaseReadinessResponse,
     NavBadgesResponse,
     IterationNode,
+    ProjectSummary,
+    AreaPathNode,
 } from "../types";
 import { loginRequest } from "../authConfig";
 import { msalInstance } from "../msalInstance";
@@ -109,69 +111,106 @@ async function getJson<T>(url: string): Promise<T> {
     return res.json();
 }
 
-export function fetchSuites(): Promise<
+export function fetchSuites(project?: string): Promise<
     Record<string, SuiteStat>
 > {
-    return getJson("/api/suites");
+    const qs = project ? `?project=${encodeURIComponent(project)}` : "";
+
+    return getJson(`/api/suites${qs}`);
 }
 
 export function fetchDashboard(
-    iteration?: string
+    iteration?: string,
+    project?: string
 ): Promise<DashboardResponse> {
-    const qs = iteration
-        ? `?iteration=${encodeURIComponent(iteration)}`
-        : "";
+    const params = new URLSearchParams();
 
-    return getJson(`/api/dashboard${qs}`);
+    if (iteration) params.set("iteration", iteration);
+    if (project) params.set("project", project);
+
+    const qs = params.toString();
+
+    return getJson(`/api/dashboard${qs ? `?${qs}` : ""}`);
 }
 
-export function fetchRuns(): Promise<RunCard[]> {
-    return getJson("/api/runs");
+export function fetchRuns(project?: string): Promise<RunCard[]> {
+    const qs = project ? `?project=${encodeURIComponent(project)}` : "";
+
+    return getJson(`/api/runs${qs}`);
 }
 
-export function fetchPlans(): Promise<TestPlanSummary[]> {
-    return getJson("/api/plans");
+export function fetchPlans(project?: string): Promise<TestPlanSummary[]> {
+    const qs = project ? `?project=${encodeURIComponent(project)}` : "";
+
+    return getJson(`/api/plans${qs}`);
 }
 
-export function fetchIterations(): Promise<IterationNode[]> {
-    return getJson("/api/iterations");
+export function fetchIterations(project?: string): Promise<IterationNode[]> {
+    const qs = project ? `?project=${encodeURIComponent(project)}` : "";
+
+    return getJson(`/api/iterations${qs}`);
+}
+
+export function fetchProjects(): Promise<ProjectSummary[]> {
+    return getJson("/api/projects");
+}
+
+export function fetchAreaPaths(project: string): Promise<AreaPathNode[]> {
+    return getJson(`/api/areas?project=${encodeURIComponent(project)}`);
 }
 
 export function fetchPlanSuites(
-    planId: number
+    planId: number,
+    project?: string
 ): Promise<TestSuiteSummary[]> {
-    return getJson(`/api/plans/${planId}/suites`);
+    const qs = project ? `?project=${encodeURIComponent(project)}` : "";
+
+    return getJson(`/api/plans/${planId}/suites${qs}`);
 }
 
 export function fetchPlanOverview(
-    planId: number
+    planId: number,
+    project?: string
 ): Promise<PlanOverviewResponse> {
-    return getJson(`/api/plans/${planId}/overview`);
+    const qs = project ? `?project=${encodeURIComponent(project)}` : "";
+
+    return getJson(`/api/plans/${planId}/overview${qs}`);
 }
 
 export function fetchPlanProgress(
-    planId: number
+    planId: number,
+    project?: string
 ): Promise<TestPlanProgressResponse> {
-    return getJson(`/api/plans/${planId}/progress`);
+    const qs = project ? `?project=${encodeURIComponent(project)}` : "";
+
+    return getJson(`/api/plans/${planId}/progress${qs}`);
 }
 
 export function fetchPlanProgressBugs(
     planId: number,
-    suiteIds: number[]
+    suiteIds: number[],
+    project?: string
 ): Promise<BugInfo[]> {
-    const qs = suiteIds.length ? `?suiteIds=${suiteIds.join(",")}` : "";
+    const params = new URLSearchParams();
 
-    return getJson(`/api/plans/${planId}/progress/bugs${qs}`);
+    if (suiteIds.length) params.set("suiteIds", suiteIds.join(","));
+    if (project) params.set("project", project);
+
+    const qs = params.toString();
+
+    return getJson(`/api/plans/${planId}/progress/bugs${qs ? `?${qs}` : ""}`);
 }
 
 export function fetchAutomationDashboard(
     planId?: number,
-    iteration?: string
+    iteration?: string,
+    project?: string
 ): Promise<AutomationDashboardResponse> {
     const params = new URLSearchParams();
 
     if (planId != null) params.set("planId", String(planId));
     if (iteration) params.set("iteration", iteration);
+    if (project) params.set("project", project);
 
     const qs = params.toString();
     const url = qs ? `/api/automation?${qs}` : "/api/automation";
@@ -179,12 +218,15 @@ export function fetchAutomationDashboard(
     return getJson(url);
 }
 
-export function fetchExecutionTrend(): Promise<ExecutionTrendResponse> {
-    return getJson("/api/execution-trend");
+export function fetchExecutionTrend(project?: string): Promise<ExecutionTrendResponse> {
+    const qs = project ? `?project=${encodeURIComponent(project)}` : "";
+
+    return getJson(`/api/execution-trend${qs}`);
 }
 
 export function fetchDefects(
-    filters?: DefectFilters
+    filters?: DefectFilters,
+    project?: string
 ): Promise<DefectDashboardResponse> {
     const params = new URLSearchParams();
 
@@ -192,6 +234,7 @@ export function fetchDefects(
     if (filters?.area) params.set("area", filters.area);
     if (filters?.environment) params.set("environment", filters.environment);
     if (filters?.targetVersion) params.set("targetVersion", filters.targetVersion);
+    if (project) params.set("project", project);
     filters?.suites?.forEach((suite) => params.append("suite", suite));
 
     const qs = params.toString();
@@ -200,27 +243,40 @@ export function fetchDefects(
 }
 
 export function fetchReleaseReadiness(
-    iteration?: string
+    iteration?: string,
+    project?: string
 ): Promise<ReleaseReadinessResponse> {
-    const qs = iteration
-        ? `?iteration=${encodeURIComponent(iteration)}`
-        : "";
+    const params = new URLSearchParams();
 
-    return getJson(`/api/release-readiness${qs}`);
+    if (iteration) params.set("iteration", iteration);
+    if (project) params.set("project", project);
+
+    const qs = params.toString();
+
+    return getJson(`/api/release-readiness${qs ? `?${qs}` : ""}`);
 }
 
-export function fetchNavBadges(): Promise<NavBadgesResponse> {
-    return getJson("/api/nav-badges");
+export function fetchNavBadges(project?: string): Promise<NavBadgesResponse> {
+    const qs = project ? `?project=${encodeURIComponent(project)}` : "";
+
+    return getJson(`/api/nav-badges${qs}`);
 }
 
-export function fetchCommonErrors(): Promise<CommonErrorsResponse> {
-    return getJson("/api/common-errors");
+export function fetchCommonErrors(project?: string): Promise<CommonErrorsResponse> {
+    const qs = project ? `?project=${encodeURIComponent(project)}` : "";
+
+    return getJson(`/api/common-errors${qs}`);
 }
 
 export function fetchMyWorkItems(
-    mode: MyWorkItemsMode
+    mode: MyWorkItemsMode,
+    project?: string
 ): Promise<WorkItemSummary[]> {
-    return getJson(`/api/my-work-items?mode=${mode}`);
+    const params = new URLSearchParams({ mode });
+
+    if (project) params.set("project", project);
+
+    return getJson(`/api/my-work-items?${params.toString()}`);
 }
 
 export async function sendEmailReport(payload: {
@@ -245,12 +301,13 @@ export async function sendEmailReport(payload: {
 }
 
 export async function deleteTestCases(
-    items: DeleteTestCaseItem[]
+    items: DeleteTestCaseItem[],
+    project?: string
 ): Promise<DeleteTestCasesResult> {
     const res = await authorizedFetch("/api/test-cases/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ items, project }),
     });
 
     if (!res.ok) {

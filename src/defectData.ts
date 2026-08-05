@@ -23,9 +23,19 @@ import type {
     SprintDefectReport,
 } from "./types.js";
 
-let defectCache: { data: DefectRecord[]; timestamp: number } | null = null;
+// Keyed by resolved project (see resolveProjectKey) rather than a single
+// global entry, so selecting a different project on the dynamic Sprint
+// Report page doesn't evict/clobber the default project's cache.
+const defectCache = new Map<
+    string,
+    { data: DefectRecord[]; timestamp: number }
+>();
 
 const CACHE_DURATION_MS = 5 * 60 * 1000;
+
+function resolveProjectKey(project?: string): string {
+    return project ?? process.env.AZDO_PROJECT!;
+}
 
 // This project's Bug workflow has a dedicated "Riaperto" (reopened) state
 // rather than a generic Resolved/Closed -> Active/New transition, so a
@@ -107,8 +117,8 @@ const SLA_THRESHOLD_DAYS: Record<string, number> = {
     default: 30,
 };
 
-export function getDefectCacheTimestamp(): number {
-    return defectCache?.timestamp ?? 0;
+export function getDefectCacheTimestamp(project?: string): number {
+    return defectCache.get(resolveProjectKey(project))?.timestamp ?? 0;
 }
 
 function countReopenings(revisions: any[]): number {
@@ -190,9 +200,10 @@ function computeClosureReason(
 // confirmed linked here won't silently fall back to "no test case" just
 // because the reverse crawl in buildDashboard() didn't happen to surface it.
 async function getLinkedTestCaseIds(
-    bugId: number
+    bugId: number,
+    project?: string
 ): Promise<number[]> {
-    const workItem = await getWorkItem(bugId);
+    const workItem = await getWorkItem(bugId, project);
 
     // Only "Tested By" relations (in either direction) represent a genuine
     // "this bug was found via this test case" link. A bug can also pick up
@@ -212,7 +223,7 @@ async function getLinkedTestCaseIds(
         testedByRelations
     );
 
-    const linkedItems = await getWorkItems(linkedIds);
+    const linkedItems = await getWorkItems(linkedIds, undefined, project);
 
     return linkedItems
         .filter(
@@ -287,12 +298,13 @@ function isSpecificIterationPath(path: unknown): path is string {
 
 async function buildDefectRecord(
     bug: any,
-    lookups: TestCaseLookups
+    lookups: TestCaseLookups,
+    project?: string
 ): Promise<DefectRecord> {
     const [revisions, linkedTestCaseIds] =
         await Promise.all([
-            getWorkItemRevisions(bug.id),
-            getLinkedTestCaseIds(bug.id),
+            getWorkItemRevisions(bug.id, project),
+            getLinkedTestCaseIds(bug.id, project),
         ]);
 
     // Custom.Suite is the sole source for a bug's suite - no more borrowing
@@ -388,36 +400,43 @@ async function buildDefectRecord(
     };
 }
 
-export async function buildDefectRecords(): Promise<DefectRecord[]> {
+export async function buildDefectRecords(project?: string): Promise<DefectRecord[]> {
     const [bugs, lookups] = await Promise.all([
-        getAllBugFields(),
+        getAllBugFields(project),
+        // Test case lookups always come from the default project's dashboard
+        // data (getDashboardData isn't project-parameterized) - for a
+        // non-default project this fallback enrichment simply won't match
+        // anything and no-ops, since a bug's own System.IterationPath/
+        // Custom.Suite (the primary source) is unaffected.
         getTestCaseLookups(),
     ]);
 
     return Promise.all(
         bugs.map((bug) =>
-            buildDefectRecord(bug, lookups)
+            buildDefectRecord(bug, lookups, project)
         )
     );
 }
 
-export async function getDefectData(): Promise<DefectRecord[]> {
+export async function getDefectData(project?: string): Promise<DefectRecord[]> {
+    const projectKey = resolveProjectKey(project);
     const now = Date.now();
+    const cached = defectCache.get(projectKey);
 
-    if (defectCache && now - defectCache.timestamp < CACHE_DURATION_MS) {
-        return defectCache.data;
+    if (cached && now - cached.timestamp < CACHE_DURATION_MS) {
+        return cached.data;
     }
 
-    const data = await buildDefectRecords();
+    const data = await buildDefectRecords(project);
 
-    defectCache = { data, timestamp: now };
+    defectCache.set(projectKey, { data, timestamp: now });
 
     return data;
 }
 
 export function clearDefectCache(): void {
-    defectCache = null;
-    storyPointsCache = null;
+    defectCache.clear();
+    storyPointsCache.clear();
     suiteNamesCache = null;
 }
 
@@ -1121,27 +1140,26 @@ function computeAvailableFilters(
     };
 }
 
-let storyPointsCache: {
-    data: Record<string, number>;
-    timestamp: number;
-} | null = null;
+const storyPointsCache = new Map<
+    string,
+    { data: Record<string, number>; timestamp: number }
+>();
 
-export async function getStoryPointsByArea(): Promise<
+export async function getStoryPointsByArea(project?: string): Promise<
     Record<string, number>
 > {
+    const projectKey = resolveProjectKey(project);
     const now = Date.now();
+    const cached = storyPointsCache.get(projectKey);
 
-    if (
-        storyPointsCache &&
-        now - storyPointsCache.timestamp < CACHE_DURATION_MS
-    ) {
-        return storyPointsCache.data;
+    if (cached && now - cached.timestamp < CACHE_DURATION_MS) {
+        return cached.data;
     }
 
-    const stories = await getStoriesWithFields();
+    const stories = await getStoriesWithFields(project);
     const data = computeStoryPointsByArea(stories);
 
-    storyPointsCache = { data, timestamp: now };
+    storyPointsCache.set(projectKey, { data, timestamp: now });
 
     return data;
 }

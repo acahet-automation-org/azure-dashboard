@@ -57,22 +57,23 @@ function toWorkItemSummary(wi: any): WorkItemSummary {
     };
 }
 
-export async function getAssignedWorkItems(): Promise<WorkItemSummary[]> {
-    const ids = await getActiveWorkItemIds();
-    const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS);
+export async function getAssignedWorkItems(project?: string): Promise<WorkItemSummary[]> {
+    const ids = await getActiveWorkItemIds(project);
+    const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS, project);
 
     return items.map(toWorkItemSummary);
 }
 
-export async function getMentionedWorkItems(): Promise<WorkItemSummary[]> {
+export async function getMentionedWorkItems(project?: string): Promise<WorkItemSummary[]> {
     const ids = await getRecentlyChangedWorkItemIds(
-        MENTION_SCAN_WINDOW_DAYS
+        MENTION_SCAN_WINDOW_DAYS,
+        project
     );
     const mentionsById = new Map<number, string[]>();
 
     await Promise.all(
         ids.map(async (id) => {
-            const mentions = await getCommentMentions(id);
+            const mentions = await getCommentMentions(id, project);
 
             if (mentions.length) {
                 mentionsById.set(id, mentions);
@@ -86,7 +87,8 @@ export async function getMentionedWorkItems(): Promise<WorkItemSummary[]> {
 
     const items = await getWorkItems(
         [...mentionsById.keys()],
-        MY_WORK_ITEM_FIELDS
+        MY_WORK_ITEM_FIELDS,
+        project
     );
 
     return items.map((wi) => ({
@@ -95,16 +97,19 @@ export async function getMentionedWorkItems(): Promise<WorkItemSummary[]> {
     }));
 }
 
-export async function getFollowedWorkItems(): Promise<WorkItemSummary[]> {
+// getFollowedWorkItemIds is intentionally left org-scoped, unparameterized
+// (see its doc comment in azdo.ts) - only the hydration step below can be
+// scoped to a project.
+export async function getFollowedWorkItems(project?: string): Promise<WorkItemSummary[]> {
     const ids = await getFollowedWorkItemIds();
-    const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS);
+    const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS, project);
 
     return items.map(toWorkItemSummary);
 }
 
-export async function getCreatedWorkItems(): Promise<WorkItemSummary[]> {
-    const ids = await getCreatedWorkItemIds();
-    const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS);
+export async function getCreatedWorkItems(project?: string): Promise<WorkItemSummary[]> {
+    const ids = await getCreatedWorkItemIds(project);
+    const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS, project);
 
     return items.map(toWorkItemSummary);
 }

@@ -11,6 +11,7 @@ import { EmptyState } from "../components/EmptyState";
 import { WorkItemsTable } from "../components/WorkItemsTable";
 import { Pagination } from "../components/Pagination";
 import { fetchMyWorkItems } from "../api/client";
+import { useScope } from "../context/ScopeContext";
 import type { MyWorkItemsMode, WorkItemSummary } from "../types";
 
 const EMPTY_MESSAGE_KEY: Record<MyWorkItemsMode, string> = {
@@ -92,10 +93,12 @@ export function MyWorkItemsPage() {
     const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[1]);
     const { instance, accounts } = useMsal();
     const activeAccount = instance.getActiveAccount() ?? accounts[0];
+    const scope = useScope();
 
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["my-work-items", mode],
-        queryFn: () => fetchMyWorkItems(mode),
+        queryKey: ["my-work-items", mode, scope.project],
+        queryFn: () => fetchMyWorkItems(mode, scope.project),
+        enabled: scope.isComplete,
     });
 
     const skipAuth = import.meta.env.VITE_SKIP_AUTH === "true";

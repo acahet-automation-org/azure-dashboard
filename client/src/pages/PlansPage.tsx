@@ -12,7 +12,7 @@ export function PlansPage() {
     const { t } = useTranslation();
     const { data, isLoading, isError, error, refetch } = useQuery({
         queryKey: ["plans"],
-        queryFn: fetchPlans,
+        queryFn: () => fetchPlans(),
     });
 
     return (

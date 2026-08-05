@@ -8,6 +8,7 @@ import "./i18n";
 import { msalInstance } from "./msalInstance";
 import { ThemeModeProvider } from "./hooks/ThemeModeProvider";
 import { ThemedFluentProvider } from "./components/ThemedFluentProvider";
+import { ScopeProvider } from "./context/ScopeContext";
 import App from "./App";
 
 const queryClient = new QueryClient();
@@ -78,9 +79,11 @@ async function bootApp() {
                 <ThemeModeProvider>
                     <ThemedFluentProvider>
                         <QueryClientProvider client={queryClient}>
-                            <BrowserRouter basename={import.meta.env.BASE_URL}>
-                                <App />
-                            </BrowserRouter>
+                            <ScopeProvider>
+                                <BrowserRouter basename={import.meta.env.BASE_URL}>
+                                    <App />
+                                </BrowserRouter>
+                            </ScopeProvider>
                         </QueryClientProvider>
                     </ThemedFluentProvider>
                 </ThemeModeProvider>

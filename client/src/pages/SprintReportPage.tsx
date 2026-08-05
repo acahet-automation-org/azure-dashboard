@@ -6,9 +6,9 @@ import { PageLayout } from "../components/PageLayout";
 import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { DefectFilterBar } from "../components/DefectFilterBar";
-import { IterationFilter } from "../components/IterationFilter";
 import { SprintDefectReportTab } from "../components/SprintDefectReportTab";
 import { fetchDefects } from "../api/client";
+import { useScope } from "../context/ScopeContext";
 import type { DefectFilters } from "../types";
 
 const useStyles = makeStyles({
@@ -31,11 +31,21 @@ const EMPTY_FILTERS: DefectFilters = {
 export function SprintReportPage() {
     const { t } = useTranslation();
     const styles = useStyles();
-    const [filters, setFilters] = useState<DefectFilters>(EMPTY_FILTERS);
+    const scope = useScope();
+    const [localFilters, setLocalFilters] = useState<DefectFilters>(EMPTY_FILTERS);
+
+    // Iteration/area come from the global scope bar - suites stays a
+    // page-local filter.
+    const filters: DefectFilters = {
+        ...localFilters,
+        iteration: scope.sprint,
+        area: scope.areaPath,
+    };
 
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["defects", filters],
-        queryFn: () => fetchDefects(filters),
+        queryKey: ["defects", filters, scope.project],
+        queryFn: () => fetchDefects(filters, scope.project),
+        enabled: scope.isComplete,
     });
 
     return (
@@ -52,19 +62,12 @@ export function SprintReportPage() {
                         <DefectFilterBar
                             availableFilters={data.stats.availableFilters}
                             filters={filters}
-                            onChange={setFilters}
-                            fields={["iteration", "area", "suites"]}
-                        />
-
-                        <IterationFilter
-                            value={filters.iteration}
-                            onChange={(iteration) =>
-                                setFilters({ ...filters, iteration })
-                            }
+                            onChange={setLocalFilters}
+                            fields={["suites"]}
                         />
                     </div>
 
-                    <SprintDefectReportTab stats={data.stats} />
+                    <SprintDefectReportTab stats={data.stats} project={scope.project} />
                 </>
             )}
         </PageLayout>

@@ -12,13 +12,13 @@ import {
 import { PageLayout } from "../components/PageLayout";
 import { StatCard } from "../components/StatCard";
 import { FilterBar, type DashboardFilters } from "../components/FilterBar";
-import { IterationFilter } from "../components/IterationFilter";
 import { SuiteGroup } from "../components/SuiteGroup";
 import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { ExportMenu, type ExportFormat } from "../components/ExportMenu";
 import { fetchDashboard, sendEmailReport } from "../api/client";
+import { useScope } from "../context/ScopeContext";
 import { computeGroupStats } from "../utils/stats";
 import {
     buildPdfBase64,
@@ -95,11 +95,12 @@ export function DashboardPage() {
     const styles = useStyles();
     const { t, i18n } = useTranslation();
     const [searchParams] = useSearchParams();
-    const [iteration, setIteration] = useState("");
+    const scope = useScope();
 
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["dashboard", iteration],
-        queryFn: () => fetchDashboard(iteration || undefined),
+        queryKey: ["dashboard", scope.sprint, scope.project],
+        queryFn: () => fetchDashboard(scope.sprint || undefined, scope.project),
+        enabled: scope.isComplete,
     });
 
     const initialSuite = searchParams.get("suite");
@@ -247,8 +248,6 @@ export function DashboardPage() {
 
     return (
         <PageLayout title={t("dashboardPage.title")}>
-            <IterationFilter value={iteration} onChange={setIteration} />
-
             {isLoading && <LoadingCardGrid />}
 
             {isError && (

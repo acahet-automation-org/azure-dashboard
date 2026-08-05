@@ -22,30 +22,42 @@ const AUTOMATION_STATUS_FIELD = "Microsoft.VSTS.TCM.AutomationStatus";
 const AREA_PATH_FIELD = "System.AreaPath";
 const FLAKY_TOP_N = 10;
 
-let rowsCache: AutomationTestCaseRow[] | null = null;
-let occurrencesCache: AutomationResultOccurrence[] | null = null;
-let cacheTimestamp = 0;
+// Keyed by resolved project rather than a single global entry, mirroring
+// dashboardData.ts's dashboardCache/defectData.ts's defectCache fix.
+const automationCache = new Map<
+    string,
+    {
+        rows: AutomationTestCaseRow[];
+        occurrences: AutomationResultOccurrence[];
+        timestamp: number;
+    }
+>();
 
 const CACHE_DURATION_MS = 5 * 60 * 1000;
 
-export function getAutomationCacheTimestamp(): number {
-    return cacheTimestamp;
+function resolveProjectKey(project?: string): string {
+    return project ?? process.env.AZDO_PROJECT!;
 }
 
-async function buildAutomationRows(): Promise<
+export function getAutomationCacheTimestamp(project?: string): number {
+    return automationCache.get(resolveProjectKey(project))?.timestamp ?? 0;
+}
+
+async function buildAutomationRows(project?: string): Promise<
     AutomationTestCaseRow[]
 > {
-    const plans = await getTestPlans();
+    const plans = await getTestPlans(project);
 
     const rows: AutomationTestCaseRow[] = [];
 
     for (const plan of plans) {
-        const suites = await getSuites(plan.id);
+        const suites = await getSuites(plan.id, project);
 
         for (const suite of suites) {
             const testCases = await getTestCases(
                 plan.id,
-                suite.id
+                suite.id,
+                project
             );
 
             const ids = testCases.map(
@@ -55,7 +67,7 @@ async function buildAutomationRows(): Promise<
             const workItems = await getWorkItems(ids, [
                 AUTOMATION_STATUS_FIELD,
                 AREA_PATH_FIELD,
-            ]);
+            ], project);
 
             const fieldsById = new Map<number, any>(
                 workItems.map((wi: any) => [
@@ -88,14 +100,14 @@ async function buildAutomationRows(): Promise<
     return rows;
 }
 
-async function buildOccurrences(): Promise<
+async function buildOccurrences(project?: string): Promise<
     AutomationResultOccurrence[]
 > {
-    const runs = await getTestRuns();
+    const runs = await getTestRuns(project);
 
     const resultsByRun = await Promise.all(
         runs.map((run: any) =>
-            getTestRunResults(run.id)
+            getTestRunResults(run.id, project)
         )
     );
 
@@ -120,53 +132,40 @@ async function buildOccurrences(): Promise<
     return occurrences;
 }
 
-async function buildAutomationData(): Promise<{
+async function buildAutomationData(project?: string): Promise<{
     rows: AutomationTestCaseRow[];
     occurrences: AutomationResultOccurrence[];
 }> {
     const [rows, occurrences] = await Promise.all([
-        buildAutomationRows(),
-        buildOccurrences(),
+        buildAutomationRows(project),
+        buildOccurrences(project),
     ]);
 
     return { rows, occurrences };
 }
 
-async function getAutomationData(): Promise<{
+async function getAutomationData(project?: string): Promise<{
     rows: AutomationTestCaseRow[];
     occurrences: AutomationResultOccurrence[];
 }> {
+    const projectKey = resolveProjectKey(project);
     const now = Date.now();
+    const cached = automationCache.get(projectKey);
 
-    if (
-        rowsCache &&
-        occurrencesCache &&
-        now - cacheTimestamp < CACHE_DURATION_MS
-    ) {
-        console.log("CACHE HIT");
-
-        return {
-            rows: rowsCache,
-            occurrences: occurrencesCache,
-        };
+    if (cached && now - cached.timestamp < CACHE_DURATION_MS) {
+        return { rows: cached.rows, occurrences: cached.occurrences };
     }
 
-    console.log("CACHE MISS");
-
     const { rows, occurrences } =
-        await buildAutomationData();
+        await buildAutomationData(project);
 
-    rowsCache = rows;
-    occurrencesCache = occurrences;
-    cacheTimestamp = now;
+    automationCache.set(projectKey, { rows, occurrences, timestamp: now });
 
     return { rows, occurrences };
 }
 
 export function clearAutomationCache(): void {
-    rowsCache = null;
-    occurrencesCache = null;
-    cacheTimestamp = 0;
+    automationCache.clear();
 }
 
 function areaPathLeaf(areaPath: string): string {
@@ -400,10 +399,11 @@ export function computeAutomationDashboard(
 
 export async function getAutomationDashboard(
     planId?: number,
-    iteration?: string
+    iteration?: string,
+    project?: string
 ): Promise<AutomationDashboardResponse> {
     const { rows, occurrences } =
-        await getAutomationData();
+        await getAutomationData(project);
 
     return {
         ...computeAutomationDashboard(
@@ -412,6 +412,6 @@ export async function getAutomationDashboard(
             planId,
             iteration
         ),
-        cacheTimestamp: getAutomationCacheTimestamp(),
+        cacheTimestamp: getAutomationCacheTimestamp(project),
     };
 }

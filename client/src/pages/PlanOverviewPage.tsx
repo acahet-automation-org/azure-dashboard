@@ -39,8 +39,8 @@ import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { BugsTable } from "../components/BugsTable";
-import { IterationFilter } from "../components/IterationFilter";
 import { fetchPlans, fetchPlanOverview, sendEmailReport } from "../api/client";
+import { useScope } from "../context/ScopeContext";
 import {
     buildEmailReportHtml,
     buildPlanOverviewFilename,
@@ -346,8 +346,8 @@ export function PlanOverviewPage() {
     const [selectedSuiteName, setSelectedSuiteName] = useState<
         string | undefined
     >(undefined);
-    const [iteration, setIteration] = useState("");
     const [isExporting, setIsExporting] = useState(false);
+    const scope = useScope();
 
     const outcomeChartRef = useRef<HTMLDivElement>(null);
     const suiteChartRef = useRef<HTMLDivElement>(null);
@@ -360,18 +360,19 @@ export function PlanOverviewPage() {
     });
 
     const { data: plans } = useQuery({
-        queryKey: ["plans"],
-        queryFn: fetchPlans,
+        queryKey: ["plans", scope.project],
+        queryFn: () => fetchPlans(scope.project),
+        enabled: scope.isComplete,
     });
 
     const { data, isLoading, isError, error, refetch } = useQuery({
-        queryKey: ["plan-overview", selectedPlanId],
-        queryFn: () => fetchPlanOverview(selectedPlanId!),
-        enabled: selectedPlanId != null,
+        queryKey: ["plan-overview", selectedPlanId, scope.project],
+        queryFn: () => fetchPlanOverview(selectedPlanId!, scope.project),
+        enabled: scope.isComplete && selectedPlanId != null,
     });
 
-    const plansInIteration = iteration
-        ? plans?.filter((p) => p.iteration === iteration)
+    const plansInIteration = scope.sprint
+        ? plans?.filter((p) => p.iteration === scope.sprint)
         : plans;
 
     const selectedPlanName = plans?.find(
@@ -582,17 +583,6 @@ export function PlanOverviewPage() {
             )}
 
             <div className={styles.toolbar}>
-                <IterationFilter
-                    value={iteration}
-                    onChange={(value) => {
-                        setIteration(value);
-                        setSelectedPlanId(undefined);
-                        setSelectedSuiteName(undefined);
-                        emailReportMutation.reset();
-                    }}
-                    className={styles.filterField}
-                />
-
                 <Field
                     label={t("planOverviewPage.planFilter.label")}
                     className={styles.filterField}
