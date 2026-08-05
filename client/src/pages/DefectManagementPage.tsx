@@ -11,7 +11,7 @@ import { DefectQualityTab } from "../components/DefectQualityTab";
 import { DefectResourceTab } from "../components/DefectResourceTab";
 import { SprintDefectStatsTab } from "../components/SprintDefectStatsTab";
 import { fetchDefects } from "../api/client";
-import { useScope } from "../context/ScopeContext";
+import { useScope } from "../hooks/useScope";
 import type { DefectFilters } from "../types";
 
 type DefectTab = "sprintReport" | "overview" | "quality" | "resource";

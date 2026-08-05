@@ -11,7 +11,7 @@ import { EmptyState } from "../components/EmptyState";
 import { WorkItemsTable } from "../components/WorkItemsTable";
 import { Pagination } from "../components/Pagination";
 import { fetchMyWorkItems } from "../api/client";
-import { useScope } from "../context/ScopeContext";
+import { useScope } from "../hooks/useScope";
 import type { MyWorkItemsMode, WorkItemSummary } from "../types";
 
 const EMPTY_MESSAGE_KEY: Record<MyWorkItemsMode, string> = {

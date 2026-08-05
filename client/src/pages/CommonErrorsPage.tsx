@@ -20,7 +20,7 @@ import { EmptyState } from "../components/EmptyState";
 import { ErrorGroupItem } from "../components/ErrorGroupItem";
 import { fetchCommonErrors } from "../api/client";
 import { categoryAxisWidth } from "../utils/chartAxis";
-import { useScope } from "../context/ScopeContext";
+import { useScope } from "../hooks/useScope";
 
 const useStyles = makeStyles({
     section: {

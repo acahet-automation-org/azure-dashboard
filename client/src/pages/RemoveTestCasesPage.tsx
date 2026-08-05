@@ -30,7 +30,7 @@ import { EmptyState } from "../components/EmptyState";
 import { SelectableSuiteTreeItem } from "../components/SelectableSuiteTreeItem";
 import { NAV_HEIGHT } from "../layoutConstants";
 import { deleteTestCases, fetchPlanSuites, fetchPlans } from "../api/client";
-import { useScope } from "../context/ScopeContext";
+import { useScope } from "../hooks/useScope";
 import type { DeleteTestCaseItem, TestCaseSummary, TestSuiteSummary } from "../types";
 
 function flattenTestCases(

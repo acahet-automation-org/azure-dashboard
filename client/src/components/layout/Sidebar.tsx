@@ -33,7 +33,7 @@ import {
 } from "@fluentui/react-icons";
 import { useTranslation } from "react-i18next";
 import { fetchNavBadges } from "../../api/client";
-import { useScope } from "../../context/ScopeContext";
+import { useScope } from "../../hooks/useScope";
 import {
     SIDEBAR_WIDTH,
     SIDEBAR_COLLAPSED_WIDTH,

@@ -29,7 +29,7 @@ import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { fetchAutomationDashboard, fetchPlans } from "../api/client";
-import { useScope } from "../context/ScopeContext";
+import { useScope } from "../hooks/useScope";
 import { categoryAxisWidth } from "../utils/chartAxis";
 
 const useStyles = makeStyles({

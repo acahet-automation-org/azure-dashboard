@@ -8,7 +8,7 @@ import { ErrorState } from "../components/ErrorState";
 import { DefectFilterBar } from "../components/DefectFilterBar";
 import { SprintDefectReportTab } from "../components/SprintDefectReportTab";
 import { fetchDefects } from "../api/client";
-import { useScope } from "../context/ScopeContext";
+import { useScope } from "../hooks/useScope";
 import type { DefectFilters } from "../types";
 
 const useStyles = makeStyles({

@@ -16,7 +16,7 @@ import { EmptyState } from "../components/EmptyState";
 import { StatCard } from "../components/StatCard";
 import { BugsTable } from "../components/BugsTable";
 import { fetchReleaseReadiness } from "../api/client";
-import { useScope } from "../context/ScopeContext";
+import { useScope } from "../hooks/useScope";
 import type { RagStatus, ReleaseGateCriterion } from "../types";
 
 const RAG_BADGE_COLOR: Record<RagStatus, "success" | "warning" | "danger"> = {
@@ -239,16 +239,16 @@ export function ReleaseReadinessPage() {
                                     <Text className={styles.criterionValues}>
                                         {criterion.actual != null
                                             ? t(
-                                                  "releaseReadinessPage.gate.actualTarget",
-                                                  {
-                                                      actual: criterion.actual,
-                                                      target: criterion.target,
-                                                  }
-                                              )
+                                                "releaseReadinessPage.gate.actualTarget",
+                                                {
+                                                    actual: criterion.actual,
+                                                    target: criterion.target,
+                                                }
+                                            )
                                             : t(
-                                                  "releaseReadinessPage.gate.notTrackedNote",
-                                                  { target: criterion.target }
-                                              )}
+                                                "releaseReadinessPage.gate.notTrackedNote",
+                                                { target: criterion.target }
+                                            )}
                                     </Text>
 
                                     {criterion.id === "testsPassed" && (
@@ -286,8 +286,8 @@ export function ReleaseReadinessPage() {
                                     data.sprint.hasEnded
                                         ? t("releaseReadinessPage.stats.carryOver")
                                         : t(
-                                              "releaseReadinessPage.stats.notYetExecuted"
-                                          )
+                                            "releaseReadinessPage.stats.notYetExecuted"
+                                        )
                                 }
                                 value={data.completion.notExecutedCount}
                             />

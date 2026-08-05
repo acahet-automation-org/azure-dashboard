@@ -14,7 +14,7 @@ import {
     fetchSuites,
     fetchExecutionTrend,
 } from "../api/client";
-import { useScope } from "../context/ScopeContext";
+import { useScope } from "../hooks/useScope";
 
 const useStyles = makeStyles({
     section: {

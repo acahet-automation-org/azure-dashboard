@@ -29,7 +29,7 @@ import {
     fetchPlanProgressBugs,
     sendEmailReport,
 } from "../api/client";
-import { useScope } from "../context/ScopeContext";
+import { useScope } from "../hooks/useScope";
 import {
     collectLeafOptions,
     filterProgressTree,
@@ -322,12 +322,12 @@ export function PlanProgressPage() {
                             value={
                                 selectedSuiteIds.length > 0
                                     ? t(
-                                          "planProgressPage.suiteFilter.selectedCount",
-                                          { count: selectedSuiteIds.length }
-                                      )
+                                        "planProgressPage.suiteFilter.selectedCount",
+                                        { count: selectedSuiteIds.length }
+                                    )
                                     : t(
-                                          "planProgressPage.suiteFilter.allSuites"
-                                      )
+                                        "planProgressPage.suiteFilter.allSuites"
+                                    )
                             }
                             selectedOptions={selectedSuiteIds.map(String)}
                             onOptionSelect={(_, option) => {

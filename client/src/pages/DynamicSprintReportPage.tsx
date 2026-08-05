@@ -21,7 +21,7 @@ import {
     fetchPlanOverview,
     fetchDefects,
 } from "../api/client";
-import { useScope } from "../context/ScopeContext";
+import { useScope } from "../hooks/useScope";
 import type { DefectFilters } from "../types";
 
 const useStyles = makeStyles({
@@ -155,8 +155,8 @@ export function DynamicSprintReportPage() {
     const selectedPlansLabel =
         selectedPlanIds.length > 0
             ? t("dynamicSprintReportPage.selectedTestPlans", {
-                  count: selectedPlanIds.length,
-              })
+                count: selectedPlanIds.length,
+            })
             : t("dynamicSprintReportPage.testPlansPlaceholder");
 
     return (

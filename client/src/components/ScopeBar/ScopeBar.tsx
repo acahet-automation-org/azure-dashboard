@@ -10,7 +10,7 @@ import {
     tokens,
 } from "@fluentui/react-components";
 import { ChevronDownRegular, EditRegular } from "@fluentui/react-icons";
-import { useScope } from "../../context/ScopeContext";
+import { useScope } from "../../hooks/useScope";
 import { fetchProjects, fetchIterations } from "../../api/client";
 import { AreaPathFilter } from "../AreaPathFilter";
 

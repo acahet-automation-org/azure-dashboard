@@ -25,7 +25,7 @@ import { EmptyState } from "../components/EmptyState";
 import { SuiteTreeItem } from "../components/SuiteTreeItem";
 import { ExportMenu, type ExportFormat } from "../components/ExportMenu";
 import { fetchPlanSuites } from "../api/client";
-import { useScope } from "../context/ScopeContext";
+import { useScope } from "../hooks/useScope";
 import { exportToCsv, exportToExcel, exportToPdf } from "../utils/export";
 import type { ExportableRow } from "../utils/export";
 import type { TestPlanSummary, TestSuiteSummary } from "../types";

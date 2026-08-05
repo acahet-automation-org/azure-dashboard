@@ -6,7 +6,7 @@ import { ErrorState } from "../components/ErrorState";
 import { SprintDefectReportTab } from "../components/SprintDefectReportTab";
 import type { SuiteGroupDef } from "../components/SprintDefectReportTab";
 import { fetchDefects } from "../api/client";
-import { useScope } from "../context/ScopeContext";
+import { useScope } from "../hooks/useScope";
 import type { DefectFilters } from "../types";
 
 // Plurifond bugs are always scoped to these three suites (matched on the

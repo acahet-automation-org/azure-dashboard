@@ -10,7 +10,7 @@ import { EmptyState } from "../components/EmptyState";
 import { ExportMenu, type ExportFormat } from "../components/ExportMenu";
 import { fetchSuites } from "../api/client";
 import { exportToCsv, exportToExcel, exportToPdf } from "../utils/export";
-import { useScope } from "../context/ScopeContext";
+import { useScope } from "../hooks/useScope";
 
 const useStyles = makeStyles({
     toolbar: {

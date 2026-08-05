@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useEffect, useState, type ReactNode } from "react";
 
 const SCOPE_STORAGE_KEY = "azureDashboardScope";
 
@@ -45,7 +45,7 @@ export interface Scope {
     isComplete: boolean;
 }
 
-const ScopeContext = createContext<Scope | null>(null);
+export const ScopeContext = createContext<Scope | null>(null);
 
 export function ScopeProvider({ children }: { children: ReactNode }) {
     const [scope, setScope] = useState<StoredScope>(loadStoredScope);
@@ -77,14 +77,4 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
     };
 
     return <ScopeContext.Provider value={value}>{children}</ScopeContext.Provider>;
-}
-
-export function useScope(): Scope {
-    const scope = useContext(ScopeContext);
-
-    if (!scope) {
-        throw new Error("useScope must be used within a ScopeProvider");
-    }
-
-    return scope;
 }

@@ -18,7 +18,7 @@ import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { ExportMenu, type ExportFormat } from "../components/ExportMenu";
 import { fetchDashboard, sendEmailReport } from "../api/client";
-import { useScope } from "../context/ScopeContext";
+import { useScope } from "../hooks/useScope";
 import { computeGroupStats } from "../utils/stats";
 import {
     buildPdfBase64,
@@ -410,7 +410,7 @@ export function DashboardPage() {
                                                     allTestCases.filter(
                                                         (tc) =>
                                                             tc.suiteName ===
-                                                                suiteName &&
+                                                            suiteName &&
                                                             String(
                                                                 tc.priority
                                                             ) === priority
