@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { ScopeContext, type Scope } from "../context/ScopeContext";
+import { ScopeContext, type Scope } from "../context/scopeContextStore";
 
 export function useScope(): Scope {
     const scope = useContext(ScopeContext);
