@@ -206,7 +206,7 @@ export function SprintDefectReportTab({
         defaultActionsText
             ? defaultActionsText(report)
             : "Yellow section text content\n\n" +
-              "Blue section text content\n\n"
+            "Blue section text content\n\n"
     );
     const [groupLabels, setGroupLabels] = useState<string[]>(
         suiteGroupDefs.map((def) => def.label)
@@ -589,197 +589,197 @@ export function SprintDefectReportTab({
             <ChartCard
                 title={t("defectManagementPage.sprintReport.statusCard.title")}
             >
-            <div className={styles.statusCardControls}>
-                <Field
-                    label={t(
-                        "defectManagementPage.sprintReport.statusCard.headerTitleLabel"
-                    )}
-                    className={styles.statusCardField}
-                >
-                    <Input
-                        value={headerTitle}
-                        onChange={(_, data) =>
-                            setHeaderTitle(data.value)
-                        }
-                    />
-                </Field>
-
-                <Field
-                    label={t(
-                        "defectManagementPage.sprintReport.statusCard.headerSubtitleLabel"
-                    )}
-                    className={styles.statusCardFieldWide}
-                >
-                    <Input
-                        value={headerSubtitle}
-                        onChange={(_, data) =>
-                            setHeaderSubtitle(data.value)
-                        }
-                    />
-                </Field>
-            </div>
-
-            <div className={styles.statusCardControls}>
-                {includeDeadline && (
+                <div className={styles.statusCardControls}>
                     <Field
                         label={t(
-                            "defectManagementPage.sprintReport.statusCard.uatDeadlineLabel"
+                            "defectManagementPage.sprintReport.statusCard.headerTitleLabel"
                         )}
                         className={styles.statusCardField}
                     >
                         <Input
-                            type="date"
-                            value={uatDeadline}
+                            value={headerTitle}
                             onChange={(_, data) =>
-                                setUatDeadline(data.value)
+                                setHeaderTitle(data.value)
                             }
                         />
                     </Field>
-                )}
 
-                <Field
-                    label={t(
-                        "defectManagementPage.sprintReport.statusCard.actionsLabel"
-                    )}
-                    className={styles.statusCardFieldWide}
-                >
-                    <Textarea
-                        value={actionsText}
-                        placeholder={t(
-                            "defectManagementPage.sprintReport.statusCard.actionsPlaceholder"
+                    <Field
+                        label={t(
+                            "defectManagementPage.sprintReport.statusCard.headerSubtitleLabel"
                         )}
-                        rows={3}
-                        resize="vertical"
-                        onChange={(_, data) => setActionsText(data.value)}
-                    />
-                </Field>
-            </div>
-
-            <Text weight="semibold">
-                {t(
-                    "defectManagementPage.sprintReport.statusCard.suiteGroupsLabel"
-                )}
-            </Text>
-
-            <div className={styles.statusCardControls}>
-                {groupLabels.map((label, index) => (
-                    <Field key={index} className={styles.statusCardField}>
+                        className={styles.statusCardFieldWide}
+                    >
                         <Input
-                            value={label}
+                            value={headerSubtitle}
                             onChange={(_, data) =>
-                                updateGroupLabel(index, data.value)
+                                setHeaderSubtitle(data.value)
                             }
                         />
                     </Field>
-                ))}
-            </div>
+                </div>
 
-            {suiteDataLoading ? (
-                <Spinner
-                    size="tiny"
-                    label={t(
-                        "defectManagementPage.sprintReport.statusCard.suiteGroupsLoading"
+                <div className={styles.statusCardControls}>
+                    {includeDeadline && (
+                        <Field
+                            label={t(
+                                "defectManagementPage.sprintReport.statusCard.uatDeadlineLabel"
+                            )}
+                            className={styles.statusCardField}
+                        >
+                            <Input
+                                type="date"
+                                value={uatDeadline}
+                                onChange={(_, data) =>
+                                    setUatDeadline(data.value)
+                                }
+                            />
+                        </Field>
                     )}
-                />
-            ) : (
-                unmatchedGroups.length > 0 && (
-                    <div className={styles.warningList}>
-                        {unmatchedGroups.map((group) => (
-                            <Text
-                                key={group.label}
-                                className={styles.warningText}
-                            >
-                                {t(
-                                    "defectManagementPage.sprintReport.statusCard.suiteGroupsWarning",
-                                    { group: group.label, hint: group.hint }
-                                )}
-                            </Text>
-                        ))}
-                    </div>
-                )
-            )}
 
-            <div className={styles.statusCardPreviewRow}>
-                <StatusReportCard
-                    ref={statusCardRef}
-                    headerTitle={headerTitle}
-                    headerSubtitle={headerSubtitle}
-                    suiteGroups={suiteGroups}
-                    report={report}
-                    alertText={alertText}
-                    actionsText={actionsText}
-                    dashboardUrl={MONITORING_DASHBOARD_URL}
-                    dashboardLinkRef={dashboardLinkRef}
-                    showOriginBreakdown={showOriginBreakdown}
-                    includeDsiSource={includeDsiSource}
-                />
-            </div>
-
-            <div className={styles.statusCardControls}>
-                <Button
-                    appearance="secondary"
-                    icon={<ArrowDownloadRegular />}
-                    disabled={isExportingCard}
-                    onClick={handleExportStatusCard}
-                >
-                    {isExportingCard
-                        ? t("planOverviewPage.exporting")
-                        : t(
-                            "defectManagementPage.sprintReport.statusCard.exportButton"
+                    <Field
+                        label={t(
+                            "defectManagementPage.sprintReport.statusCard.actionsLabel"
                         )}
-                </Button>
+                        className={styles.statusCardFieldWide}
+                    >
+                        <Textarea
+                            value={actionsText}
+                            placeholder={t(
+                                "defectManagementPage.sprintReport.statusCard.actionsPlaceholder"
+                            )}
+                            rows={3}
+                            resize="vertical"
+                            onChange={(_, data) => setActionsText(data.value)}
+                        />
+                    </Field>
+                </div>
 
-                <Button
-                    appearance="secondary"
-                    icon={<SlideTextRegular />}
-                    disabled={isExportingPptx}
-                    onClick={handleExportStatusCardPptx}
-                >
-                    {isExportingPptx
-                        ? t("planOverviewPage.exporting")
-                        : t(
-                            "defectManagementPage.sprintReport.statusCard.exportPptxButton"
+                <Text weight="semibold">
+                    {t(
+                        "defectManagementPage.sprintReport.statusCard.suiteGroupsLabel"
+                    )}
+                </Text>
+
+                <div className={styles.statusCardControls}>
+                    {groupLabels.map((label, index) => (
+                        <Field key={index} className={styles.statusCardField}>
+                            <Input
+                                value={label}
+                                onChange={(_, data) =>
+                                    updateGroupLabel(index, data.value)
+                                }
+                            />
+                        </Field>
+                    ))}
+                </div>
+
+                {suiteDataLoading ? (
+                    <Spinner
+                        size="tiny"
+                        label={t(
+                            "defectManagementPage.sprintReport.statusCard.suiteGroupsLoading"
                         )}
-                </Button>
+                    />
+                ) : (
+                    unmatchedGroups.length > 0 && (
+                        <div className={styles.warningList}>
+                            {unmatchedGroups.map((group) => (
+                                <Text
+                                    key={group.label}
+                                    className={styles.warningText}
+                                >
+                                    {t(
+                                        "defectManagementPage.sprintReport.statusCard.suiteGroupsWarning",
+                                        { group: group.label, hint: group.hint }
+                                    )}
+                                </Text>
+                            ))}
+                        </div>
+                    )
+                )}
 
-                <Button
-                    appearance="secondary"
-                    icon={<CodeTextRegular />}
-                    onClick={handleDownloadStatusCardHtml}
-                >
-                    {t(
-                        "defectManagementPage.sprintReport.statusCard.downloadHtmlButton"
-                    )}
-                </Button>
+                <div className={styles.statusCardPreviewRow}>
+                    <StatusReportCard
+                        ref={statusCardRef}
+                        headerTitle={headerTitle}
+                        headerSubtitle={headerSubtitle}
+                        suiteGroups={suiteGroups}
+                        report={report}
+                        alertText={alertText}
+                        actionsText={actionsText}
+                        dashboardUrl={MONITORING_DASHBOARD_URL}
+                        dashboardLinkRef={dashboardLinkRef}
+                        showOriginBreakdown={showOriginBreakdown}
+                        includeDsiSource={includeDsiSource}
+                    />
+                </div>
 
-                <Button
-                    appearance="secondary"
-                    icon={
-                        isCopied ? (
-                            <ClipboardCheckmarkRegular />
-                        ) : (
-                            <ClipboardRegular />
-                        )
-                    }
-                    onClick={handleCopyStatusCardHtml}
-                >
-                    {t(
-                        isCopied
-                            ? "defectManagementPage.sprintReport.statusCard.copyHtmlButtonCopied"
-                            : "defectManagementPage.sprintReport.statusCard.copyHtmlButton"
-                    )}
-                </Button>
+                <div className={styles.statusCardControls}>
+                    <Button
+                        appearance="secondary"
+                        icon={<ArrowDownloadRegular />}
+                        disabled={isExportingCard}
+                        onClick={handleExportStatusCard}
+                    >
+                        {isExportingCard
+                            ? t("planOverviewPage.exporting")
+                            : t(
+                                "defectManagementPage.sprintReport.statusCard.exportButton"
+                            )}
+                    </Button>
 
-                <Switch
-                    checked={showOriginBreakdown}
-                    onChange={(_, data) =>
-                        setShowOriginBreakdown(data.checked)
-                    }
-                    label={t(
-                        "defectManagementPage.sprintReport.statusCard.originBreakdown.toggleLabel"
-                    )}
-                />
-            </div>
+                    <Button
+                        appearance="secondary"
+                        icon={<SlideTextRegular />}
+                        disabled={isExportingPptx}
+                        onClick={handleExportStatusCardPptx}
+                    >
+                        {isExportingPptx
+                            ? t("planOverviewPage.exporting")
+                            : t(
+                                "defectManagementPage.sprintReport.statusCard.exportPptxButton"
+                            )}
+                    </Button>
+
+                    <Button
+                        appearance="secondary"
+                        icon={<CodeTextRegular />}
+                        onClick={handleDownloadStatusCardHtml}
+                    >
+                        {t(
+                            "defectManagementPage.sprintReport.statusCard.downloadHtmlButton"
+                        )}
+                    </Button>
+
+                    <Button
+                        appearance="secondary"
+                        icon={
+                            isCopied ? (
+                                <ClipboardCheckmarkRegular />
+                            ) : (
+                                <ClipboardRegular />
+                            )
+                        }
+                        onClick={handleCopyStatusCardHtml}
+                    >
+                        {t(
+                            isCopied
+                                ? "defectManagementPage.sprintReport.statusCard.copyHtmlButtonCopied"
+                                : "defectManagementPage.sprintReport.statusCard.copyHtmlButton"
+                        )}
+                    </Button>
+
+                    <Switch
+                        checked={showOriginBreakdown}
+                        onChange={(_, data) =>
+                            setShowOriginBreakdown(data.checked)
+                        }
+                        label={t(
+                            "defectManagementPage.sprintReport.statusCard.originBreakdown.toggleLabel"
+                        )}
+                    />
+                </div>
             </ChartCard>
         </>
     );

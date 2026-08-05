@@ -138,9 +138,9 @@ function countReopenings(revisions: any[]): number {
 function parseTags(tagsField?: string): string[] {
     return tagsField
         ? tagsField
-              .split(";")
-              .map((tag) => tag.trim())
-              .filter(Boolean)
+            .split(";")
+            .map((tag) => tag.trim())
+            .filter(Boolean)
         : [];
 }
 
@@ -879,7 +879,7 @@ export function computeSprintDefectReport(
         reopenedCount: records.filter((r) => r.reopenedCount > 0).length,
         mttrDays: computeMttrDays(records),
         withoutResolutionDateCount: records.filter(
-            (r) => !r.estimatedResolutionDate
+            (r) => r.state !== "Closed" && !r.estimatedResolutionDate
         ).length,
     };
 }
