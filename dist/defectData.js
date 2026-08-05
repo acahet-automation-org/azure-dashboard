@@ -141,7 +141,7 @@ async function getLinkedTestCaseIds(bugId) {
     const linkedItems = await getWorkItems(linkedIds);
     return linkedItems
         .filter((item) => item.fields["System.WorkItemType"] ===
-        "Test Case")
+            "Test Case")
         .map((item) => item.id);
 }
 // A bug's own System.IterationPath is preferred (see isSpecificIterationPath
@@ -341,8 +341,8 @@ function computeMttrDays(records) {
     const resolutionTimes = records
         .filter((r) => r.closedDate)
         .map((r) => (new Date(r.closedDate).getTime() -
-        new Date(r.createdDate).getTime()) /
-        (1000 * 60 * 60 * 24));
+            new Date(r.createdDate).getTime()) /
+            (1000 * 60 * 60 * 24));
     if (resolutionTimes.length === 0) {
         return null;
     }
@@ -541,7 +541,7 @@ export function computeSprintDefectReport(records, allSuiteNames = []) {
         })),
         reopenedCount: records.filter((r) => r.reopenedCount > 0).length,
         mttrDays: computeMttrDays(records),
-        withoutResolutionDateCount: records.filter((r) => !r.estimatedResolutionDate).length,
+        withoutResolutionDateCount: records.filter((r) => r.state !== "Closed" && !r.estimatedResolutionDate).length,
     };
 }
 function computeFirstTimeFixRate(records) {
@@ -568,7 +568,7 @@ function computeDensityByComponent(records, storyPointsByArea) {
         result[area] =
             points && points > 0
                 ? Math.round((count / points) * 100) /
-                    100
+                100
                 : null;
     }
     return result;
@@ -578,27 +578,27 @@ function computeSlaBreaches(records) {
     return records
         .filter((r) => r.state !== "Closed")
         .map((r) => {
-        const ageDays = (now -
-            new Date(r.createdDate).getTime()) /
-            (1000 * 60 * 60 * 24);
-        const threshold = SLA_THRESHOLD_DAYS[r.severity ?? ""] ??
-            SLA_THRESHOLD_DAYS.default;
-        return { record: r, ageDays, threshold };
-    })
+            const ageDays = (now -
+                new Date(r.createdDate).getTime()) /
+                (1000 * 60 * 60 * 24);
+            const threshold = SLA_THRESHOLD_DAYS[r.severity ?? ""] ??
+                SLA_THRESHOLD_DAYS.default;
+            return { record: r, ageDays, threshold };
+        })
         .filter(({ ageDays, threshold }) => ageDays > threshold)
         .sort((a, b) => (b.ageDays - b.threshold) -
-        (a.ageDays - a.threshold))
+            (a.ageDays - a.threshold))
         .map(({ record, ageDays }) => ({
-        id: record.id,
-        title: record.title,
-        state: record.state,
-        priority: record.priority,
-        severity: record.severity,
-        ageDays: Math.round(ageDays),
-        url: record.url,
-        creator: record.creator,
-        assignee: record.assignedTo,
-    }));
+            id: record.id,
+            title: record.title,
+            state: record.state,
+            priority: record.priority,
+            severity: record.severity,
+            ageDays: Math.round(ageDays),
+            url: record.url,
+            creator: record.creator,
+            assignee: record.assignedTo,
+        }));
 }
 function computeBacklogTrend(trend) {
     return trend.map((point) => ({
@@ -724,46 +724,46 @@ export function computeDefectStats(records, storyCount, storyPointsByArea = {}, 
     const defectsWithoutLinkedTestCase = records
         .filter((r) => !r.hasLinkedTestCase)
         .map((r) => ({
-        id: r.id,
-        title: r.title,
-        state: r.state,
-        priority: r.priority,
-        url: r.url,
-        creator: r.creator,
-        assignee: r.assignedTo,
-    }))
+            id: r.id,
+            title: r.title,
+            state: r.state,
+            priority: r.priority,
+            url: r.url,
+            creator: r.creator,
+            assignee: r.assignedTo,
+        }))
         .sort((a, b) => {
-        if (a.priority == null) {
-            return b.priority == null ? 0 : 1;
-        }
-        if (b.priority == null) {
-            return -1;
-        }
-        return a.priority - b.priority;
-    });
+            if (a.priority == null) {
+                return b.priority == null ? 0 : 1;
+            }
+            if (b.priority == null) {
+                return -1;
+            }
+            return a.priority - b.priority;
+        });
     // Bugs missing Custom.Suite (and with no linked test case to borrow a
     // suite from) are the ones that surface as "Unspecified" in the by-suite
     // charts - surfaced here so they can be triaged and the field backfilled.
     const defectsWithoutSuite = records
         .filter((r) => !r.suiteName)
         .map((r) => ({
-        id: r.id,
-        title: r.title,
-        state: r.state,
-        priority: r.priority,
-        url: r.url,
-        creator: r.creator,
-        assignee: r.assignedTo,
-    }))
+            id: r.id,
+            title: r.title,
+            state: r.state,
+            priority: r.priority,
+            url: r.url,
+            creator: r.creator,
+            assignee: r.assignedTo,
+        }))
         .sort((a, b) => {
-        if (a.priority == null) {
-            return b.priority == null ? 0 : 1;
-        }
-        if (b.priority == null) {
-            return -1;
-        }
-        return a.priority - b.priority;
-    });
+            if (a.priority == null) {
+                return b.priority == null ? 0 : 1;
+            }
+            if (b.priority == null) {
+                return -1;
+            }
+            return a.priority - b.priority;
+        });
     const trend = computeTrend(records);
     const backlogTrend = computeBacklogTrend(trend);
     return {
