@@ -228,7 +228,7 @@ export function SprintDefectReportTab({
     const [actionsText, setActionsText] = useState(
         defaultActionsText
             ? defaultActionsText(report)
-            : "Yellow section text content\n\n" +
+            : "System Integrator: si prega di prendere in carico i nuovi bug e impostarne la data di risoluzione\n\n" +
             "Blue section text content\n\n"
     );
     const [groupLabels, setGroupLabels] = useState<string[]>(

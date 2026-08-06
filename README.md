@@ -62,6 +62,8 @@ Servono due file:
 - root: `.env`
 - frontend: `client/.env`
 
+Non c'e piu un login Microsoft obbligatorio: la dashboard e visibile a chiunque la raggiunga, e i dati si caricano solo se `AZDO_PAT` e valido (altrimenti la pagina resta vuota).
+
 ### Backend
 
 1. Copia `.env.example` in `.env`
@@ -69,13 +71,11 @@ Servono due file:
    - `AZDO_PAT`
    - `AZDO_ORG`
    - `AZDO_PROJECT`
-   - `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID` (app registration Entra ID usata per il login Microsoft)
-   - `PRIVILEGED_ALLOWLIST` e/o `PRIVILEGED_DOMAIN` (chi puo accedere)
 
 ### Frontend
 
 1. Copia `client/.env.example` in `client/.env`
-2. Compila `VITE_ENTRA_TENANT_ID`, `VITE_ENTRA_CLIENT_ID`, `VITE_ENTRA_API_SCOPE`, `VITE_ENTRA_REDIRECT_URI`
+2. Lascia `VITE_SKIP_OWNER_CHECK=true` com'e, a meno che tu non voglia restringere "Plan Progress"/"Remove Test Cases" a un solo proprietario. Facoltativo: compila `VITE_MY_EMAIL`/`VITE_MY_NAME` per far funzionare le schede "assegnati a me"/"creati da me" in "My Work Items"
 
 Non condividere mai token o credenziali contenute nei file `.env`.
 
@@ -110,7 +110,7 @@ npm run dev:all
 - **Errori Azure DevOps**: ricontrolla `AZDO_PAT`, `AZDO_ORG`, `AZDO_PROJECT` nel `.env`.
 - **L'app non parte con `npm run dev:all`**: verifica di aver eseguito `npm install` sia in root sia in `client`.
 - **Errore 502 o pagina bloccata**: esegui `npm run kill:dev` e poi rilancia `npm run dev:all`.
-- **Pagina "My Work Items" vuota**: mostra solo item assegnati al proprietario del token `AZDO_PAT`.
+- **Pagina "My Work Items" vuota** (schede "assegnati a me"/"creati da me"): imposta `VITE_MY_EMAIL` in `client/.env`.
 
 ## Onboarding Italiano (Windows)
 

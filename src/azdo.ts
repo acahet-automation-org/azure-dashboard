@@ -720,22 +720,22 @@ export async function getAreaPaths(project?: string): Promise<IterationNode[]> {
     );
 }
 
-export function buildWorkItemUrl(id: number): string {
+export function buildWorkItemUrl(id: number, project?: string): string {
     const org = process.env.AZDO_ORG;
     const encodedProject = encodeURIComponent(
-        process.env.AZDO_PROJECT!
+        project ?? process.env.AZDO_PROJECT!
     );
 
     return `https://dev.azure.com/${org}/${encodedProject}/_workitems/edit/${id}`;
 }
 
-export function buildTestRunUrl(runId: number): string {
+export function buildTestRunUrl(runId: number, project?: string): string {
     const org = process.env.AZDO_ORG;
-    const project = encodeURIComponent(
-        process.env.AZDO_PROJECT!
+    const encodedProject = encodeURIComponent(
+        project ?? process.env.AZDO_PROJECT!
     );
 
-    return `https://dev.azure.com/${org}/${project}/_TestManagement/Runs?runId=${runId}&_a=runCharts`;
+    return `https://dev.azure.com/${org}/${encodedProject}/_TestManagement/Runs?runId=${runId}&_a=runCharts`;
 }
 
 export function extractWorkItemIds(

@@ -186,7 +186,7 @@ export async function buildTestCaseRow(
             id: b.id,
             title: b.fields["System.Title"],
             state: b.fields["System.State"],
-            url: buildWorkItemUrl(b.id),
+            url: buildWorkItemUrl(b.id, project),
             creator: b.fields["System.CreatedBy"]?.displayName,
             assignee: b.fields["System.AssignedTo"]
                 ? {
@@ -199,7 +199,7 @@ export async function buildTestCaseRow(
         })),
         lastRunId,
         lastRunUrl: lastRunId
-            ? buildTestRunUrl(lastRunId)
+            ? buildTestRunUrl(lastRunId, project)
             : undefined,
     };
 }

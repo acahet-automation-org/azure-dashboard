@@ -136,7 +136,9 @@ async function buildPlanRows(
                         suite.name,
                         suite.id,
                         outcomesByTestCase,
-                        lastRunByTestCase
+                        lastRunByTestCase,
+                        undefined,
+                        project
                     )
                 )
             );
