@@ -346,7 +346,8 @@
                 "closed": "Chiusi",
                 "resolved": "Risolti",
                 "inProgress": "In Lavorazione",
-                "new": "Nuovi"
+                "new": "Nuovi",
+                "reopened": "Riaperti"
             },
             "charts": {
                 "byOrigin": "Difetti Effettivi per Origine",
@@ -411,6 +412,7 @@
                     "resolved": "Da verificare",
                     "inProgress": "In lavorazione",
                     "new": "Nuovi (da prendere in carico)",
+                    "reopened": "Riaperti",
                     "notApplicable": "Non applicabile (out of scope)"
                 },
                 "severityCaption": "Distribuzione per severity dei {{count}} bug effettivi",

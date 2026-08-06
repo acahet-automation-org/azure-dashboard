@@ -52,14 +52,16 @@ const SEVERITY_PALETTE = [
 const SEVERITY_FALLBACK = { bg: "#2d2d2d", border: "#605e5c", text: "#c8c6c4" };
 
 // Order/colors match the reference status card: most-done to least-done,
-// left to right (green -> blue -> amber -> salmon), with the out-of-scope
-// "Not Applicable" bucket trailing at the end.
-const STATUS_ORDER = ["Closed", "Resolved", "In Progress", "New", "Not Applicable"];
+// left to right (green -> blue -> amber -> salmon), with "Reopened" (a bug
+// that regressed past QA sign-off, not just unstarted work) and the
+// out-of-scope "Not Applicable" bucket trailing at the end.
+const STATUS_ORDER = ["Closed", "Resolved", "In Progress", "New", "Reopened", "Not Applicable"];
 const STATUS_COLORS: Record<string, string> = {
     Closed: "#3fb950",
     Resolved: "#0078d4",
     "In Progress": "#eda100",
     New: "#e8746c",
+    Reopened: "#d13438",
     "Not Applicable": "#8a8886",
 };
 const STATUS_LABEL_KEYS: Record<string, string> = {
@@ -67,6 +69,7 @@ const STATUS_LABEL_KEYS: Record<string, string> = {
     Resolved: "resolved",
     "In Progress": "inProgress",
     New: "new",
+    Reopened: "reopened",
     "Not Applicable": "notApplicable",
 };
 

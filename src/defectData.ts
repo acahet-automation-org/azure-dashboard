@@ -750,11 +750,14 @@ function computeOutOfScopeBySuite(
 // worked on. "Da verificare" and "In verifica" are this project's own
 // verification-step states (see BUG_STATE_ORDER in bugState.ts) and count
 // toward the same bucket rather than collapsing into "In Progress" alongside
-// "In Lavorazione" - anything else non-terminal (Active, Committed, ...)
-// still collapses into "In Progress".
+// "In Lavorazione". "Riaperto" also gets its own bucket rather than
+// collapsing into "In Progress" - a bug that bounced back after QA sign-off
+// is a meaningfully different signal than one still being worked for the
+// first time (see REOPENED_TO_STATES above). Anything else non-terminal
+// (Active, Committed, ...) still collapses into "In Progress".
 function statusBucket(
     state: string
-): "New" | "Resolved" | "Closed" | "In Progress" {
+): "New" | "Resolved" | "Closed" | "In Progress" | "Reopened" {
     if (state === "New") {
         return "New";
     }
@@ -765,6 +768,10 @@ function statusBucket(
 
     if (state === "Closed") {
         return "Closed";
+    }
+
+    if (state === "Riaperto") {
+        return "Reopened";
     }
 
     return "In Progress";

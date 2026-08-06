@@ -114,6 +114,12 @@ export interface AutomationTestCaseRow {
     iteration?: string;
     suiteName: string;
     isAutomated: boolean;
+    // Not populated yet - no field/tag exists on the source work items to
+    // resolve a Feature from (see resolveFeature() in automationData.ts).
+    // Kept here so callers/UI can start reading it once that lands, without
+    // another shape change.
+    featureId: number | null;
+    featureLabel: string | null;
 }
 
 export interface AutomationResultOccurrence {
