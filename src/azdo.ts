@@ -516,21 +516,14 @@ export async function getStoryCount(project?: string): Promise<number> {
     return response.data.workItems.length;
 }
 
-// @Me is deliberately not used in the normal (logged-in) path: this client
-// authenticates to Azure DevOps with a shared PAT (see top of file), so @Me
-// would resolve to the PAT's identity for every caller, not the signed-in
-// user. Callers must filter by the real user's identity themselves once
-// System.AssignedTo is returned. The one exception is SKIP_AUTH dev mode,
-// where there is no signed-in user to filter by and the PAT genuinely is the
-// one developer's own personal token, so @Me correctly means "me".
+// @Me is deliberately not used here: this client authenticates to Azure
+// DevOps with a shared PAT (see top of file), so @Me would resolve to the
+// PAT's identity for every caller, not the signed-in user. Callers must
+// filter by the real user's identity themselves once System.AssignedTo is
+// returned.
 export async function getActiveWorkItemIds(project?: string): Promise<
     number[]
 > {
-    const assignedToMe =
-        process.env.SKIP_AUTH === "true"
-            ? "AND [System.AssignedTo] = @Me\n          "
-            : "";
-
     const response = await clientFor(project).post(
         "/wit/wiql?api-version=7.1",
         {
@@ -539,7 +532,6 @@ export async function getActiveWorkItemIds(project?: string): Promise<
         FROM WorkItems
         WHERE [System.State] <> 'Removed'
           AND [System.TeamProject] = @project
-          ${assignedToMe}
         ORDER BY [Microsoft.VSTS.Common.Priority] ASC, [System.ChangedDate] DESC
       `,
         }
@@ -550,16 +542,9 @@ export async function getActiveWorkItemIds(project?: string): Promise<
     );
 }
 
-// Same @Me caveat as getActiveWorkItemIds above: only narrowed server-side in
-// SKIP_AUTH dev mode, where the PAT genuinely belongs to the one developer.
-// Otherwise callers must filter by the real user's identity themselves once
-// System.CreatedBy is returned.
+// Same @Me caveat as getActiveWorkItemIds above: callers must filter by the
+// real user's identity themselves once System.CreatedBy is returned.
 export async function getCreatedWorkItemIds(project?: string): Promise<number[]> {
-    const createdByMe =
-        process.env.SKIP_AUTH === "true"
-            ? "AND [System.CreatedBy] = @Me\n          "
-            : "";
-
     const response = await clientFor(project).post(
         "/wit/wiql?api-version=7.1",
         {
@@ -568,7 +553,6 @@ export async function getCreatedWorkItemIds(project?: string): Promise<number[]>
         FROM WorkItems
         WHERE [System.State] <> 'Removed'
           AND [System.TeamProject] = @project
-          ${createdByMe}
         ORDER BY [System.CreatedDate] DESC
       `,
         }
@@ -633,11 +617,10 @@ export async function getCommentMentions(
 // "Following" a work item creates an organization-scoped notification
 // subscription with an Artifact filter (see Subscriptions - Create REST API).
 // Like @Me above, omitting targetId scopes this to the calling PAT identity,
-// so in normal (non-SKIP_AUTH) mode this reflects the shared PAT's follows,
-// not the signed-in user's. There's no per-work-item "followed by" field to
-// filter on client-side the way assignee is filtered, so unlike the
-// Task/Bug @Me case, this limitation can't be worked around once OAuth
-// pass-through isn't available.
+// so this reflects the shared PAT's follows, not the signed-in user's.
+// There's no per-work-item "followed by" field to filter on client-side the
+// way assignee is filtered, so unlike the Task/Bug @Me case, this limitation
+// can't be worked around once OAuth pass-through isn't available.
 export async function getFollowedWorkItemIds(): Promise<
     number[]
 > {

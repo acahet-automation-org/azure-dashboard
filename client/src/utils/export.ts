@@ -1671,6 +1671,38 @@ export function buildStatusReportCardEmailBodyHtml(
     );
 }
 
+// Renders the optional free-text note the sender can add above the status
+// card (e.g. "Hi team, see below for this week's update") - kept as its own
+// fragment, separate from the card table itself, so it only ever appears in
+// the emailed message and never leaks into the PDF/PPTX/HTML exports of the
+// card. Blank-line-separated paragraphs, single newlines become <br/> -
+// mirrors how actionsText is split elsewhere in this file.
+export function buildEmailPrefaceHtml(prefaceText: string): string {
+    const paragraphs = prefaceText
+        .split(/\n\s*\n/)
+        .map((paragraph) => paragraph.trim())
+        .filter(Boolean);
+
+    if (paragraphs.length === 0) {
+        return "";
+    }
+
+    const paragraphsHtml = paragraphs
+        .map(
+            (paragraph) =>
+                `<p style="margin:0 0 10px 0;">${escapeHtml(paragraph).replace(/\n/g, "<br/>")}</p>`
+        )
+        .join("");
+
+    return (
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${LIGHT_PAGE_BG}" style="background-color:${LIGHT_PAGE_BG};padding:16px 0 0;">` +
+        `<tr><td align="center">` +
+        `<table role="presentation" width="${EMAIL_CARD_WIDTH}" cellpadding="0" cellspacing="0" border="0" style="width:${EMAIL_CARD_WIDTH}px;max-width:100%;">` +
+        `<tr><td style="font-size:13px;line-height:1.5;color:${LIGHT_INK};font-family:${EMAIL_FONT_FAMILY};">${paragraphsHtml}</td></tr>` +
+        `</table></td></tr></table>`
+    );
+}
+
 // Wraps the fragment as a standalone document so it opens/renders correctly
 // on its own (fonts, background) when the downloaded file is opened directly
 // in a browser - the intended flow is: open the file, select-all, copy, then

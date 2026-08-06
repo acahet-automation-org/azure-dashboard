@@ -28,7 +28,6 @@ import { msalInstance } from "../msalInstance";
 import i18n from "../i18n";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
-const skipAuth = import.meta.env.VITE_SKIP_AUTH === "true";
 
 // Every page-level query that needs auth calls getAccessToken() independently,
 // and since the scope bar now restores the last-used project from
@@ -78,10 +77,6 @@ async function authorizedFetch(
     path: string,
     init: RequestInit = {}
 ): Promise<Response> {
-    if (skipAuth) {
-        return fetch(`${API_BASE_URL}${path}`, init);
-    }
-
     const accessToken = await getAccessToken();
 
     return fetch(`${API_BASE_URL}${path}`, {

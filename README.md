@@ -69,12 +69,13 @@ Servono due file:
    - `AZDO_PAT`
    - `AZDO_ORG`
    - `AZDO_PROJECT`
-3. Per test locale lascia `SKIP_AUTH=true`
+   - `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID` (app registration Entra ID usata per il login Microsoft)
+   - `PRIVILEGED_ALLOWLIST` e/o `PRIVILEGED_DOMAIN` (chi puo accedere)
 
 ### Frontend
 
 1. Copia `client/.env.example` in `client/.env`
-2. Per test locale lascia `VITE_SKIP_AUTH=true`
+2. Compila `VITE_ENTRA_TENANT_ID`, `VITE_ENTRA_CLIENT_ID`, `VITE_ENTRA_API_SCOPE`, `VITE_ENTRA_REDIRECT_URI`
 
 Non condividere mai token o credenziali contenute nei file `.env`.
 
