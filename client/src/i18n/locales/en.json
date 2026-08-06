@@ -346,7 +346,8 @@
                 "closed": "Closed",
                 "resolved": "Resolved",
                 "inProgress": "In Progress",
-                "new": "New"
+                "new": "New",
+                "reopened": "Reopened"
             },
             "charts": {
                 "byOrigin": "Effective Defects by Origin",
@@ -411,6 +412,7 @@
                     "resolved": "To verify (DSI retest)",
                     "inProgress": "In progress",
                     "new": "New (to be picked up)",
+                    "reopened": "Reopened",
                     "notApplicable": "Not applicable (out of scope)"
                 },
                 "severityCaption": "Severity distribution of the {{count}} effective bugs",

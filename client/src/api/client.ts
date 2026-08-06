@@ -30,6 +30,18 @@ import i18n from "../i18n";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 const skipAuth = import.meta.env.VITE_SKIP_AUTH === "true";
 
+// Every page-level query that needs auth calls getAccessToken() independently,
+// and since the scope bar now restores the last-used project from
+// localStorage (see ScopeContext.tsx), a single page load can mount a dozen
+// of them at once. If the cached token needs interactive renewal, each would
+// otherwise call acquireTokenRedirect() on its own - concurrent redirect
+// attempts race before the browser actually navigates away and corrupt
+// MSAL's redirect state in sessionStorage, which is what surfaces later as
+// "timed_out" on unrelated login attempts. Same fix as mailGraphAuth.ts's
+// inFlight guard for loginPopup: only ever kick off one redirect per page
+// load, and let concurrent callers await that same one.
+let redirectInFlight: Promise<void> | null = null;
+
 async function getAccessToken(): Promise<string> {
     const account =
         msalInstance.getActiveAccount() ??
@@ -48,10 +60,14 @@ async function getAccessToken(): Promise<string> {
         return result.accessToken;
     } catch (error) {
         if (error instanceof InteractionRequiredAuthError) {
-            await msalInstance.acquireTokenRedirect({
-                ...loginRequest,
-                account,
-            });
+            if (!redirectInFlight) {
+                redirectInFlight = msalInstance.acquireTokenRedirect({
+                    ...loginRequest,
+                    account,
+                });
+            }
+
+            await redirectInFlight;
         }
 
         throw error;

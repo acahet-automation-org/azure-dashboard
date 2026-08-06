@@ -83,14 +83,16 @@ const ORIGIN_COLORS: Record<string, string> = {
     testFactory: "#8764b8",
 };
 
-// Status buckets get a fixed semantic color (green/amber/blue/purple) since
-// there are always exactly four of them, unlike the open-ended category
-// charts elsewhere in this dashboard that use a single flat bar color.
+// Status buckets get a fixed semantic color (green/amber/blue/purple/red)
+// since there are always exactly five of them, unlike the open-ended
+// category charts elsewhere in this dashboard that use a single flat bar
+// color.
 const STATUS_COLORS: Record<string, string> = {
     closed: "#107c10",
     resolved: "#8764b8",
     inProgress: "#eda100",
     new: "#0078d4",
+    reopened: "#d13438",
 };
 
 const STATUS_KEY_BY_NAME: Record<string, string> = {
@@ -98,9 +100,10 @@ const STATUS_KEY_BY_NAME: Record<string, string> = {
     Resolved: "resolved",
     "In Progress": "inProgress",
     New: "new",
+    Reopened: "reopened",
 };
 
-const STATUS_SORT_ORDER = ["new", "inProgress", "resolved", "closed"];
+const STATUS_SORT_ORDER = ["new", "inProgress", "resolved", "reopened", "closed"];
 
 // Severity is stored as e.g. "1 - Critical" (see SLA_THRESHOLD_DAYS in
 // src/defectData.ts); rendered here as "Critical(P1)" and ordered P1..Pn
@@ -130,6 +133,10 @@ function statusBucketOf(state: string): string {
 
     if (state === "Closed") {
         return "closed";
+    }
+
+    if (state === "Riaperto") {
+        return "reopened";
     }
 
     return "inProgress";

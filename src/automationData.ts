@@ -92,6 +92,13 @@ async function buildAutomationRows(project?: string): Promise<
                     isAutomated:
                         fields[AUTOMATION_STATUS_FIELD] ===
                         "Automated",
+                    // Suites today are organized by tranche (e.g. "Tranche
+                    // 1"), not by Feature. Once feature-level suites are
+                    // added under the plan, resolve featureId/featureLabel
+                    // from `suite.id`/`suite.name` here instead of a fixed
+                    // null - no other shape change needed.
+                    featureId: null,
+                    featureLabel: null,
                 });
             }
         }
