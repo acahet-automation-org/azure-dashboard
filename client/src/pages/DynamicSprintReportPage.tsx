@@ -226,6 +226,7 @@ export function DynamicSprintReportPage() {
                         )}
                         includeDsiSource={false}
                         includeDeadline={false}
+                        enableEmailPreface
                     />
                 </>
             )}

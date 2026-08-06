@@ -60,20 +60,16 @@ function filterByMention(
 // to Azure DevOps with a shared PAT). The real logged-in identity only exists
 // here in the browser, so "assigned to me", "created by me", and "mentioned"
 // filter client-side, against each item's assignee, creator, or extracted
-// comment mentions respectively. In SKIP_AUTH dev mode there's no logged-in
-// identity to filter by, but the backend already narrowed "assigned"/"created"
-// to the PAT owner's own items via @Me, so use the data as-is for those
-// modes. "Following" can't be filtered client-side at all (Azure DevOps
-// doesn't expose a "followed by" field per work item) - it always reflects
-// whichever identity the backend's PAT belongs to.
+// comment mentions respectively. "Following" can't be filtered client-side at
+// all (Azure DevOps doesn't expose a "followed by" field per work item) - it
+// always reflects whichever identity the backend's PAT belongs to.
 function computeMyItems(
     data: WorkItemSummary[] | undefined,
     mode: MyWorkItemsMode,
-    skipAuth: boolean,
     activeAccount: { username?: string | null; name?: string | null } | undefined
 ): WorkItemSummary[] {
     if (!data) return [];
-    if (mode === "following" || skipAuth) return data;
+    if (mode === "following") return data;
 
     if (mode === "assigned") {
         return filterByAssignee(data, activeAccount?.username?.toLowerCase());
@@ -101,11 +97,9 @@ export function MyWorkItemsPage() {
         enabled: scope.isComplete,
     });
 
-    const skipAuth = import.meta.env.VITE_SKIP_AUTH === "true";
-
     const myItems = useMemo(
-        () => computeMyItems(data, mode, skipAuth, activeAccount),
-        [data, activeAccount, skipAuth, mode]
+        () => computeMyItems(data, mode, activeAccount),
+        [data, activeAccount, mode]
     );
 
     const pageCount = Math.max(1, Math.ceil(myItems.length / pageSize));

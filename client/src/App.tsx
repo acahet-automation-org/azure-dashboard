@@ -64,7 +64,6 @@ function PageFallback() {
     );
 }
 
-const skipAuth = import.meta.env.VITE_SKIP_AUTH === "true";
 const releaseReadinessEnabled =
     import.meta.env.VITE_ENABLE_RELEASE_READINESS === "true";
 // Locks the whole app down to just Defect Management (+ Release Readiness,
@@ -145,10 +144,6 @@ function AppRoutes() {
 }
 
 function App() {
-    if (skipAuth) {
-        return <AppRoutes />;
-    }
-
     return (
         <>
             <AuthenticatedTemplate>

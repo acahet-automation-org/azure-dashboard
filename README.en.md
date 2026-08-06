@@ -58,7 +58,7 @@ This can take a minute or two. You'll see a progress bar - just wait for it to f
 
 The app needs two configuration files: one for the backend (project root) and one for the frontend (`client` folder).
 
-In normal (production-like) use, people also have to sign in with a Microsoft account before they can see anything. For just trying the dashboard out locally, you can skip that entirely - the steps below set that up.
+People have to sign in with a Microsoft account before they can see anything, so both files need real Entra ID (Azure AD) app registration details filled in.
 
 ### Backend config
 
@@ -68,14 +68,15 @@ In normal (production-like) use, people also have to sign in with a Microsoft ac
    - `AZDO_PAT` - your Azure DevOps Personal Access Token (ask whoever manages your Azure DevOps for one, or generate it yourself under Azure DevOps > User Settings > Personal Access Tokens).
    - `AZDO_ORG` - your Azure DevOps organization name.
    - `AZDO_PROJECT` - your Azure DevOps project name.
-   - Leave `SKIP_AUTH=true` as it is - this is what skips the Microsoft sign-in screen. The other Entra/`PRIVILEGED_*` fields below it are only used when `SKIP_AUTH` is off, so you can ignore them.
+   - `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID` - your Entra ID app registration's tenant and client ID (Azure Portal > App registrations). Used to verify the Microsoft sign-in token on every API request.
+   - `PRIVILEGED_ALLOWLIST` and/or `PRIVILEGED_DOMAIN` - who's allowed to sign in (a comma-separated list of emails and/or an email domain).
 4. Save the file.
 
 ### Frontend config
 
 1. Find `client/.env.example`.
 2. Make a copy and rename it to `client/.env`.
-3. You can leave every value in this file exactly as it is - they're placeholders that are never actually used while `VITE_SKIP_AUTH=true` is set, since sign-in is skipped.
+3. Fill in `VITE_ENTRA_TENANT_ID`, `VITE_ENTRA_CLIENT_ID`, `VITE_ENTRA_API_SCOPE`, and `VITE_ENTRA_REDIRECT_URI` to match the same Entra ID app registration.
 4. Save the file.
 
 **Never share your `.env` file or your token with anyone** - it works like a password.
@@ -94,7 +95,7 @@ Wait until you see messages saying the server and the client are running. Then o
 http://localhost:3000
 ```
 
-You should see the dashboard directly - no sign-in screen, since `SKIP_AUTH` is on. To stop the app, go back to the terminal and press `Ctrl + C`.
+You should see a Microsoft sign-in screen - sign in with an account that's on the `PRIVILEGED_ALLOWLIST`/`PRIVILEGED_DOMAIN` you configured above. To stop the app, go back to the terminal and press `Ctrl + C`.
 
 The first time you load the app, a **Project** dropdown opens at the top of the page - pick a project (it lists every Azure DevOps project your `AZDO_PAT` token can see, not just the one in `.env`) before any data loads. You can also narrow further by Area Path and Sprint. Your choice is remembered in the browser for next time; use the **Change scope** button to pick a different project later.
 

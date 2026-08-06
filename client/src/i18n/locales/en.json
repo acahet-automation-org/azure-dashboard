@@ -393,6 +393,8 @@
                 "emailAddressPlaceholder": "email1@example.com, email2@example.com",
                 "emailFromNameLabel": "Sender name (optional)",
                 "emailFromNamePlaceholder": "Shown as the sender name",
+                "emailPrefaceLabel": "Message before report",
+                "emailPrefacePlaceholder": "Write a message to include above the status card, e.g. a greeting or summary...",
                 "openDashboard": "Open monitoring dashboard",
                 "casesCount": "{{count}} cases",
                 "executed": "executed",

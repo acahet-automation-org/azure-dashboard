@@ -31,6 +31,7 @@ import {
     sendGraphMailReport,
 } from "../api/graphMail";
 import {
+    buildEmailPrefaceHtml,
     buildStatusReportCardEmailBodyHtml,
     buildStatusReportCardEmailDocument,
     buildStatusReportCardFilename,
@@ -133,6 +134,17 @@ const useStyles = makeStyles({
         overflowX: "auto",
         padding: tokens.spacingVerticalS,
     },
+    emailPrefaceArea: {
+        width: "100%",
+        maxWidth: `${900}px`,
+        margin: "0 auto",
+        display: "flex",
+        flexDirection: "column",
+        gap: tokens.spacingVerticalXS,
+    },
+    emailPrefaceTextarea: {
+        width: "100%",
+    },
     warningText: {
         color: tokens.colorPaletteRedForeground1,
     },
@@ -184,6 +196,7 @@ export function SprintDefectReportTab({
     defaultActionsText,
     includeDsiSource = true,
     includeDeadline = true,
+    enableEmailPreface = false,
     project,
 }: {
     stats: DefectStats;
@@ -195,6 +208,11 @@ export function SprintDefectReportTab({
     includeDsiSource?: boolean;
     // Off for Plurifond (no shared UAT deadline for this report yet).
     includeDeadline?: boolean;
+    // On only for the Dynamic Sprint Report page - lets the sender type a
+    // free-text note directly above the card preview, like the compose box
+    // above quoted/forwarded content in a mail client. Off elsewhere
+    // (SprintReportPage, PlurifondSprintReportPage) until validated there too.
+    enableEmailPreface?: boolean;
     // Scopes the plan/plan-overview lookups below to a specific Azure DevOps
     // project - omitted by the two existing hardcoded pages, which keep
     // resolving against the server's default configured project.
@@ -254,6 +272,7 @@ export function SprintDefectReportTab({
     const [toInput, setToInput] = useState(DEFAULT_REPORT_RECIPIENTS.join(", "));
     const [ccInput, setCcInput] = useState(DEFAULT_REPORT_CC.join(", "));
     const [fromDisplayName, setFromDisplayName] = useState("");
+    const [emailPrefaceText, setEmailPrefaceText] = useState("");
     const statusCardRef = useRef<HTMLDivElement>(null);
     const dashboardLinkRef = useRef<HTMLAnchorElement>(null);
 
@@ -510,7 +529,8 @@ export function SprintDefectReportTab({
         };
 
         const bodyHtml = buildStatusReportCardEmailDocument(
-            buildStatusReportCardEmailBodyHtml(cardData, t)
+            (enableEmailPreface ? buildEmailPrefaceHtml(emailPrefaceText) : "") +
+                buildStatusReportCardEmailBodyHtml(cardData, t)
         );
 
         emailReportMutation.mutate({
@@ -617,6 +637,28 @@ export function SprintDefectReportTab({
                         </Text>
                     )}
                 </ChartCard>
+            )}
+
+            {enableEmailPreface && (
+                <div className={styles.emailPrefaceArea}>
+                    <Text weight="semibold">
+                        {t(
+                            "defectManagementPage.sprintReport.statusCard.emailPrefaceLabel"
+                        )}
+                    </Text>
+                    <Textarea
+                        className={styles.emailPrefaceTextarea}
+                        value={emailPrefaceText}
+                        placeholder={t(
+                            "defectManagementPage.sprintReport.statusCard.emailPrefacePlaceholder"
+                        )}
+                        rows={3}
+                        resize="vertical"
+                        onChange={(_, data) =>
+                            setEmailPrefaceText(data.value)
+                        }
+                    />
+                </div>
             )}
 
             <ChartCard

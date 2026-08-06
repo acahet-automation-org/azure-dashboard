@@ -393,6 +393,8 @@
                 "emailAddressPlaceholder": "email1@esempio.com, email2@esempio.com",
                 "emailFromNameLabel": "Nome mittente (opzionale)",
                 "emailFromNamePlaceholder": "Mostrato come nome del mittente",
+                "emailPrefaceLabel": "Testo prima del report",
+                "emailPrefacePlaceholder": "Scrivi un messaggio da includere sopra la scheda di stato, es. un saluto o un riepilogo...",
                 "openDashboard": "Apri la dashboard di monitoraggio",
                 "casesCount": "{{count}} casi",
                 "executed": "eseguito",
