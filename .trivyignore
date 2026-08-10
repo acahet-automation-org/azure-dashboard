@@ -6,6 +6,19 @@
 # Revisit when doing a planned react-router major-version upgrade.
 GHSA-qwww-vcr4-c8h2
 
+# GHSA-w3rx-r6r6-pgpr / GHSA-5p2g-fcmc-qvqq (image-size, via
+# pptxgenjs@4.0.1): denial-of-service via infinite loop when parsing
+# malformed ICNS/JXL/HEIF image headers. image-size is used here only to
+# read dimensions of images the app itself embeds into generated
+# PowerPoint exports (client/src, pptxgenjs export path) - it never
+# parses images from untrusted/external input, so the DoS is not
+# reachable in this app's usage. No patched image-size release exists yet;
+# the only current fix path is `npm audit fix --force`, which downgrades
+# pptxgenjs 4.0.1 -> 1.1.5 (major breaking regression). Revisit once
+# image-size/pptxgenjs ship a real fix.
+GHSA-w3rx-r6r6-pgpr
+GHSA-5p2g-fcmc-qvqq
+
 # CVE-2026-14257 / GHSA-mh99-v99m-4gvg (brace-expansion memory-exhaustion DoS):
 # the GHSA advisory only lists 5.0.8 as "patched" and doesn't record the
 # maintainer's backport releases for older major lines. client/package.json's
