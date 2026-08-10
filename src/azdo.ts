@@ -210,6 +210,16 @@ export async function getTestPlans(project?: string) {
     return response.data.value;
 }
 
+// The list endpoint above omits several fields (description among them) -
+// only "get by id" returns the full plan, including its description.
+export async function getTestPlan(planId: number, project?: string) {
+    const response = await clientFor(project).get(
+        `/testplan/plans/${planId}?api-version=7.1`
+    );
+
+    return response.data;
+}
+
 export async function getSuites(planId: number, project?: string) {
     const response = await clientFor(project).get(
         `/testplan/plans/${planId}/suites?api-version=7.1`

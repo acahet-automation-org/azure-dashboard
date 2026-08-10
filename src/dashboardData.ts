@@ -544,6 +544,34 @@ function summarizeRunStats(
     return { counts, total, passRate };
 }
 
+// Plan descriptions are used as a place to hand-paste that sprint's report
+// link (e.g. plan 6177's description holds the link to its saved report),
+// authored through Azure DevOps' rich-text editor - which renders a pasted
+// link as Markdown ("[label](https://...)") rather than HTML. Markdown is
+// checked first since a bare-URL match on that same text would otherwise
+// swallow the link's closing ")" as part of the URL; HTML/plain-text is
+// still checked after for descriptions written by hand.
+export function extractReportUrlFromDescription(
+    description?: string
+): string | undefined {
+    if (!description) {
+        return undefined;
+    }
+
+    const markdownMatch = description.match(/]\((https?:\/\/[^)\s]+)\)/i);
+    if (markdownMatch) {
+        return markdownMatch[1];
+    }
+
+    const hrefMatch = description.match(/href=["'](https?:\/\/[^"']+)["']/i);
+    if (hrefMatch) {
+        return hrefMatch[1];
+    }
+
+    const bareMatch = description.match(/https?:\/\/[^\s"'<>]+/i);
+    return bareMatch?.[0]?.replace(/[)\].,;:]+$/, "");
+}
+
 export async function computeTestPlans(project?: string): Promise<
     TestPlanSummary[]
 > {
