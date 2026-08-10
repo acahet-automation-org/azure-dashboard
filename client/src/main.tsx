@@ -22,19 +22,23 @@ const queryClient = new QueryClient();
 // opener never receives its response and the popup never closes (see
 // @azure/msal-browser's redirect_bridge module, which is what's actually
 // meant to run in that window). Hand off to the bridge before doing anything
-// else whenever we're inside one of those windows.
-const isPopupOrIframe = (window.opener && window.opener !== window) || window.parent !== window;
-
-if (isPopupOrIframe) {
-    try {
-        const { broadcastResponseToMainFrame } = await import("@azure/msal-browser/redirect-bridge");
-        await broadcastResponseToMainFrame();
-    } catch {
-        // Not actually an MSAL auth response landing here (e.g. embedded in an
-        // iframe for an unrelated reason) - fall back to a normal app boot.
-        await bootApp();
-    }
-} else {
+// else whenever this load is actually an MSAL response landing here.
+//
+// Deliberately NOT gated on window.opener/window.parent: login.microsoftonline.com
+// sends Cross-Origin-Opener-Policy: same-origin, which browsers use to sever
+// window.opener once the popup navigates through it and back to this origin -
+// even though it's still the same popup. That made the old opener-based check
+// go false for genuine popup responses, skipping the bridge and booting the
+// full dashboard inside the popup instead of closing it. The bridge itself
+// determines whether this is a real MSAL response by parsing the URL (not by
+// checking window.opener) and relays it back via a same-origin BroadcastChannel,
+// so it's safe to always attempt it and fall back to a normal boot on failure.
+try {
+    const { broadcastResponseToMainFrame } = await import("@azure/msal-browser/redirect-bridge");
+    await broadcastResponseToMainFrame();
+} catch {
+    // Not actually an MSAL auth response landing here (ordinary app boot, or
+    // an iframe embedded for an unrelated reason) - fall back to a normal app boot.
     await bootApp();
 }
 
