@@ -102,15 +102,13 @@ export function buildBugsReadyToBeVerifiedCard(bugs: DefectRecord[]) {
             .join("  \n")
     );
 
-    const text = [title, "", bugLines.join("\n\n---\n\n")].join("\n");
-
     return {
         "@type": "MessageCard",
         "@context": "http://schema.org/extensions",
         themeColor: "0078D4",
         summary: title,
         title,
-        text,
+        text: bugLines.join("\n\n---\n\n"),
     };
 }
 
