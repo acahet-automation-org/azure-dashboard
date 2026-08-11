@@ -414,6 +414,7 @@ export interface PlanOverviewSuiteDetail {
 export interface PlanOverviewResponse {
     planId: number;
     planName: string;
+    reportUrl?: string; // first URL found in the plan's ADO description, if any
     totalTestCases: number;
     totalBugs: number;
     testsBySuite: PlanOverviewSuiteCount[];

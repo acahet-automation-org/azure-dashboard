@@ -1,9 +1,9 @@
 import { lazy, Suspense, type ReactNode } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { AuthenticatedTemplate, UnauthenticatedTemplate } from "@azure/msal-react";
+import { useQuery } from "@tanstack/react-query";
 import { Spinner } from "@fluentui/react-components";
-import { SignInPage } from "./pages/SignInPage";
 import { useIsRestrictedOwner } from "./hooks/useIsRestrictedOwner";
+import { fetchProjects } from "./api/client";
 
 const SuitesPage = lazy(() => import("./pages/SuitesPage").then((m) => ({ default: m.SuitesPage })));
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
@@ -143,18 +143,27 @@ function AppRoutes() {
     );
 }
 
+// No sign-in wall: access is gated on whether the server's AZDO_PAT actually
+// works, not on a Microsoft identity. /api/projects is the cheapest call
+// that exercises it (and the same query ScopeBar makes right after, so this
+// just primes its cache rather than firing a second request). A PAT
+// failure - not just "still loading" - renders a blank screen instead of a
+// dashboard full of per-widget error banners.
 function App() {
-    return (
-        <>
-            <AuthenticatedTemplate>
-                <AppRoutes />
-            </AuthenticatedTemplate>
+    const { isLoading, isError } = useQuery({
+        queryKey: ["projects"],
+        queryFn: fetchProjects,
+    });
 
-            <UnauthenticatedTemplate>
-                <SignInPage />
-            </UnauthenticatedTemplate>
-        </>
-    );
+    if (isLoading) {
+        return <PageFallback />;
+    }
+
+    if (isError) {
+        return null;
+    }
+
+    return <AppRoutes />;
 }
 
 export default App;

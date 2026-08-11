@@ -348,6 +348,7 @@ export interface PlanOverviewSuiteDetail {
 export interface PlanOverviewResponse {
     planId: number;
     planName: string;
+    reportUrl?: string; // see PlanOverviewResponse in the server's src/types.ts
     totalTestCases: number;
     totalBugs: number;
     testsBySuite: PlanOverviewSuiteCount[];

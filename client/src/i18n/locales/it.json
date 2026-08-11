@@ -455,7 +455,7 @@
         "selectedTestPlans": "{{count}} selezionati",
         "selectProjectPrompt": "Seleziona un progetto nella barra in alto per iniziare.",
         "selectSprintPrompt": "Seleziona uno sprint nella barra in alto per caricare il report.",
-        "defaultHeaderTitle": "Stato Avanzamento Sprint",
+        "defaultHeaderTitle": "Test Funzionali - Plurifonds",
         "defaultHeaderSubtitle": "Stato di esecuzione dei test"
     },
     "commonErrorsPage": {

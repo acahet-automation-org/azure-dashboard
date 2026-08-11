@@ -13,9 +13,16 @@ import { ChevronDownRegular, EditRegular } from "@fluentui/react-icons";
 import { useScope } from "../../hooks/useScope";
 import { fetchProjects, fetchIterations } from "../../api/client";
 import { AreaPathFilter } from "../AreaPathFilter";
+import { NAV_HEIGHT } from "../../layoutConstants";
 
 const useStyles = makeStyles({
     bar: {
+        position: "sticky",
+        // Sits directly beneath TopBar, which is sticky at top: 0 with its
+        // own height fixed to NAV_HEIGHT - stacking these two is what keeps
+        // the project scope visible while the page content scrolls under it.
+        top: NAV_HEIGHT,
+        zIndex: 9,
         display: "flex",
         flexWrap: "wrap",
         alignItems: "center",

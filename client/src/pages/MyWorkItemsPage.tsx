@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { useMsal } from "@azure/msal-react";
 import { TabList, Tab } from "@fluentui/react-components";
 import { WeatherSunnyRegular } from "@fluentui/react-icons";
 import { PageLayout } from "../components/PageLayout";
@@ -22,6 +21,14 @@ const EMPTY_MESSAGE_KEY: Record<MyWorkItemsMode, string> = {
 };
 
 const PAGE_SIZE_OPTIONS = [5, 10, 15, 20];
+
+// There's no signed-in identity anymore (see App.tsx) to derive "me" from,
+// so it's configured directly - VITE_MY_EMAIL for assignee/creator matching
+// (Azure DevOps uniqueName), VITE_MY_NAME for the mentioned-tab display-name
+// match. Same role AZDO_PAT plays for the backend: a fixed identity instead
+// of a per-request one.
+const myEmail = import.meta.env.VITE_MY_EMAIL?.toLowerCase();
+const myName = import.meta.env.VITE_MY_NAME?.toLowerCase();
 
 function filterByAssignee(
     data: WorkItemSummary[],
@@ -65,21 +72,20 @@ function filterByMention(
 // always reflects whichever identity the backend's PAT belongs to.
 function computeMyItems(
     data: WorkItemSummary[] | undefined,
-    mode: MyWorkItemsMode,
-    activeAccount: { username?: string | null; name?: string | null } | undefined
+    mode: MyWorkItemsMode
 ): WorkItemSummary[] {
     if (!data) return [];
     if (mode === "following") return data;
 
     if (mode === "assigned") {
-        return filterByAssignee(data, activeAccount?.username?.toLowerCase());
+        return filterByAssignee(data, myEmail);
     }
 
     if (mode === "created") {
-        return filterByCreator(data, activeAccount?.username?.toLowerCase());
+        return filterByCreator(data, myEmail);
     }
 
-    return filterByMention(data, activeAccount?.name?.toLowerCase());
+    return filterByMention(data, myName);
 }
 
 export function MyWorkItemsPage() {
@@ -87,8 +93,6 @@ export function MyWorkItemsPage() {
     const [mode, setMode] = useState<MyWorkItemsMode>("assigned");
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[1]);
-    const { instance, accounts } = useMsal();
-    const activeAccount = instance.getActiveAccount() ?? accounts[0];
     const scope = useScope();
 
     const { data, isLoading, isError, error, refetch } = useQuery({
@@ -98,8 +102,8 @@ export function MyWorkItemsPage() {
     });
 
     const myItems = useMemo(
-        () => computeMyItems(data, mode, activeAccount),
-        [data, activeAccount, mode]
+        () => computeMyItems(data, mode),
+        [data, mode]
     );
 
     const pageCount = Math.max(1, Math.ceil(myItems.length / pageSize));

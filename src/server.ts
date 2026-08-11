@@ -1,7 +1,6 @@
 import "dotenv/config";
 import express, { type Response } from "express";
 import cors from "cors";
-import { requireAuth } from "./auth.js";
 import { AzdoAuthError, getIterations, getAreaPaths, getProjects } from "./azdo.js";
 import {
     getDashboardData,
@@ -70,8 +69,6 @@ const allowedOrigins = (process.env.CORS_ORIGIN ?? "http://localhost:3000")
 
 app.use(cors({ origin: allowedOrigins }));
 app.use(express.json({ limit: "15mb" }));
-
-app.use("/api", requireAuth);
 
 // AzdoAuthError means Azure DevOps rejected our AZDO_PAT (usually expired or
 // revoked) - surface it as 502 Bad Gateway so the client can tell it apart
@@ -380,7 +377,7 @@ app.get("/api/defects", async (req, res) => {
                 getDefectData(project),
                 getStoryCount(project),
                 getStoryPointsByArea(project),
-                getAllSuiteNames(),
+                getAllSuiteNames(project),
             ]);
 
         const filtered = filterRecords(records, {
