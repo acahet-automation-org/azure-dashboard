@@ -348,10 +348,7 @@ export interface PlanOverviewSuiteDetail {
 export interface PlanOverviewResponse {
     planId: number;
     planName: string;
-    // Saved report/dashboard link, extracted server-side from the plan's
-    // Azure DevOps description - see PlanOverviewResponse in the server's
-    // src/types.ts for how.
-    reportUrl?: string;
+    reportUrl?: string; // see PlanOverviewResponse in the server's src/types.ts
     totalTestCases: number;
     totalBugs: number;
     testsBySuite: PlanOverviewSuiteCount[];
