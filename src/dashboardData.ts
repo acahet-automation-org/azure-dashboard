@@ -558,18 +558,32 @@ export function extractReportUrlFromDescription(
         return undefined;
     }
 
-    const markdownMatch = description.match(/]\((https?:\/\/[^)\s]+)\)/i);
+    const markdownMatch = /]\((https?:\/\/[^)\s]+)\)/i.exec(description);
     if (markdownMatch) {
         return markdownMatch[1];
     }
 
-    const hrefMatch = description.match(/href=["'](https?:\/\/[^"']+)["']/i);
+    const hrefMatch = /href=["'](https?:\/\/[^"']+)["']/i.exec(description);
     if (hrefMatch) {
         return hrefMatch[1];
     }
 
-    const bareMatch = description.match(/https?:\/\/[^\s"'<>]+/i);
-    return bareMatch?.[0]?.replace(/[)\].,;:]+$/, "");
+    const bareMatch = /https?:\/\/[^\s"'<>]+/i.exec(description);
+    return bareMatch ? stripTrailingPunctuation(bareMatch[0]) : undefined;
+}
+
+// Written as a plain loop rather than a trailing-punctuation regex
+// (`/[)\].,;:]+$/`) - that pattern flags as super-linear on static analysis,
+// and a bounded loop is just as clear for "trim a few trailing chars".
+function stripTrailingPunctuation(url: string): string {
+    const trailing = new Set([")", "]", ".", ",", ";", ":"]);
+    let end = url.length;
+
+    while (end > 0 && trailing.has(url[end - 1])) {
+        end--;
+    }
+
+    return url.slice(0, end);
 }
 
 export async function computeTestPlans(project?: string): Promise<

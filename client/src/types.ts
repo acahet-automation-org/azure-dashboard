@@ -348,9 +348,9 @@ export interface PlanOverviewSuiteDetail {
 export interface PlanOverviewResponse {
     planId: number;
     planName: string;
-    // First URL found in the plan's Azure DevOps description (e.g. a link
-    // to that sprint's saved report/dashboard) - undefined when the
-    // description has no URL, so callers fall back to a default.
+    // Saved report/dashboard link, extracted server-side from the plan's
+    // Azure DevOps description - see PlanOverviewResponse in the server's
+    // src/types.ts for how.
     reportUrl?: string;
     totalTestCases: number;
     totalBugs: number;
