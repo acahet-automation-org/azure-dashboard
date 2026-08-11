@@ -57,6 +57,7 @@ import {
 } from "./releaseReadinessData.js";
 import {
     startBugSummaryScheduler,
+    startVerificaNotificationScheduler,
     startSprintReportFileExportScheduler,
 } from "./scheduler.js";
 
@@ -512,6 +513,7 @@ app.post("/api/refresh", (_, res) => {
 
 
 startBugSummaryScheduler();
+startVerificaNotificationScheduler();
 startSprintReportFileExportScheduler();
 
 const port = Number(process.env.PORT) || 3000;

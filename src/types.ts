@@ -264,6 +264,11 @@ export interface DefectRecord {
     url?: string;
     creator?: string;
     assignedTo?: { displayName: string; uniqueName: string };
+    // When the bug moved into its current state - only meaningful while
+    // state is "Da verificare" (see VERIFICA_STATE in defectData.ts), used
+    // to trigger the Teams "sent to verifica" notification without a second
+    // revisions fetch.
+    verificaTransition?: { changedDate: string };
 }
 
 export interface DefectSummary {
