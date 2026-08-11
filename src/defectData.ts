@@ -42,6 +42,11 @@ function resolveProjectKey(project?: string): string {
 // reopening is any transition into that state, regardless of prior state.
 const REOPENED_TO_STATES = ["Riaperto"];
 
+// State a developer sets once they believe a bug is fixed and it's ready for
+// QA to re-test. Drives the Teams "sent to verifica" notification (see
+// startVerificaNotificationScheduler in scheduler.ts).
+export const VERIFICA_STATE = "Da verificare";
+
 // Seeded with the canonical VSTS/Agile rejection reasons. Whether these
 // actually appear depends on the project's process template - some
 // processes (e.g. ours) track System.Reason as workflow transitions
@@ -143,6 +148,28 @@ function countReopenings(revisions: any[]): number {
     }
 
     return count;
+}
+
+// Finds when the bug most recently transitioned INTO targetState (mirrors
+// countReopenings' walk over revisions), so callers know whether a bug
+// currently in that state just arrived there or has been sitting for a
+// while - without a second per-bug revisions fetch.
+function findLastTransitionInto(
+    revisions: any[],
+    targetState: string
+): { changedDate: string } | undefined {
+    let result: { changedDate: string } | undefined;
+
+    for (let i = 1; i < revisions.length; i++) {
+        const prevState = revisions[i - 1].fields?.["System.State"];
+        const currState = revisions[i].fields?.["System.State"];
+
+        if (currState === targetState && currState !== prevState) {
+            result = { changedDate: revisions[i].fields?.["System.ChangedDate"] };
+        }
+    }
+
+    return result;
 }
 
 function parseTags(tagsField?: string): string[] {
@@ -388,6 +415,7 @@ async function buildDefectRecord(
         estimatedResolutionDate:
             bug.fields["Custom.EstimatedResolutionDate"],
         reopenedCount: countReopenings(revisions),
+        verificaTransition: findLastTransitionInto(revisions, VERIFICA_STATE),
         hasLinkedTestCase: linkedTestCaseIds.length > 0,
         url: buildWorkItemUrl(bug.id),
         creator: bug.fields["System.CreatedBy"]?.displayName,
