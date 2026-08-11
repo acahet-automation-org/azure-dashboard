@@ -186,7 +186,7 @@ export async function buildTestCaseRow(
             id: b.id,
             title: b.fields["System.Title"],
             state: b.fields["System.State"],
-            url: buildWorkItemUrl(b.id),
+            url: buildWorkItemUrl(b.id, project),
             creator: b.fields["System.CreatedBy"]?.displayName,
             assignee: b.fields["System.AssignedTo"]
                 ? {
@@ -199,7 +199,7 @@ export async function buildTestCaseRow(
         })),
         lastRunId,
         lastRunUrl: lastRunId
-            ? buildTestRunUrl(lastRunId)
+            ? buildTestRunUrl(lastRunId, project)
             : undefined,
     };
 }
@@ -542,6 +542,48 @@ function summarizeRunStats(
         : 0;
 
     return { counts, total, passRate };
+}
+
+// Plan descriptions are used as a place to hand-paste that sprint's report
+// link (e.g. plan 6177's description holds the link to its saved report),
+// authored through Azure DevOps' rich-text editor - which renders a pasted
+// link as Markdown ("[label](https://...)") rather than HTML. Markdown is
+// checked first since a bare-URL match on that same text would otherwise
+// swallow the link's closing ")" as part of the URL; HTML/plain-text is
+// still checked after for descriptions written by hand.
+export function extractReportUrlFromDescription(
+    description?: string
+): string | undefined {
+    if (!description) {
+        return undefined;
+    }
+
+    const markdownMatch = /]\((https?:\/\/[^)\s]+)\)/i.exec(description);
+    if (markdownMatch) {
+        return markdownMatch[1];
+    }
+
+    const hrefMatch = /href=["'](https?:\/\/[^"']+)["']/i.exec(description);
+    if (hrefMatch) {
+        return hrefMatch[1];
+    }
+
+    const bareMatch = /https?:\/\/[^\s"'<>]+/i.exec(description);
+    return bareMatch ? stripTrailingPunctuation(bareMatch[0]) : undefined;
+}
+
+// Written as a plain loop rather than a trailing-punctuation regex
+// (`/[)\].,;:]+$/`) - that pattern flags as super-linear on static analysis,
+// and a bounded loop is just as clear for "trim a few trailing chars".
+function stripTrailingPunctuation(url: string): string {
+    const trailing = new Set([")", "]", ".", ",", ";", ":"]);
+    let end = url.length;
+
+    while (end > 0 && trailing.has(url[end - 1])) {
+        end--;
+    }
+
+    return url.slice(0, end);
 }
 
 export async function computeTestPlans(project?: string): Promise<

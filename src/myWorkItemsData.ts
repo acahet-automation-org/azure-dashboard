@@ -25,7 +25,7 @@ const MY_WORK_ITEM_FIELDS = [
 
 const MENTION_SCAN_WINDOW_DAYS = 30;
 
-function toWorkItemSummary(wi: any): WorkItemSummary {
+function toWorkItemSummary(wi: any, project?: string): WorkItemSummary {
     return {
         id: wi.id,
         title: wi.fields["System.Title"],
@@ -35,7 +35,7 @@ function toWorkItemSummary(wi: any): WorkItemSummary {
         changedDate: wi.fields["System.ChangedDate"],
         createdDate: wi.fields["System.CreatedDate"],
         closedDate: wi.fields["Microsoft.VSTS.Common.ClosedDate"],
-        url: buildWorkItemUrl(wi.id),
+        url: buildWorkItemUrl(wi.id, project),
         assignee: wi.fields["System.AssignedTo"]
             ? {
                   displayName: wi.fields["System.AssignedTo"].displayName,
@@ -61,7 +61,7 @@ export async function getAssignedWorkItems(project?: string): Promise<WorkItemSu
     const ids = await getActiveWorkItemIds(project);
     const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS, project);
 
-    return items.map(toWorkItemSummary);
+    return items.map((wi) => toWorkItemSummary(wi, project));
 }
 
 export async function getMentionedWorkItems(project?: string): Promise<WorkItemSummary[]> {
@@ -92,7 +92,7 @@ export async function getMentionedWorkItems(project?: string): Promise<WorkItemS
     );
 
     return items.map((wi) => ({
-        ...toWorkItemSummary(wi),
+        ...toWorkItemSummary(wi, project),
         mentions: mentionsById.get(wi.id) ?? [],
     }));
 }
@@ -104,12 +104,12 @@ export async function getFollowedWorkItems(project?: string): Promise<WorkItemSu
     const ids = await getFollowedWorkItemIds();
     const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS, project);
 
-    return items.map(toWorkItemSummary);
+    return items.map((wi) => toWorkItemSummary(wi, project));
 }
 
 export async function getCreatedWorkItems(project?: string): Promise<WorkItemSummary[]> {
     const ids = await getCreatedWorkItemIds(project);
     const items = await getWorkItems(ids, MY_WORK_ITEM_FIELDS, project);
 
-    return items.map(toWorkItemSummary);
+    return items.map((wi) => toWorkItemSummary(wi, project));
 }

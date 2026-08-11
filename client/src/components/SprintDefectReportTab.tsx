@@ -42,6 +42,9 @@ import {
 } from "../utils/export";
 import type { DefectStats, Outcome, SprintDefectReport } from "../types";
 
+// Fallback only - used when none of the resolved plans for this report have
+// a report link saved in their Azure DevOps description (see
+// resolvedPlanIds/dashboardUrl below).
 const MONITORING_DASHBOARD_URL =
     "https://dev.azure.com/ItasMutua/Nuova%20Frontiera/_dashboards/dashboard/4665852c-cb39-4a89-ac4f-1dca396b539a";
 
@@ -228,7 +231,7 @@ export function SprintDefectReportTab({
     const [actionsText, setActionsText] = useState(
         defaultActionsText
             ? defaultActionsText(report)
-            : "Yellow section text content\n\n" +
+            : "System Integrator: si prega di prendere in carico i nuovi bug e impostarne la data di risoluzione\n\n" +
             "Blue section text content\n\n"
     );
     const [groupLabels, setGroupLabels] = useState<string[]>(
@@ -325,6 +328,20 @@ export function SprintDefectReportTab({
             planOverviewQueries[index].data,
         ])
     );
+
+    // The "Open Dashboard" link should point at whichever sprint's report is
+    // actually selected rather than one fixed org-wide dashboard - each test
+    // plan can carry that link in its Azure DevOps description (see
+    // extractReportUrlFromDescription server-side), so this picks the first
+    // resolved plan (in suiteGroupDefs order, i.e. "Test Factory" first)
+    // that has one saved, falling back to the static monitoring dashboard
+    // when none of the selected plans have a link configured yet.
+    const dashboardUrl =
+        resolvedPlanIds
+            .map((planId) =>
+                planId != null ? overviewByPlanId.get(planId)?.reportUrl : undefined
+            )
+            .find((url): url is string => !!url) ?? MONITORING_DASHBOARD_URL;
 
     // While any of this is still in flight, every group looks "unmatched"
     // (no overview yet to match suites against) - without this flag that
@@ -435,7 +452,7 @@ export function SprintDefectReportTab({
                     report,
                     alertText,
                     actionsText,
-                    dashboardUrl: MONITORING_DASHBOARD_URL,
+                    dashboardUrl,
                     showOriginBreakdown,
                     includeDsiSource,
                 },
@@ -459,7 +476,7 @@ export function SprintDefectReportTab({
                     report,
                     alertText,
                     actionsText,
-                    dashboardUrl: MONITORING_DASHBOARD_URL,
+                    dashboardUrl,
                     showOriginBreakdown,
                     includeDsiSource,
                 },
@@ -480,7 +497,7 @@ export function SprintDefectReportTab({
                 report,
                 alertText,
                 actionsText,
-                dashboardUrl: MONITORING_DASHBOARD_URL,
+                dashboardUrl,
                 showOriginBreakdown,
                 includeDsiSource,
             },
@@ -497,7 +514,7 @@ export function SprintDefectReportTab({
                 report,
                 alertText,
                 actionsText,
-                dashboardUrl: MONITORING_DASHBOARD_URL,
+                dashboardUrl,
                 showOriginBreakdown,
                 includeDsiSource,
             },
@@ -523,7 +540,7 @@ export function SprintDefectReportTab({
             report,
             alertText,
             actionsText,
-            dashboardUrl: MONITORING_DASHBOARD_URL,
+            dashboardUrl,
             showOriginBreakdown,
             includeDsiSource,
         };
@@ -783,7 +800,7 @@ export function SprintDefectReportTab({
                         report={report}
                         alertText={alertText}
                         actionsText={actionsText}
-                        dashboardUrl={MONITORING_DASHBOARD_URL}
+                        dashboardUrl={dashboardUrl}
                         dashboardLinkRef={dashboardLinkRef}
                         showOriginBreakdown={showOriginBreakdown}
                         includeDsiSource={includeDsiSource}

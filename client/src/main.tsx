@@ -15,24 +15,63 @@ const queryClient = new QueryClient();
 
 // Every app registration in this project (dashboard sign-in, mailMsalInstance
 // for the Test Graph Mail button, and MSAL's own silent-renewal iframe) shares
-// this app's root as its redirect URI. When MSAL opens a login popup or a
-// hidden iframe for token renewal, that window navigates back here too - if
-// left alone it would boot the *full* app (mounting a different MSAL
-// instance, routing, etc.) instead of running MSAL's bridge script, so the
-// opener never receives its response and the popup never closes (see
-// @azure/msal-browser's redirect_bridge module, which is what's actually
-// meant to run in that window). Hand off to the bridge before doing anything
-// else whenever we're inside one of those windows.
-const isPopupOrIframe = (window.opener && window.opener !== window) || window.parent !== window;
+// this app's root as its redirect URI, so after a login MSAL's own popup /
+// hidden iframe navigates back here too.
+//
+// In MSAL v5 the *opener* does NOT poll the popup's URL - it waits for the
+// response on a same-origin BroadcastChannel. For that to arrive, the code
+// that lands in the popup/iframe must run MSAL's redirect bridge
+// (broadcastResponseToMainFrame), which parses the auth response out of the
+// URL, posts it to the opener over that channel and then closes the window.
+// This is the piece that must run here; booting the full SPA instead (which
+// mounts MsalProvider/React Router and rewrites the URL) is what left the
+// sign-in popup stuck showing the dashboard home instead of closing.
+//
+// Detecting that we're in an MSAL window is the tricky part: navigating
+// through Microsoft's login is a cross-origin round-trip that can sever
+// window.opener (COOP) and even reset window.name, so neither is reliable once
+// the popup lands back here. The signal that always survives is the auth
+// response itself - MSAL returns with `state` plus `code`/`id_token`/`error`
+// in the URL fragment (or query). This app never does a full-page redirect
+// sign-in (no sign-in wall; the only interactive flow is the mail button's
+// loginPopup), so an auth response in the URL here means we're inside MSAL's
+// popup/iframe, never the main app tab.
+function hasMsalAuthResponse(): boolean {
+    const check = (raw: string): boolean => {
+        if (!raw || raw.length <= 1) {
+            return false;
+        }
+        const params = new URLSearchParams(raw.replace(/^[#?]/, ""));
+        return (
+            params.has("state") &&
+            (params.has("code") || params.has("id_token") || params.has("error"))
+        );
+    };
 
-if (isPopupOrIframe) {
+    return check(window.location.hash) || check(window.location.search);
+}
+
+const isPopup = Boolean(window.opener && window.opener !== window);
+const isChildFrame = window.parent !== window;
+const isMsalNamedWindow = window.name.startsWith("msal");
+
+const isMsalAuthWindow =
+    hasMsalAuthResponse() || isPopup || isMsalNamedWindow || isChildFrame;
+
+if (isMsalAuthWindow) {
+    document.title = "Microsoft Authentication";
+
     try {
-        const { broadcastResponseToMainFrame } = await import("@azure/msal-browser/redirect-bridge");
+        const { broadcastResponseToMainFrame } = await import(
+            "@azure/msal-browser/redirect-bridge"
+        );
+        // Hands the auth response back to the opener over BroadcastChannel and
+        // closes this popup / iframe. Never boot the SPA here - even if this
+        // throws (e.g. no parseable response), rendering the dashboard inside
+        // the sign-in popup is exactly the bug we're avoiding.
         await broadcastResponseToMainFrame();
-    } catch {
-        // Not actually an MSAL auth response landing here (e.g. embedded in an
-        // iframe for an unrelated reason) - fall back to a normal app boot.
-        await bootApp();
+    } catch (error) {
+        console.error("Failed to hand MSAL auth response back to the opener", error);
     }
 } else {
     await bootApp();

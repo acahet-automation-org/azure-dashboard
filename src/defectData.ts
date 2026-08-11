@@ -281,12 +281,12 @@ interface TestCaseLookups {
 // bug's own confirmed test case links (see getLinkedTestCaseIds) instead of
 // requiring the bug to also turn up in the dashboard's own test-case-to-bug
 // crawl.
-async function getTestCaseLookups(): Promise<TestCaseLookups> {
+async function getTestCaseLookups(project?: string): Promise<TestCaseLookups> {
     const iterationByTestCase = new Map<number, string>();
     const titleByTestCase = new Map<number, string>();
     const suiteByTitle = new Map<string, string>();
 
-    const testCases = await getDashboardData();
+    const testCases = await getDashboardData(project);
 
     for (const tc of testCases) {
         if (tc.iteration && !iterationByTestCase.has(tc.testCaseId)) {
@@ -417,7 +417,7 @@ async function buildDefectRecord(
         reopenedCount: countReopenings(revisions),
         verificaTransition: findLastTransitionInto(revisions, VERIFICA_STATE),
         hasLinkedTestCase: linkedTestCaseIds.length > 0,
-        url: buildWorkItemUrl(bug.id),
+        url: buildWorkItemUrl(bug.id, project),
         creator: bug.fields["System.CreatedBy"]?.displayName,
         assignedTo: bug.fields["System.AssignedTo"]
             ? {
@@ -431,12 +431,7 @@ async function buildDefectRecord(
 export async function buildDefectRecords(project?: string): Promise<DefectRecord[]> {
     const [bugs, lookups] = await Promise.all([
         getAllBugFields(project),
-        // Test case lookups always come from the default project's dashboard
-        // data (getDashboardData isn't project-parameterized) - for a
-        // non-default project this fallback enrichment simply won't match
-        // anything and no-ops, since a bug's own System.IterationPath/
-        // Custom.Suite (the primary source) is unaffected.
-        getTestCaseLookups(),
+        getTestCaseLookups(project),
     ]);
 
     return Promise.all(
@@ -465,7 +460,7 @@ export async function getDefectData(project?: string): Promise<DefectRecord[]> {
 export function clearDefectCache(): void {
     defectCache.clear();
     storyPointsCache.clear();
-    suiteNamesCache = null;
+    suiteNamesCache.clear();
 }
 
 function groupCount(
@@ -1207,24 +1202,26 @@ export async function getStoryPointsByArea(project?: string): Promise<
     return data;
 }
 
-let suiteNamesCache: { data: string[]; timestamp: number } | null =
-    null;
+const suiteNamesCache = new Map<
+    string,
+    { data: string[]; timestamp: number }
+>();
 
 // Full set of test suite names for the project, independent of whether any
 // bug is currently linked to them - needed so suites with zero bugs still
 // render as a zero bar instead of disappearing from the chart.
-export async function getAllSuiteNames(): Promise<string[]> {
+export async function getAllSuiteNames(project?: string): Promise<string[]> {
+    const projectKey = resolveProjectKey(project);
     const now = Date.now();
 
-    if (
-        suiteNamesCache &&
-        now - suiteNamesCache.timestamp < CACHE_DURATION_MS
-    ) {
-        return suiteNamesCache.data;
+    const cached = suiteNamesCache.get(projectKey);
+
+    if (cached && now - cached.timestamp < CACHE_DURATION_MS) {
+        return cached.data;
     }
 
     const suites = new Set<string>();
-    const testCases = await getDashboardData();
+    const testCases = await getDashboardData(project);
 
     for (const tc of testCases) {
         const normalized = normalizeSuiteName(tc.suiteName);
@@ -1236,7 +1233,7 @@ export async function getAllSuiteNames(): Promise<string[]> {
 
     const data = [...suites].sort((a, b) => a.localeCompare(b));
 
-    suiteNamesCache = { data, timestamp: now };
+    suiteNamesCache.set(projectKey, { data, timestamp: now });
 
     return data;
 }

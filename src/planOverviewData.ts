@@ -1,11 +1,15 @@
 import {
-    getTestPlans,
+    getTestPlan,
     getSuites,
     getTestCases,
     getTestPoints,
     getBugWorkItemTypeStates,
 } from "./azdo.js";
-import { buildTestCaseRow, resolveTestPointStatus } from "./dashboardData.js";
+import {
+    buildTestCaseRow,
+    extractReportUrlFromDescription,
+    resolveTestPointStatus,
+} from "./dashboardData.js";
 import type {
     BugInfo,
     Outcome,
@@ -136,7 +140,9 @@ async function buildPlanRows(
                         suite.name,
                         suite.id,
                         outcomesByTestCase,
-                        lastRunByTestCase
+                        lastRunByTestCase,
+                        undefined,
+                        project
                     )
                 )
             );
@@ -160,9 +166,9 @@ export async function computePlanOverview(
         return cached.data;
     }
 
-    const plans = await getTestPlans(project);
-    const plan = plans.find((p: any) => p.id === planId);
+    const plan = await getTestPlan(planId, project);
     const planName = plan?.name ?? String(planId);
+    const reportUrl = extractReportUrlFromDescription(plan?.description);
 
     const rows = await buildPlanRows(planId, planName, project);
 
@@ -284,6 +290,7 @@ export async function computePlanOverview(
     const data: PlanOverviewResponse = {
         planId,
         planName,
+        reportUrl,
         totalTestCases: rows.length,
         totalBugs: bugs.length,
         testsBySuite: [...testsBySuiteMap.entries()].map(
