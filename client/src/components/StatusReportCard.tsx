@@ -392,9 +392,9 @@ export interface StatusReportCardProps {
     // still being validated, so existing report sends stay unaffected
     // unless someone opts in for a given card.
     showOriginBreakdown?: boolean;
-    // On by default (bugs are tracked in DSI org-wide) - Plurifond has no
-    // DSI-sourced bugs yet, so its report sets this to false to keep the
-    // subtitle from claiming a source that doesn't apply.
+    // On by default (bugs are tracked in DSI org-wide) - a report with no
+    // DSI-sourced bugs sets this to false to keep the subtitle from
+    // claiming a source that doesn't apply.
     includeDsiSource?: boolean;
 }
 

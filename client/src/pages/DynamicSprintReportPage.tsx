@@ -213,7 +213,7 @@ export function DynamicSprintReportPage() {
                         availableFilters={data.stats.availableFilters}
                         filters={filters}
                         onChange={setLocalFilters}
-                        fields={["environment", "targetVersion"]}
+                        fields={["suites", "environment", "targetVersion"]}
                     />
 
                     <SprintDefectReportTab

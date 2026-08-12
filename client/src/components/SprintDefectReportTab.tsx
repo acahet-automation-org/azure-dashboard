@@ -207,18 +207,15 @@ export function SprintDefectReportTab({
     defaultHeaderTitle?: string;
     defaultHeaderSubtitle?: string;
     defaultActionsText?: (report: SprintDefectReport) => string;
-    // Off for Plurifond (no DSI-sourced bugs yet) - see StatusReportCard.tsx.
+    // Off when the current report has no DSI-sourced bugs - see StatusReportCard.tsx.
     includeDsiSource?: boolean;
-    // Off for Plurifond (no shared UAT deadline for this report yet).
+    // Off when the current report has no shared UAT deadline.
     includeDeadline?: boolean;
-    // On only for the Dynamic Sprint Report page - lets the sender type a
-    // free-text note directly above the card preview, like the compose box
-    // above quoted/forwarded content in a mail client. Off elsewhere
-    // (SprintReportPage, PlurifondSprintReportPage) until validated there too.
+    // Lets the sender type a free-text note directly above the card preview,
+    // like the compose box above quoted/forwarded content in a mail client.
     enableEmailPreface?: boolean;
     // Scopes the plan/plan-overview lookups below to a specific Azure DevOps
-    // project - omitted by the two existing hardcoded pages, which keep
-    // resolving against the server's default configured project.
+    // project.
     project?: string;
 }) {
     const { t } = useTranslation();
