@@ -276,7 +276,12 @@ export async function deleteTestCases(
     return res.json();
 }
 
-export async function postRefresh(): Promise<void> {
+export interface RefreshResult {
+    refreshed: boolean;
+    retryAfterMs?: number;
+}
+
+export async function postRefresh(): Promise<RefreshResult> {
     const res = await apiFetch("/api/refresh", {
         method: "POST",
     });
@@ -287,4 +292,6 @@ export async function postRefresh(): Promise<void> {
             `Refresh failed (${res.status})`
         );
     }
+
+    return res.json();
 }

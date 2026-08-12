@@ -11,7 +11,23 @@ import { ThemedFluentProvider } from "./components/ThemedFluentProvider";
 import { ScopeProvider } from "./context/ScopeContext";
 import App from "./App";
 
-const queryClient = new QueryClient();
+// Every server-side data module caches for 5 minutes (see e.g.
+// dashboardData.ts's CACHE_DURATION_MS), so refetching more often than that
+// just replays the same server-cached response - it still costs a request,
+// a JSON parse and a re-render on every page revisit. Without a staleTime,
+// React Query's default (0) means navigating back to an already-visited
+// page always shows a loading spinner while it refetches, even though the
+// server was always going to hand back the same data. Matching this to the
+// server's cache window lets an already-fetched page render instantly from
+// memory; "Refresh Now" (TopBar.tsx) is the explicit way to force newer data
+// in sooner.
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            staleTime: 5 * 60 * 1000,
+        },
+    },
+});
 
 // Every app registration in this project (dashboard sign-in, mailMsalInstance
 // for the Test Graph Mail button, and MSAL's own silent-renewal iframe) shares

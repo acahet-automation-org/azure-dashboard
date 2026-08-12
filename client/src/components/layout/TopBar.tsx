@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     Button,
     Text,
@@ -72,9 +72,19 @@ export function TopBar({ title }: { title: string }) {
     const { t } = useTranslation();
     const { instance, accounts } = useMsal();
     const activeAccount = instance.getActiveAccount() ?? accounts[0];
+    const queryClient = useQueryClient();
 
     const refreshMutation = useMutation({
         mutationFn: postRefresh,
+        onSuccess: (result) => {
+            // Only the server clearing its caches means there's anything new
+            // to show - a throttled ("already up to date") response leaves
+            // every page's data exactly as it was, so refetching would just
+            // replay the same server-cached values for nothing.
+            if (result.refreshed) {
+                void queryClient.invalidateQueries();
+            }
+        },
     });
 
     return (
@@ -91,6 +101,18 @@ export function TopBar({ title }: { title: string }) {
                         })}
                     </Text>
                 )}
+
+                {refreshMutation.isSuccess &&
+                    !refreshMutation.data.refreshed && (
+                        <Text className={styles.welcome}>
+                            {t("nav.refreshUpToDate", {
+                                minutes: Math.ceil(
+                                    (refreshMutation.data.retryAfterMs ?? 0) /
+                                        60000
+                                ),
+                            })}
+                        </Text>
+                    )}
 
                 <Button
                     appearance="subtle"

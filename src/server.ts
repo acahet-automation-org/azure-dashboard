@@ -498,7 +498,34 @@ app.post("/api/email-report", async (req, res) => {
     }
 });
 
+// Every data module already self-caches for 5 minutes (see e.g.
+// dashboardData.ts's CACHE_DURATION_MS), so an organic page load never
+// re-hits Azure DevOps more than once per 5 minutes. This handler is the one
+// place that can bypass all of those at once (the "Refresh Now" button), and
+// it's shared by every user hitting this server - without its own throttle,
+// several people clicking it within the same few minutes would each trigger
+// a full re-fetch of every dashboard from Azure DevOps. Tracked as a single
+// timestamp here (not derived from the per-module cache timestamps) because
+// it's guarding the *manual* clear-everything action specifically, separate
+// from each module's own organic cache lifetime.
+let lastManualRefreshAt = 0;
+const MANUAL_REFRESH_COOLDOWN_MS = 5 * 60 * 1000;
+
 app.post("/api/refresh", (_, res) => {
+    const now = Date.now();
+    const elapsed = now - lastManualRefreshAt;
+
+    if (elapsed < MANUAL_REFRESH_COOLDOWN_MS) {
+        res.status(200).json({
+            refreshed: false,
+            retryAfterMs: MANUAL_REFRESH_COOLDOWN_MS - elapsed,
+        });
+
+        return;
+    }
+
+    lastManualRefreshAt = now;
+
     clearDashboardCache();
     clearDefectCache();
     clearCommonErrorsCache();
@@ -508,7 +535,7 @@ app.post("/api/refresh", (_, res) => {
     clearTestPlanProgressBugsCache();
     clearReleaseReadinessCache();
 
-    res.status(204).end();
+    res.status(200).json({ refreshed: true });
 });
 
 

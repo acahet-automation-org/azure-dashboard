@@ -25,6 +25,7 @@
         "refresh": "Aggiorna Ora",
         "refreshing": "Aggiornamento...",
         "refreshFailed": "Aggiornamento non riuscito: {{message}}",
+        "refreshUpToDate": "Già aggiornato (riprova tra {{minutes}}m)",
         "welcome": "Benvenuto, {{name}}",
         "signOut": "Esci",
         "testGraphLogin": "Login",
