@@ -25,6 +25,7 @@
         "refresh": "Refresh Now",
         "refreshing": "Refreshing...",
         "refreshFailed": "Refresh failed: {{message}}",
+        "refreshUpToDate": "Already up to date (try again in {{minutes}}m)",
         "welcome": "Welcome, {{name}}",
         "signOut": "Sign Out",
         "testGraphLogin": "Login",
