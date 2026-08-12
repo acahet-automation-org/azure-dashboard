@@ -22,7 +22,7 @@ import {
     fetchDefects,
 } from "../api/client";
 import { useScope } from "../hooks/useScope";
-import type { DefectFilters } from "../types";
+import type { DefectFilterOptions, DefectFilters } from "../types";
 
 const useStyles = makeStyles({
     filters: {
@@ -152,6 +152,37 @@ export function DynamicSprintReportPage() {
         enabled: scope.isComplete && !!scope.sprint,
     });
 
+    // The suite dropdown normally lists every suite name that appears on a
+    // bug across the whole iteration/area (see computeAvailableFilters),
+    // which both hides suites that have zero bugs and includes suites from
+    // plans that aren't even selected here. Once test plans are picked,
+    // scope it down to the real suite hierarchy of those plans instead, so
+    // a suite always shows up (regardless of bug count) and nothing outside
+    // the selected plans does.
+    const planSuiteNames = useMemo(() => {
+        const names = new Set<string>();
+
+        selectedPlanIds.forEach((_, index) => {
+            const overview = planOverviewQueries[index]?.data;
+
+            overview?.suites.forEach((suite) => names.add(suite.suiteName));
+        });
+
+        return [...names].sort((a, b) => a.localeCompare(b));
+    }, [selectedPlanIds, planOverviewQueries]);
+
+    function scopeAvailableFilters(
+        availableFilters: DefectFilterOptions
+    ): DefectFilterOptions {
+        return {
+            ...availableFilters,
+            suites:
+                selectedPlanIds.length > 0
+                    ? planSuiteNames
+                    : availableFilters.suites,
+        };
+    }
+
     const selectedPlansLabel =
         selectedPlanIds.length > 0
             ? t("dynamicSprintReportPage.selectedTestPlans", {
@@ -210,7 +241,9 @@ export function DynamicSprintReportPage() {
             {data && scope.sprint && (
                 <>
                     <DefectFilterBar
-                        availableFilters={data.stats.availableFilters}
+                        availableFilters={scopeAvailableFilters(
+                            data.stats.availableFilters
+                        )}
                         filters={filters}
                         onChange={setLocalFilters}
                         fields={["suites", "environment", "targetVersion"]}
