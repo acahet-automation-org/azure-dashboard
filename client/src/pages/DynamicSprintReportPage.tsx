@@ -190,6 +190,19 @@ export function DynamicSprintReportPage() {
             })
             : t("dynamicSprintReportPage.testPlansPlaceholder");
 
+    // Pre-fills the report card's title with the selected Test Plan name(s)
+    // - falls back to the generic default until at least one is picked.
+    // Selection order (not sortedPlans' metadata-match order) so it matches
+    // what the user actually clicked in the dropdown.
+    const selectedPlanNames = selectedPlanIds
+        .map((planId) => plans?.find((plan) => plan.id === planId)?.name)
+        .filter((name): name is string => Boolean(name));
+
+    const defaultHeaderTitle =
+        selectedPlanNames.length > 0
+            ? selectedPlanNames.join(", ")
+            : t("dynamicSprintReportPage.defaultHeaderTitle");
+
     return (
         <PageLayout title={t("dynamicSprintReportPage.title")}>
             {!scope.isComplete && (
@@ -253,7 +266,7 @@ export function DynamicSprintReportPage() {
                         stats={data.stats}
                         project={scope.project}
                         suiteGroupDefs={suiteGroupDefs}
-                        defaultHeaderTitle={t("dynamicSprintReportPage.defaultHeaderTitle")}
+                        defaultHeaderTitle={defaultHeaderTitle}
                         defaultHeaderSubtitle={t(
                             "dynamicSprintReportPage.defaultHeaderSubtitle"
                         )}

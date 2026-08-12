@@ -1,9 +1,11 @@
-import { lazy, Suspense, type ReactNode } from "react";
+import { lazy, Suspense, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Spinner } from "@fluentui/react-components";
 import { useIsRestrictedOwner } from "./hooks/useIsRestrictedOwner";
 import { fetchProjects } from "./api/client";
+import { AzdoConnectionError } from "./components/AzdoConnectionError";
+import { GettingStartedGuide } from "./components/GettingStartedGuide";
 
 const SuitesPage = lazy(() => import("./pages/SuitesPage").then((m) => ({ default: m.SuitesPage })));
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
@@ -130,27 +132,45 @@ function AppRoutes() {
     );
 }
 
+const ONBOARDING_SEEN_KEY = "azureDashboardOnboardingSeen";
+
 // No sign-in wall: access is gated on whether the server's AZDO_PAT actually
 // works, not on a Microsoft identity. /api/projects is the cheapest call
 // that exercises it (and the same query ScopeBar makes right after, so this
 // just primes its cache rather than firing a second request). A PAT
-// failure - not just "still loading" - renders a blank screen instead of a
-// dashboard full of per-widget error banners.
+// failure - not just "still loading" - renders AzdoConnectionError instead
+// of a dashboard full of per-widget error banners.
 function App() {
-    const { isLoading, isError } = useQuery({
+    const { isLoading, isError, refetch } = useQuery({
         queryKey: ["projects"],
         queryFn: fetchProjects,
     });
+
+    // Shown once per browser the first time the app loads successfully;
+    // reachable again anytime after via the Help button in TopBar.tsx.
+    const [guideOpen, setGuideOpen] = useState(
+        () => localStorage.getItem(ONBOARDING_SEEN_KEY) !== "true"
+    );
+
+    const closeGuide = () => {
+        localStorage.setItem(ONBOARDING_SEEN_KEY, "true");
+        setGuideOpen(false);
+    };
 
     if (isLoading) {
         return <PageFallback />;
     }
 
     if (isError) {
-        return null;
+        return <AzdoConnectionError onRetry={() => void refetch()} />;
     }
 
-    return <AppRoutes />;
+    return (
+        <>
+            <AppRoutes />
+            <GettingStartedGuide open={guideOpen} onClose={closeGuide} />
+        </>
+    );
 }
 
 export default App;

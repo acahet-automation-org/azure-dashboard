@@ -7,7 +7,8 @@ import {
     makeStyles,
     tokens,
 } from "@fluentui/react-components";
-import { ArrowSyncRegular } from "@fluentui/react-icons";
+import { useState } from "react";
+import { ArrowSyncRegular, QuestionCircleRegular } from "@fluentui/react-icons";
 import { useTranslation } from "react-i18next";
 import { useMsal } from "@azure/msal-react";
 import { NAV_HEIGHT, RAIL_BG, RAIL_FG, RAIL_FG_ACTIVE } from "../../layoutConstants";
@@ -15,6 +16,7 @@ import { postRefresh } from "../../api/client";
 import { LanguageSwitcher } from "../LanguageSwitcher";
 import { ThemeSwitcher } from "../ThemeSwitcher";
 import { TestGraphMailButton } from "../TestGraphMailButton";
+import { GettingStartedGuide } from "../GettingStartedGuide";
 
 // Colors are hardcoded (not theme tokens) to match the Sidebar rail, which
 // is also always dark regardless of the light/dark content theme - see
@@ -73,6 +75,7 @@ export function TopBar({ title }: { title: string }) {
     const { instance, accounts } = useMsal();
     const activeAccount = instance.getActiveAccount() ?? accounts[0];
     const queryClient = useQueryClient();
+    const [helpOpen, setHelpOpen] = useState(false);
 
     const refreshMutation = useMutation({
         mutationFn: postRefresh,
@@ -144,9 +147,23 @@ export function TopBar({ title }: { title: string }) {
 
                 <TestGraphMailButton />
 
+                <Button
+                    appearance="subtle"
+                    className={styles.refreshButton}
+                    icon={<QuestionCircleRegular />}
+                    onClick={() => setHelpOpen(true)}
+                >
+                    {t("nav.help")}
+                </Button>
+
                 <LanguageSwitcher />
                 <ThemeSwitcher />
             </div>
+
+            <GettingStartedGuide
+                open={helpOpen}
+                onClose={() => setHelpOpen(false)}
+            />
         </div>
     );
 }
