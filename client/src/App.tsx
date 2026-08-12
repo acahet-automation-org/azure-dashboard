@@ -25,12 +25,6 @@ const TestExecutionPage = lazy(() =>
 const DefectManagementPage = lazy(() =>
     import("./pages/DefectManagementPage").then((m) => ({ default: m.DefectManagementPage }))
 );
-const SprintReportPage = lazy(() =>
-    import("./pages/SprintReportPage").then((m) => ({ default: m.SprintReportPage }))
-);
-const PlurifondSprintReportPage = lazy(() =>
-    import("./pages/PlurifondSprintReportPage").then((m) => ({ default: m.PlurifondSprintReportPage }))
-);
 const DynamicSprintReportPage = lazy(() =>
     import("./pages/DynamicSprintReportPage").then((m) => ({ default: m.DynamicSprintReportPage }))
 );
@@ -81,11 +75,6 @@ function AppRoutes() {
                 {showOnlyDefectAndRelease ? (
                     <>
                         <Route path="/defects" element={<DefectManagementPage />} />
-                        <Route path="/sprint-report" element={<SprintReportPage />} />
-                        <Route
-                            path="/plurifond-sprint-report"
-                            element={<PlurifondSprintReportPage />}
-                        />
                         <Route
                             path="/dynamic-sprint-report"
                             element={<DynamicSprintReportPage />}
@@ -117,8 +106,6 @@ function AppRoutes() {
                         <Route path="/automation-dashboard" element={<AutomationDashboardPage />} />
                         <Route path="/test-execution" element={<TestExecutionPage />} />
                         <Route path="/defects" element={<DefectManagementPage />} />
-                        <Route path="/sprint-report" element={<SprintReportPage />} />
-                        <Route path="/plurifond-sprint-report" element={<PlurifondSprintReportPage />} />
                         <Route path="/dynamic-sprint-report" element={<DynamicSprintReportPage />} />
                         <Route path="/common-errors" element={<CommonErrorsPage />} />
                         <Route path="/my-work-items" element={<MyWorkItemsPage />} />

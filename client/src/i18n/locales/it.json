@@ -15,9 +15,7 @@
         "automationDashboard": "Dashboard Automazione",
         "execution": "Esecuzione Test",
         "defects": "Gestione Difetti",
-        "sprintReport": "Report Sprint",
-        "plurifondSprintReport": "Report Sprint Plurifond",
-        "dynamicSprintReport": "Report Sprint (qualsiasi progetto)",
+        "dynamicSprintReport": "Report Sprint",
         "commonErrors": "Errori Comuni",
         "myWorkItems": "I Miei Elementi",
         "removeTestCases": "Rimuovi Test Case",
@@ -443,12 +441,6 @@
             }
         }
     },
-    "sprintReportPage": {
-        "title": "Report Sprint"
-    },
-    "plurifondSprintReportPage": {
-        "title": "Report Sprint Plurifond"
-    },
     "dynamicSprintReportPage": {
         "title": "Report Sprint",
         "testPlansLabel": "Piani di Test",
@@ -456,7 +448,7 @@
         "selectedTestPlans": "{{count}} selezionati",
         "selectProjectPrompt": "Seleziona un progetto nella barra in alto per iniziare.",
         "selectSprintPrompt": "Seleziona uno sprint nella barra in alto per caricare il report.",
-        "defaultHeaderTitle": "Test Funzionali - Plurifonds",
+        "defaultHeaderTitle": "Report di Stato Sprint",
         "defaultHeaderSubtitle": "Stato di esecuzione dei test"
     },
     "commonErrorsPage": {

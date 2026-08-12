@@ -15,9 +15,7 @@
         "automationDashboard": "Automation Dashboard",
         "execution": "Test Execution",
         "defects": "Defect Management",
-        "sprintReport": "Sprint Report",
-        "plurifondSprintReport": "Plurifond Sprint Report",
-        "dynamicSprintReport": "Sprint Report (any project)",
+        "dynamicSprintReport": "Sprint Report",
         "commonErrors": "Common Errors",
         "myWorkItems": "My Work Items",
         "removeTestCases": "Remove Test Cases",
@@ -442,12 +440,6 @@
                 }
             }
         }
-    },
-    "sprintReportPage": {
-        "title": "Sprint Report"
-    },
-    "plurifondSprintReportPage": {
-        "title": "Plurifond Sprint Report"
     },
     "dynamicSprintReportPage": {
         "title": "Sprint Report",
