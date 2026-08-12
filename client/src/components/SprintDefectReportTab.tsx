@@ -222,7 +222,17 @@ export function SprintDefectReportTab({
     const styles = useStyles();
     const report = stats.sprintDefectReport;
 
-    const [headerTitle, setHeaderTitle] = useState(defaultHeaderTitle);
+    // Dynamic Sprint Report recomputes defaultHeaderTitle from the selected
+    // Test Plans (see DynamicSprintReportPage.tsx) - derived (not seeded
+    // once via useState) so the field keeps following that as the selection
+    // changes, right up until the user actually types into it themselves;
+    // customHeaderTitle then takes over so a manual edit doesn't get
+    // clobbered by a later plan-selection change.
+    const [customHeaderTitle, setCustomHeaderTitle] = useState<string | null>(
+        null
+    );
+    const headerTitle = customHeaderTitle ?? defaultHeaderTitle;
+
     const [headerSubtitle, setHeaderSubtitle] = useState(defaultHeaderSubtitle);
     const [uatDeadline, setUatDeadline] = useState("2026-07-20");
     const [actionsText, setActionsText] = useState(
@@ -688,7 +698,7 @@ export function SprintDefectReportTab({
                         <Input
                             value={headerTitle}
                             onChange={(_, data) =>
-                                setHeaderTitle(data.value)
+                                setCustomHeaderTitle(data.value)
                             }
                         />
                     </Field>

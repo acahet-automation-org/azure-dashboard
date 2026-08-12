@@ -24,6 +24,7 @@
         "refreshing": "Aggiornamento...",
         "refreshFailed": "Aggiornamento non riuscito: {{message}}",
         "refreshUpToDate": "Già aggiornato (riprova tra {{minutes}}m)",
+        "help": "Guida",
         "welcome": "Benvenuto, {{name}}",
         "signOut": "Esci",
         "testGraphLogin": "Login",
@@ -34,6 +35,32 @@
         "testGraphLogoutFailed": "Disconnessione non riuscita: {{message}}",
         "collapseSidebar": "Comprimi barra laterale",
         "expandSidebar": "Espandi barra laterale"
+    },
+    "azdoPatSteps": {
+        "step1": "In Azure DevOps apri il tuo profilo (in alto a destra) e vai su Impostazioni Utente > Personal Access Token.",
+        "step2": "Clicca su \"New Token\", assegna un nome e imposta gli ambiti su Work Items (Read) e Test Plans (Read).",
+        "step3": "Clicca su \"Create\" e copia subito il token - Azure DevOps lo mostra una sola volta.",
+        "step4": "Apri il file .env nella cartella principale dell'app e imposta AZDO_PAT con il tuo token (insieme a AZDO_ORG e AZDO_PROJECT).",
+        "step5": "Riavvia il server (npm run dev:all) affinché il nuovo token venga applicato."
+    },
+    "onboardingGuide": {
+        "title": "Per iniziare",
+        "intro": "Una breve panoramica su come inviare un report via email e collegare la dashboard ad Azure DevOps.",
+        "emailSection": {
+            "title": "Inviare un report via email",
+            "quickExport": "Esportazione rapida: nella pagina Dashboard o Panoramica Piano, usa il pulsante Esporta e scegli \"Email\" - un clic, invio automatico, nessun accesso richiesto. Visibile solo se abilitato dall'amministratore.",
+            "statusReport": "Report di stato completo: nella pagina Report Sprint, clicca su \"Login\" nella barra in alto per accedere con il tuo account Microsoft, poi inserisci i destinatari nella sezione \"Email Status Card\" e clicca \"Send Email\". Anch'esso visibile solo se abilitato."
+        },
+        "azdoSection": {
+            "title": "Collegarsi ad Azure DevOps",
+            "intro": "La dashboard carica i dati solo quando sul server è configurato un token di accesso personale di Azure DevOps (AZDO_PAT) valido:"
+        },
+        "gotIt": "Capito"
+    },
+    "azdoConnectionError": {
+        "title": "Impossibile raggiungere Azure DevOps",
+        "message": "La dashboard non è riuscita a caricare i dati da Azure DevOps - nella maggior parte dei casi significa che il token AZDO_PAT del server è assente, scaduto o non valido.",
+        "retry": "Riprova"
     },
     "signInPage": {
         "title": "QA Dashboard",
