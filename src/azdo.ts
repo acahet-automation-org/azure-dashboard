@@ -1,14 +1,29 @@
 import axios, { type AxiosInstance } from "axios";
+import dns from "node:dns";
 import "dotenv/config";
+
+// On networks where IPv6 is advertised but not actually routable (common on
+// corporate VPNs), Node's Happy-Eyeballs dual-stack connect can hang on the
+// IPv6 attempt long enough to blow past the OS connect timeout before ever
+// falling back to IPv4 - surfacing as an `AggregateError [ETIMEDOUT]` from
+// `internalConnectMultiple` even though a plain IPv4 connection would have
+// succeeded instantly. Preferring IPv4 resolution avoids that hang entirely.
+dns.setDefaultResultOrder("ipv4first");
 
 const auth = Buffer.from(
     `:${process.env.AZDO_PAT}`
 ).toString("base64");
 
+// Requests were previously left with no timeout at all (axios `timeout: 0`),
+// so a connection that hung (see the IPv6 note above, or any other transient
+// network blip) would stall forever instead of failing fast enough to retry.
+const REQUEST_TIMEOUT_MS = 30_000;
+
 export const azdo = axios.create({
     baseURL: `https://dev.azure.com/${process.env.AZDO_ORG}/${encodeURIComponent(
         process.env.AZDO_PROJECT!
     )}/_apis`,
+    timeout: REQUEST_TIMEOUT_MS,
     headers: {
         Authorization: `Basic ${auth}`,
         "Content-Type": "application/json",
@@ -19,6 +34,7 @@ export const azdo = axios.create({
 // rather than project-scoped, so they can't go through the `azdo` client above.
 export const azdoOrg = axios.create({
     baseURL: `https://dev.azure.com/${process.env.AZDO_ORG}/_apis`,
+    timeout: REQUEST_TIMEOUT_MS,
     headers: {
         Authorization: `Basic ${auth}`,
         "Content-Type": "application/json",
@@ -33,6 +49,7 @@ export const azdoOdata = axios.create({
     baseURL: `https://analytics.dev.azure.com/${process.env.AZDO_ORG}/${encodeURIComponent(
         process.env.AZDO_PROJECT!
     )}/_odata/v4.0-preview`,
+    timeout: REQUEST_TIMEOUT_MS,
     headers: {
         Authorization: `Basic ${auth}`,
     },
@@ -80,8 +97,64 @@ function attachAuthErrorInterceptor(instance: AxiosInstance): void {
     });
 }
 
-for (const instance of [azdo, azdoOrg, azdoOdata]) {
+// Transient, connection-level failures (dropped socket, connect timeout,
+// temporary DNS hiccup) never reach the server at all, so they never get a
+// `response` - retrying the same request a few times with backoff is enough
+// to ride out a blip that would otherwise abort an entire dashboard/report
+// build over a single flaky request.
+const RETRYABLE_ERROR_CODES = new Set([
+    "ETIMEDOUT",
+    "ECONNRESET",
+    "ECONNABORTED",
+    "ECONNREFUSED",
+    "EAI_AGAIN",
+]);
+const MAX_RETRIES = 3;
+const RETRY_BASE_DELAY_MS = 500;
+
+function isRetryableError(error: unknown): error is import("axios").AxiosError {
+    return (
+        axios.isAxiosError(error) &&
+        !error.response &&
+        !!error.code &&
+        RETRYABLE_ERROR_CODES.has(error.code) &&
+        !!error.config
+    );
+}
+
+function delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function attachRetryInterceptor(instance: AxiosInstance): void {
+    instance.interceptors.response.use(undefined, async (error: unknown) => {
+        if (!isRetryableError(error)) {
+            return Promise.reject(error);
+        }
+
+        const config = error.config as typeof error.config & {
+            __retryCount?: number;
+        };
+        const retryCount = config.__retryCount ?? 0;
+
+        if (retryCount >= MAX_RETRIES) {
+            return Promise.reject(error);
+        }
+
+        config.__retryCount = retryCount + 1;
+        await delay(RETRY_BASE_DELAY_MS * 2 ** retryCount);
+
+        return instance.request(config);
+    });
+}
+
+function attachInterceptors(instance: AxiosInstance): void {
+    attachRetryInterceptor(instance);
     attachAuthErrorInterceptor(instance);
+}
+
+for (const instance of [azdo, azdoOrg, azdoOdata]) {
+    attachInterceptors(instance);
 }
 
 // Every project-scoped function below accepts an optional trailing `project`
@@ -105,13 +178,14 @@ function clientFor(project?: string): AxiosInstance {
             baseURL: `https://dev.azure.com/${process.env.AZDO_ORG}/${encodeURIComponent(
                 resolvedProject
             )}/_apis`,
+            timeout: REQUEST_TIMEOUT_MS,
             headers: {
                 Authorization: `Basic ${auth}`,
                 "Content-Type": "application/json",
             },
         });
 
-        attachAuthErrorInterceptor(instance);
+        attachInterceptors(instance);
         projectClients.set(resolvedProject, instance);
     }
 
@@ -137,12 +211,13 @@ function odataClientFor(project?: string): AxiosInstance {
             baseURL: `https://analytics.dev.azure.com/${process.env.AZDO_ORG}/${encodeURIComponent(
                 resolvedProject
             )}/_odata/v4.0-preview`,
+            timeout: REQUEST_TIMEOUT_MS,
             headers: {
                 Authorization: `Basic ${auth}`,
             },
         });
 
-        attachAuthErrorInterceptor(instance);
+        attachInterceptors(instance);
         odataProjectClients.set(resolvedProject, instance);
     }
 
