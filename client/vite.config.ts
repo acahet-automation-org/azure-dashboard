@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => ({
-  base: command === 'build' ? '/azure-dashboard/' : '/',
+  base: process.env.VITE_PUBLIC_BASE_PATH ?? '/',
   plugins: [react()],
   server: {
     port: 3000,
@@ -12,6 +12,7 @@ export default defineConfig(({ command }) => ({
     },
   },
   build: {
-    outDir: 'dist',
+    outDir: '../dist',
+    emptyOutDir: true,
   },
 }))
