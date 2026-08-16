@@ -1,7 +1,14 @@
 import "dotenv/config";
 import express, { type Response } from "express";
 import cors from "cors";
-import { AzdoAuthError, getIterations, getAreaPaths, getProjects } from "./azdo.js";
+import {
+    AzdoAuthError,
+    AzdoConfigError,
+    getIterations,
+    getAreaPaths,
+    getProjects,
+    runWithAzdoConfig,
+} from "./azdo.js";
 import {
     getDashboardData,
     clearDashboardCache,
@@ -70,6 +77,16 @@ const allowedOrigins = (process.env.CORS_ORIGIN ?? "http://localhost:3000")
 
 app.use(cors({ origin: allowedOrigins }));
 app.use(express.json({ limit: "15mb" }));
+app.use((req, _, next) => {
+    runWithAzdoConfig(
+        {
+            pat: req.header("x-ado-pat") ?? undefined,
+            org: req.header("x-ado-org") ?? undefined,
+            project: req.header("x-ado-project") ?? undefined,
+        },
+        next
+    );
+});
 
 // AzdoAuthError means Azure DevOps rejected our AZDO_PAT (usually expired or
 // revoked) - surface it as 502 Bad Gateway so the client can tell it apart
@@ -79,6 +96,11 @@ function sendApiError(res: Response, error: any): void {
 
     if (error instanceof AzdoAuthError) {
         res.status(502).json({ message: error.message });
+        return;
+    }
+
+    if (error instanceof AzdoConfigError) {
+        res.status(error.statusCode).json({ message: error.message });
         return;
     }
 

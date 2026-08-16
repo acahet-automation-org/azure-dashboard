@@ -1,11 +1,13 @@
 import { lazy, Suspense, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Spinner } from "@fluentui/react-components";
 import { useIsRestrictedOwner } from "./hooks/useIsRestrictedOwner";
 import { fetchProjects } from "./api/client";
 import { AzdoConnectionError } from "./components/AzdoConnectionError";
 import { GettingStartedGuide } from "./components/GettingStartedGuide";
+import { PatSetup } from "./components/PatSetup";
+import { useAzdoConnection } from "./azdoConnection";
 
 const SuitesPage = lazy(() => import("./pages/SuitesPage").then((m) => ({ default: m.SuitesPage })));
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
@@ -133,6 +135,7 @@ function AppRoutes() {
 }
 
 const ONBOARDING_SEEN_KEY = "azureDashboardOnboardingSeen";
+const SCOPE_STORAGE_KEY = "azureDashboardScope";
 
 // No sign-in wall: access is gated on whether the server's AZDO_PAT actually
 // works, not on a Microsoft identity. /api/projects is the cheapest call
@@ -141,9 +144,12 @@ const ONBOARDING_SEEN_KEY = "azureDashboardOnboardingSeen";
 // failure - not just "still loading" - renders AzdoConnectionError instead
 // of a dashboard full of per-widget error banners.
 function App() {
+    const queryClient = useQueryClient();
+    const { connection, saveConnection, clearConnection } = useAzdoConnection();
     const { isLoading, isError, refetch } = useQuery({
-        queryKey: ["projects"],
+        queryKey: ["projects", connection?.org],
         queryFn: fetchProjects,
+        enabled: connection != null,
     });
 
     // Shown once per browser the first time the app loads successfully;
@@ -157,12 +163,39 @@ function App() {
         setGuideOpen(false);
     };
 
+    const resetLocalState = () => {
+        localStorage.removeItem(SCOPE_STORAGE_KEY);
+        void queryClient.cancelQueries();
+        queryClient.clear();
+    };
+
+    if (!connection) {
+        return (
+            <PatSetup
+                onSave={(nextConnection) => {
+                    saveConnection(nextConnection);
+                    resetLocalState();
+                    window.location.reload();
+                }}
+            />
+        );
+    }
+
     if (isLoading) {
         return <PageFallback />;
     }
 
     if (isError) {
-        return <AzdoConnectionError onRetry={() => void refetch()} />;
+        return (
+            <AzdoConnectionError
+                onRetry={() => void refetch()}
+                onChangeConnection={() => {
+                    clearConnection();
+                    resetLocalState();
+                    window.location.reload();
+                }}
+            />
+        );
     }
 
     return (

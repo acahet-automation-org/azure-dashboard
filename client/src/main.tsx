@@ -1,4 +1,4 @@
-import { StrictMode } from "react";
+import { StrictMode, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -11,6 +11,9 @@ import { ThemeModeProvider } from "./hooks/ThemeModeProvider";
 import { ThemedFluentProvider } from "./components/ThemedFluentProvider";
 import { ScopeProvider } from "./context/ScopeContext";
 import App from "./App";
+
+const authMode = import.meta.env.VITE_AUTH_MODE ?? "local";
+const useSwaAuth = authMode === "swa";
 
 // Every server-side data module caches for 5 minutes (see e.g.
 // dashboardData.ts's CACHE_DURATION_MS), so refetching more often than that
@@ -68,33 +71,45 @@ function hasMsalAuthResponse(): boolean {
     return check(window.location.hash) || check(window.location.search);
 }
 
-const isPopup = Boolean(window.opener && window.opener !== window);
-const isChildFrame = window.parent !== window;
-const isMsalNamedWindow = window.name.startsWith("msal");
+if (useSwaAuth) {
+    const isPopup = Boolean(window.opener && window.opener !== window);
+    const isChildFrame = window.parent !== window;
+    const isMsalNamedWindow = window.name.startsWith("msal");
 
-const isMsalAuthWindow =
-    hasMsalAuthResponse() || isPopup || isMsalNamedWindow || isChildFrame;
+    const isMsalAuthWindow =
+        hasMsalAuthResponse() || isPopup || isMsalNamedWindow || isChildFrame;
 
-if (isMsalAuthWindow) {
-    document.title = "Microsoft Authentication";
+    if (isMsalAuthWindow) {
+        document.title = "Microsoft Authentication";
 
-    try {
-        const { broadcastResponseToMainFrame } = await import(
-            "@azure/msal-browser/redirect-bridge"
-        );
-        // Hands the auth response back to the opener over BroadcastChannel and
-        // closes this popup / iframe. Never boot the SPA here - even if this
-        // throws (e.g. no parseable response), rendering the dashboard inside
-        // the sign-in popup is exactly the bug we're avoiding.
-        await broadcastResponseToMainFrame();
-    } catch (error) {
-        console.error("Failed to hand MSAL auth response back to the opener", error);
+        try {
+            const { broadcastResponseToMainFrame } = await import(
+                "@azure/msal-browser/redirect-bridge"
+            );
+            // Hands the auth response back to the opener over BroadcastChannel and
+            // closes this popup / iframe. Never boot the SPA here - even if this
+            // throws (e.g. no parseable response), rendering the dashboard inside
+            // the sign-in popup is exactly the bug we're avoiding.
+            await broadcastResponseToMainFrame();
+        } catch (error) {
+            console.error("Failed to hand MSAL auth response back to the opener", error);
+        }
+    } else {
+        await bootAppWithDashboardMsal();
     }
 } else {
     await bootApp();
 }
 
-async function bootApp() {
+function renderApp(children: ReactNode) {
+    createRoot(document.getElementById("root")!).render(
+        <StrictMode>
+            {children}
+        </StrictMode>
+    );
+}
+
+async function bootAppWithDashboardMsal() {
     msalInstance.addEventCallback((event) => {
         if (
             event.eventType === EventType.LOGIN_SUCCESS &&
@@ -129,21 +144,35 @@ async function bootApp() {
         }
     }
 
-    createRoot(document.getElementById("root")!).render(
-        <StrictMode>
-            <MsalProvider instance={msalInstance}>
-                <ThemeModeProvider>
-                    <ThemedFluentProvider>
-                        <QueryClientProvider client={queryClient}>
-                            <ScopeProvider>
-                                <BrowserRouter basename={import.meta.env.BASE_URL}>
-                                    <App />
-                                </BrowserRouter>
-                            </ScopeProvider>
-                        </QueryClientProvider>
-                    </ThemedFluentProvider>
-                </ThemeModeProvider>
-            </MsalProvider>
-        </StrictMode>
+    renderApp(
+        <MsalProvider instance={msalInstance}>
+            <ThemeModeProvider>
+                <ThemedFluentProvider>
+                    <QueryClientProvider client={queryClient}>
+                        <ScopeProvider>
+                            <BrowserRouter basename={import.meta.env.BASE_URL}>
+                                <App />
+                            </BrowserRouter>
+                        </ScopeProvider>
+                    </QueryClientProvider>
+                </ThemedFluentProvider>
+            </ThemeModeProvider>
+        </MsalProvider>
+    );
+}
+
+async function bootApp() {
+    renderApp(
+        <ThemeModeProvider>
+            <ThemedFluentProvider>
+                <QueryClientProvider client={queryClient}>
+                    <ScopeProvider>
+                        <BrowserRouter basename={import.meta.env.BASE_URL}>
+                            <App />
+                        </BrowserRouter>
+                    </ScopeProvider>
+                </QueryClientProvider>
+            </ThemedFluentProvider>
+        </ThemeModeProvider>
     );
 }

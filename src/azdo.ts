@@ -1,4 +1,5 @@
 import axios, { type AxiosInstance } from "axios";
+import { AsyncLocalStorage } from "node:async_hooks";
 import dns from "node:dns";
 import "dotenv/config";
 
@@ -10,50 +11,98 @@ import "dotenv/config";
 // succeeded instantly. Preferring IPv4 resolution avoids that hang entirely.
 dns.setDefaultResultOrder("ipv4first");
 
-const auth = Buffer.from(
-    `:${process.env.AZDO_PAT}`
-).toString("base64");
+interface AzdoRuntimeConfig {
+    pat?: string;
+    org?: string;
+    project?: string;
+}
+
+const azdoConfigStore = new AsyncLocalStorage<AzdoRuntimeConfig>();
+
+export function runWithAzdoConfig<T>(
+    config: AzdoRuntimeConfig,
+    callback: () => T
+): T {
+    return azdoConfigStore.run(config, callback);
+}
+
+function resolveConfigValue(
+    requestValue: string | undefined,
+    envValue: string | undefined
+): string | undefined {
+    const value = requestValue?.trim() || envValue?.trim();
+    return value ? value : undefined;
+}
+
+function getCurrentConfig(): Required<AzdoRuntimeConfig> {
+    const requestConfig = azdoConfigStore.getStore();
+
+    return {
+        pat: resolveConfigValue(requestConfig?.pat, process.env.AZDO_PAT) ?? "",
+        org: resolveConfigValue(requestConfig?.org, process.env.AZDO_ORG) ?? "",
+        project:
+            resolveConfigValue(
+                requestConfig?.project,
+                process.env.AZDO_PROJECT
+            ) ?? "",
+    };
+}
+
+export class AzdoConfigError extends Error {
+    statusCode: number;
+
+    constructor(message: string, statusCode = 400) {
+        super(message);
+        this.name = "AzdoConfigError";
+        this.statusCode = statusCode;
+    }
+}
+
+function requirePat(): string {
+    const { pat } = getCurrentConfig();
+
+    if (!pat) {
+        throw new AzdoConfigError(
+            "Missing Azure DevOps PAT. Save your PAT in the app or set AZDO_PAT on the server.",
+            401
+        );
+    }
+
+    return pat;
+}
+
+function requireOrg(): string {
+    const { org } = getCurrentConfig();
+
+    if (!org) {
+        throw new AzdoConfigError(
+            "Missing Azure DevOps organization. Save your organization in the app or set AZDO_ORG on the server."
+        );
+    }
+
+    return org;
+}
+
+function requireProject(project?: string): string {
+    const resolvedProject = project?.trim() || getCurrentConfig().project;
+
+    if (!resolvedProject) {
+        throw new AzdoConfigError(
+            "Missing Azure DevOps project. Select a project in the app or set AZDO_PROJECT on the server."
+        );
+    }
+
+    return resolvedProject;
+}
+
+function buildAuthHeader(pat: string): string {
+    return `Basic ${Buffer.from(`:${pat}`).toString("base64")}`;
+}
 
 // Requests were previously left with no timeout at all (axios `timeout: 0`),
 // so a connection that hung (see the IPv6 note above, or any other transient
 // network blip) would stall forever instead of failing fast enough to retry.
 const REQUEST_TIMEOUT_MS = 30_000;
-
-export const azdo = axios.create({
-    baseURL: `https://dev.azure.com/${process.env.AZDO_ORG}/${encodeURIComponent(
-        process.env.AZDO_PROJECT!
-    )}/_apis`,
-    timeout: REQUEST_TIMEOUT_MS,
-    headers: {
-        Authorization: `Basic ${auth}`,
-        "Content-Type": "application/json",
-    },
-});
-
-// Some APIs (Favorites, Notification Subscriptions) are organization-scoped
-// rather than project-scoped, so they can't go through the `azdo` client above.
-export const azdoOrg = axios.create({
-    baseURL: `https://dev.azure.com/${process.env.AZDO_ORG}/_apis`,
-    timeout: REQUEST_TIMEOUT_MS,
-    headers: {
-        Authorization: `Basic ${auth}`,
-        "Content-Type": "application/json",
-    },
-});
-
-// The Test Plan Progress Report's hierarchy/rollup data isn't exposed by the
-// `_apis` REST surface above - it's only available through the Analytics
-// OData feed, which lives on a different host (analytics.dev.azure.com, not
-// dev.azure.com) and isn't part of the public REST API.
-export const azdoOdata = axios.create({
-    baseURL: `https://analytics.dev.azure.com/${process.env.AZDO_ORG}/${encodeURIComponent(
-        process.env.AZDO_PROJECT!
-    )}/_odata/v4.0-preview`,
-    timeout: REQUEST_TIMEOUT_MS,
-    headers: {
-        Authorization: `Basic ${auth}`,
-    },
-});
 
 // When AZDO_PAT is expired/revoked (or lacks the scope/conditional-access
 // needed for a given API), Azure DevOps doesn't reliably answer with a clean
@@ -65,9 +114,8 @@ export class AzdoAuthError extends Error {
     constructor(originalStatus: number) {
         super(
             `Azure DevOps returned its sign-in page instead of data (HTTP ${originalStatus}). ` +
-                "The shared AZDO_PAT access token has likely expired, been revoked, or lost the " +
-                "required permissions. Ask an administrator to generate a new PAT and update the " +
-                "server's AZDO_PAT configuration."
+                "The supplied Azure DevOps PAT has likely expired, been revoked, or lost the " +
+                "required permissions. Update the PAT in the app setup or on the server."
         );
         this.name = "AzdoAuthError";
     }
@@ -153,72 +201,85 @@ function attachInterceptors(instance: AxiosInstance): void {
     attachAuthErrorInterceptor(instance);
 }
 
-for (const instance of [azdo, azdoOrg, azdoOdata]) {
+function createAzdoClient(
+    baseURL: string,
+    pat: string,
+    includeJsonContentType: boolean
+): AxiosInstance {
+    const instance = axios.create({
+        baseURL,
+        timeout: REQUEST_TIMEOUT_MS,
+        headers: includeJsonContentType
+            ? {
+                  Authorization: buildAuthHeader(pat),
+                  "Content-Type": "application/json",
+              }
+            : {
+                  Authorization: buildAuthHeader(pat),
+              },
+    });
+
     attachInterceptors(instance);
+    return instance;
 }
 
-// Every project-scoped function below accepts an optional trailing `project`
-// param that defaults to the configured AZDO_PROJECT - this lets the dynamic
-// multi-project Sprint Report page target an arbitrary project while every
-// existing call site (which passes nothing) keeps hitting the same fixed
-// `azdo` client/baseURL as before, unaffected.
 const projectClients = new Map<string, AxiosInstance>();
+const odataProjectClients = new Map<string, AxiosInstance>();
+const orgClients = new Map<string, AxiosInstance>();
+
+function projectApiBaseUrl(project?: string): string {
+    return `https://dev.azure.com/${requireOrg()}/${encodeURIComponent(
+        requireProject(project)
+    )}/_apis`;
+}
+
+function orgApiBaseUrl(): string {
+    return `https://dev.azure.com/${requireOrg()}/_apis`;
+}
+
+function odataApiBaseUrl(project?: string): string {
+    return `https://analytics.dev.azure.com/${requireOrg()}/${encodeURIComponent(
+        requireProject(project)
+    )}/_odata/v4.0-preview`;
+}
 
 function clientFor(project?: string): AxiosInstance {
-    const resolvedProject = project ?? process.env.AZDO_PROJECT!;
-
-    if (resolvedProject === process.env.AZDO_PROJECT) {
-        return azdo;
-    }
-
-    let instance = projectClients.get(resolvedProject);
+    const pat = requirePat();
+    const baseURL = projectApiBaseUrl(project);
+    const cacheKey = `${baseURL}|${pat}`;
+    let instance = projectClients.get(cacheKey);
 
     if (!instance) {
-        instance = axios.create({
-            baseURL: `https://dev.azure.com/${process.env.AZDO_ORG}/${encodeURIComponent(
-                resolvedProject
-            )}/_apis`,
-            timeout: REQUEST_TIMEOUT_MS,
-            headers: {
-                Authorization: `Basic ${auth}`,
-                "Content-Type": "application/json",
-            },
-        });
-
-        attachInterceptors(instance);
-        projectClients.set(resolvedProject, instance);
+        instance = createAzdoClient(baseURL, pat, true);
+        projectClients.set(cacheKey, instance);
     }
 
     return instance;
 }
 
-// Same per-project client-factory treatment as `clientFor` above, but for
-// the Analytics OData host (a different domain, analytics.dev.azure.com,
-// so it needs its own Map/factory rather than reusing clientFor).
-const odataProjectClients = new Map<string, AxiosInstance>();
-
-function odataClientFor(project?: string): AxiosInstance {
-    const resolvedProject = project ?? process.env.AZDO_PROJECT!;
-
-    if (resolvedProject === process.env.AZDO_PROJECT) {
-        return azdoOdata;
-    }
-
-    let instance = odataProjectClients.get(resolvedProject);
+function orgClient(): AxiosInstance {
+    const pat = requirePat();
+    const baseURL = orgApiBaseUrl();
+    const cacheKey = `${baseURL}|${pat}`;
+    let instance = orgClients.get(cacheKey);
 
     if (!instance) {
-        instance = axios.create({
-            baseURL: `https://analytics.dev.azure.com/${process.env.AZDO_ORG}/${encodeURIComponent(
-                resolvedProject
-            )}/_odata/v4.0-preview`,
-            timeout: REQUEST_TIMEOUT_MS,
-            headers: {
-                Authorization: `Basic ${auth}`,
-            },
-        });
+        instance = createAzdoClient(baseURL, pat, true);
+        orgClients.set(cacheKey, instance);
+    }
 
-        attachInterceptors(instance);
-        odataProjectClients.set(resolvedProject, instance);
+    return instance;
+}
+
+function odataClientFor(project?: string): AxiosInstance {
+    const pat = requirePat();
+    const baseURL = odataApiBaseUrl(project);
+    const cacheKey = `${baseURL}|${pat}`;
+    let instance = odataProjectClients.get(cacheKey);
+
+    if (!instance) {
+        instance = createAzdoClient(baseURL, pat, false);
+        odataProjectClients.set(cacheKey, instance);
     }
 
     return instance;
@@ -232,7 +293,7 @@ export interface ProjectSummary {
 // Org-scoped (not per-project) - lists every project the shared PAT can see,
 // which is what feeds the dynamic Sprint Report page's project picker.
 export async function getProjects(): Promise<ProjectSummary[]> {
-    const response = await azdoOrg.get(
+    const response = await orgClient().get(
         "/projects?api-version=7.1"
     );
 
@@ -709,7 +770,7 @@ export async function getCommentMentions(
 export async function getFollowedWorkItemIds(): Promise<
     number[]
 > {
-    const response = await azdoOrg.get(
+    const response = await orgClient().get(
         "/notification/subscriptions?api-version=7.1"
     );
 

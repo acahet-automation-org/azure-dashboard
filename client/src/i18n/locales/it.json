@@ -34,18 +34,19 @@
     "testGraphLoginFailed": "Accesso non riuscito: {{message}}",
     "testGraphLogoutFailed": "Disconnessione non riuscita: {{message}}",
     "collapseSidebar": "Comprimi barra laterale",
-    "expandSidebar": "Espandi barra laterale"
+    "expandSidebar": "Espandi barra laterale",
+    "changePat": "Cambia PAT"
   },
   "azdoPatSteps": {
     "step1": "In Azure DevOps apri il tuo profilo (in alto a destra) e vai su Impostazioni Utente > Personal Access Token.",
     "step2": "Clicca su \"New Token\", assegna un nome e imposta gli ambiti su Work Items (Read) e Test Plans (Read).",
     "step3": "Clicca su \"Create\" e copia subito il token - Azure DevOps lo mostra una sola volta.",
-    "step4": "Apri il file .env nella cartella principale dell'app e imposta AZDO_PAT con il tuo token (insieme a AZDO_ORG e AZDO_PROJECT).",
-    "step5": "Riavvia il server (npm run dev:all) affinché il nuovo token venga applicato."
+    "step4": "Nella dashboard clicca su \"Cambia PAT\" (o usa la schermata iniziale) e inserisci il nome della tua organizzazione insieme al PAT.",
+    "step5": "I valori restano solo nel local storage di questo browser e vengono inviati soltanto al processo locale della dashboard."
   },
   "onboardingGuide": {
     "title": "Per iniziare",
-    "intro": "Una breve panoramica su come inviare un report via email e collegare la dashboard ad Azure DevOps.",
+    "intro": "Una breve panoramica su come inviare un report via email e collegare la dashboard ad Azure DevOps da questo browser.",
     "emailSection": {
       "title": "Inviare un report via email",
       "quickExport": "Esportazione rapida: nella pagina Dashboard o Panoramica Piano, usa il pulsante Esporta e scegli \"Email\" - un clic, invio automatico, nessun accesso richiesto. Visibile solo se abilitato dall'amministratore.",
@@ -53,7 +54,7 @@
     },
     "azdoSection": {
       "title": "Collegarsi ad Azure DevOps",
-      "intro": "La dashboard carica i dati solo quando sul server è configurato un token di accesso personale di Azure DevOps (AZDO_PAT) valido:"
+      "intro": "Il pacchetto locale carica i dati solo dopo che hai salvato in questo browser la tua organizzazione Azure DevOps e il PAT:"
     },
     "navSectionTitle": "Cosa trovi nel menu",
     "navSections": {
@@ -68,8 +69,9 @@
   },
   "azdoConnectionError": {
     "title": "Impossibile raggiungere Azure DevOps",
-    "message": "La dashboard non è riuscita a caricare i dati da Azure DevOps - nella maggior parte dei casi significa che il token AZDO_PAT del server è assente, scaduto o non valido.",
-    "retry": "Riprova"
+    "message": "La dashboard non è riuscita a caricare i dati da Azure DevOps. Di solito significa che organizzazione o PAT salvati sono assenti, scaduti o non validi.",
+    "retry": "Riprova",
+    "changePat": "Cambia PAT"
   },
   "signInPage": {
     "title": "QA Dashboard",
@@ -425,11 +427,6 @@
         "emailAddressPlaceholder": "email1@esempio.com, email2@esempio.com",
         "emailFromNameLabel": "Nome mittente (opzionale)",
         "emailFromNamePlaceholder": "Mostrato come nome del mittente",
-        "emailToLabel": "A",
-        "emailCcLabel": "Cc",
-        "emailAddressPlaceholder": "email1@esempio.com, email2@esempio.com",
-        "emailFromNameLabel": "Nome mittente (opzionale)",
-        "emailFromNamePlaceholder": "Mostrato come nome del mittente",
         "emailPrefaceLabel": "Testo prima del report",
         "emailPrefacePlaceholder": "Scrivi un messaggio da includere sopra la scheda di stato, es. un saluto o un riepilogo...",
         "openDashboard": "Azure Dashboard",
@@ -754,5 +751,14 @@
       "title": "Difetti Bloccanti al Rilascio",
       "empty": "Nessun bug aperto di severità Critica o Alta."
     }
+  },
+  "patSetup": {
+    "title": "Collega il tuo PAT Azure DevOps",
+    "description": "Viene salvato solo nel local storage di questo browser e inviato solo al processo locale della dashboard.",
+    "orgLabel": "Organizzazione Azure DevOps",
+    "orgPlaceholder": "nome-della-tua-organizzazione",
+    "patLabel": "Personal Access Token",
+    "patPlaceholder": "Incolla il tuo PAT",
+    "connect": "Connetti"
   }
 }
