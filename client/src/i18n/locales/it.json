@@ -446,16 +446,23 @@
                 "severityCaption": "Distribuzione per severity dei {{count}} bug effettivi",
                 "openSeverityCaption": "Distribuzione per severity dei {{count}} bug ancora aperti",
                 "kpis": {
+                    "testCasesSection": "Stato Casi di Test",
+                    "bugsSection": "Stato Bug",
                     "totalTestCases": "Casi di Test Totali",
-                    "passRate": "Pass Rate",
+                    "notRun": "Casi di Test da Eseguire",
+                    "executedCount": "Casi di Test Eseguiti",
+                    "passRate": "Pass Rate\n(Passati / Totali escluso N/A)",
+                    "notApplicable": "Non Applicabili",
+                    "notApplicableRate": "Casi di Test Non Applicabili",
+                    "bugsClosedCount": "Bug Chiusi",
+                    "bugsClosedRatio": "Bug Chiusi su Totale",
                     "bugsClosed": "Bug Chiusi ({{percent}}%)",
                     "criticalBugs": "Bug Critici (non chiusi)",
-                    "reopenedBugs": "Bug riaperti ({{percent}}%)",
+                    "reopenedBugs": "Bug Riaperti",
                     "avgClosureTime": "Tempo medio chiusura\nbug (gg)",
                     "effectiveBugsDetected": "Bug Effettivi Rilevati",
-                    "outOfScopeBugsDetected": "Bug Out of Scope\n(afferente a funzionalità non ancora rilasciate)",
-                    "withoutResolutionDate": "Bug Senza Data di Risoluzione\n(non conta i bug già chiusi)",
-                    "notApplicableRate": "Casi di Test\nNon Applicabili\n('Not applicable')"
+                    "outOfScopeBugsDetected": "Bug Out of Scope",
+                    "withoutResolutionDate": "Bug Senza Data di\nRisoluzione"
                 },
                 "originBreakdown": {
                     "title": "Bug per Suite",

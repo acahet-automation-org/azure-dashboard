@@ -1113,11 +1113,11 @@ function lightExecutedColor(pct: number): string {
     return LIGHT_KPI[2].accent;
 }
 
-function lightKpiTile(value: string, kpiIndex: number, label: string): string {
+function lightKpiTile(value: string, kpiIndex: number, label: string, widthPct = "16.66%"): string {
     const { bg, accent } = LIGHT_KPI[kpiIndex];
 
     return (
-        `<td width="16.66%" style="padding:4px;">` +
+        `<td width="${widthPct}" style="padding:4px;">` +
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${bg}" style="background-color:${bg};border-radius:6px;border-top:3px solid ${accent};">` +
         // Fixed height (rather than content-sized) so a tile with a
         // one-line label - like the standalone 2nd-row "total bugs" tile -
@@ -1337,18 +1337,28 @@ export function buildStatusReportCardEmailBodyHtml(
         ? Math.round((totalNotApplicable / totalTestCases) * 100)
         : 0;
 
+    const totalFailed = suiteGroups.reduce(
+        (sum, group) => sum + group.outcomeCounts.Failed,
+        0
+    );
+    const totalBlocked = suiteGroups.reduce(
+        (sum, group) => sum + group.outcomeCounts.Blocked,
+        0
+    );
+    const totalExecuted = totalPassed + totalFailed + totalBlocked;
+    const executedPct = totalTestCases
+        ? Math.round((totalExecuted / totalTestCases) * 100)
+        : 0;
+    const totalNotRun = totalTestCases - totalExecuted - totalNotApplicable;
+
     const bugsClosed = report.byStatusAll.Closed ?? 0;
     const bugsClosedPct = report.total
         ? Math.round((bugsClosed / report.total) * 100)
         : 0;
     const stillOpen = report.total - bugsClosed;
-
     const reopenedPct = report.total
         ? Math.round((report.reopenedCount / report.total) * 1000) / 10
         : 0;
-    // Always shown as a number - matches StatusReportCard.tsx's
-    // avgClosureDays (0 rather than blank when there's no closed bug yet to
-    // compute a real average from).
     const avgClosureDays = Math.round(report.mttrDays ?? 0);
 
     const statusEntries = EMAIL_STATUS_ORDER.map(
@@ -1474,74 +1484,33 @@ export function buildStatusReportCardEmailBodyHtml(
           `</table></td></tr>`
         : "";
 
+    const kpiSectionTitle = (label: string) =>
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">` +
+        `<tr><td style="padding:6px 4px 2px 4px;font-size:10px;font-weight:700;letter-spacing:0.08em;` +
+        `text-transform:uppercase;color:${LIGHT_INK_MUTED};border-bottom:1px solid ${LIGHT_RULE};` +
+        `font-family:${EMAIL_FONT_FAMILY};">${escapeHtml(label)}</td></tr></table>`;
+
     const kpiHtml =
-        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>` +
-        lightKpiTile(
-            String(totalTestCases),
-            0,
-            t("defectManagementPage.sprintReport.statusCard.kpis.totalTestCases")
-        ) +
-        lightKpiTile(
-            `${passRate}%`,
-            1,
-            t("defectManagementPage.sprintReport.statusCard.kpis.passRate")
-        ) +
-        lightKpiTile(
-            `${bugsClosed}/${report.total}`,
-            2,
-            t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosed", {
-                percent: bugsClosedPct,
-            })
-        ) +
-        lightKpiTile(
-            String(openSeverityEntries[0][1]),
-            3,
-            t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs")
-        ) +
-        lightKpiTile(
-            String(report.reopenedCount),
-            4,
-            t("defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs", {
-                percent: reopenedPct,
-            })
-        ) +
-        lightKpiTile(
-            t("defectManagementPage.stats.days", { value: avgClosureDays }),
-            5,
-            t("defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime")
-        ) +
+        kpiSectionTitle(`🧪 ${t("defectManagementPage.sprintReport.statusCard.kpis.testCasesSection")}`) +
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:4px;"><tr>` +
+        lightKpiTile(String(totalTestCases), 0, t("defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"), "20%") +
+        lightKpiTile(String(totalNotRun), 2, t("defectManagementPage.sprintReport.statusCard.kpis.notRun"), "20%") +
+        lightKpiTile(`${totalExecuted} (${executedPct}%)`, 1, t("defectManagementPage.sprintReport.statusCard.kpis.executedCount"), "20%") +
+        lightKpiTile(`${passRate}%`, 4, t("defectManagementPage.sprintReport.statusCard.kpis.passRate"), "20%") +
+        lightKpiTile(`${totalNotApplicable} (${notApplicableRate}%)`, 5, t("defectManagementPage.sprintReport.statusCard.kpis.notApplicable"), "20%") +
         `</tr></table>` +
-        // A couple of <td width="16.66%"> in an otherwise-empty row have
-        // nothing to divide the row's width with, so most renderers just
-        // stretch them to fill the full table instead of honoring the
-        // percentage - hence 4 empty filler cells matching row 1's
-        // 6-column split, keeping these tiles the same size as the others
-        // instead of spanning full width.
+        kpiSectionTitle(`🐛 ${t("defectManagementPage.sprintReport.statusCard.kpis.bugsSection")}`) +
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:4px;"><tr>` +
+        lightKpiTile(String(bugsClosed), 1, t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedCount"), "25%") +
+        lightKpiTile(`${bugsClosed}/${report.total} (${bugsClosedPct}%)`, 2, t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio"), "25%") +
+        lightKpiTile(String(report.effectiveCount), 6, t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"), "25%") +
+        lightKpiTile(String(openSeverityEntries[0][1]), 3, t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"), "25%") +
+        `</tr></table>` +
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;"><tr>` +
-        lightKpiTile(
-            `${report.effectiveCount}/${report.total}`,
-            6,
-            t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected")
-        ) +
-        lightKpiTile(
-            String(report.withoutResolutionDateCount),
-            7,
-            t("defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate")
-        ) +
-        (report.outOfScopeCount > 0
-            ? lightKpiTile(
-                `${report.outOfScopeCount}/${report.total}`,
-                8,
-                t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected")
-            )
-            : "") +
-        lightKpiTile(
-            `${notApplicableRate}%`,
-            9,
-            t("defectManagementPage.sprintReport.statusCard.kpis.notApplicableRate")
-        ) +
-        `<td width="16.66%"></td><td width="16.66%"></td>` +
-        (report.outOfScopeCount > 0 ? "" : `<td width="16.66%"></td>`) +
+        lightKpiTile(`${report.reopenedCount} (${reopenedPct}%)`, 4, t("defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs"), "25%") +
+        lightKpiTile(String(report.outOfScopeCount), 8, t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"), "25%") +
+        lightKpiTile(t("defectManagementPage.stats.days", { value: avgClosureDays }), 9, t("defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime"), "25%") +
+        lightKpiTile(String(report.withoutResolutionDateCount), 7, t("defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"), "25%") +
         `</tr></table>`;
 
     const dashboardHtml = dashboardUrl
@@ -1807,6 +1776,9 @@ interface StatusCardKpis {
     totalPassed: number;
     totalNotApplicable: number;
     totalDecided: number;
+    totalExecuted: number;
+    executedPct: number;
+    totalNotRun: number;
     passRate: number;
     notApplicableRate: number;
     bugsClosed: number;
@@ -1835,6 +1807,12 @@ function computeStatusCardKpis(
         ? Math.round((totalNotApplicable / totalTestCases) * 100)
         : 0;
 
+    const totalFailed = suiteGroups.reduce((sum, group) => sum + group.outcomeCounts.Failed, 0);
+    const totalBlocked = suiteGroups.reduce((sum, group) => sum + group.outcomeCounts.Blocked, 0);
+    const totalExecuted = totalPassed + totalFailed + totalBlocked;
+    const executedPct = totalTestCases ? Math.round((totalExecuted / totalTestCases) * 100) : 0;
+    const totalNotRun = totalTestCases - totalExecuted - totalNotApplicable;
+
     const bugsClosed = report.byStatusAll.Closed ?? 0;
     const bugsClosedPct = report.total ? Math.round((bugsClosed / report.total) * 100) : 0;
     const stillOpen = report.total - bugsClosed;
@@ -1856,6 +1834,9 @@ function computeStatusCardKpis(
         totalPassed,
         totalNotApplicable,
         totalDecided,
+        totalExecuted,
+        executedPct,
+        totalNotRun,
         passRate,
         notApplicableRate,
         bugsClosed,
@@ -1988,37 +1969,60 @@ function pdfDrawAlertBanner(ctx: PdfDrawCtx, y: number, alertText: string): numb
     return boxY + boxHeight + 8;
 }
 
-function buildPdfRow2KpiDefs(
+function buildPdfBugRow1KpiDefs(
     kpis: StatusCardKpis,
     report: SprintDefectReport,
     t: TranslateFn
 ): { kpi: (typeof LIGHT_KPI)[number]; label: string; value: string }[] {
     return [
         {
+            kpi: LIGHT_KPI[1],
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedCount"),
+            value: String(kpis.bugsClosed),
+        },
+        {
+            kpi: LIGHT_KPI[2],
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio"),
+            value: `${kpis.bugsClosed}/${report.total} (${kpis.bugsClosedPct}%)`,
+        },
+        {
             kpi: LIGHT_KPI[6],
             label: t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"),
-            value: `${report.effectiveCount}/${report.total}`,
+            value: String(report.effectiveCount),
+        },
+        {
+            kpi: LIGHT_KPI[3],
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"),
+            value: String(kpis.criticalCount),
+        },
+    ];
+}
+
+function buildPdfBugRow2KpiDefs(
+    kpis: StatusCardKpis,
+    report: SprintDefectReport,
+    t: TranslateFn
+): { kpi: (typeof LIGHT_KPI)[number]; label: string; value: string }[] {
+    return [
+        {
+            kpi: LIGHT_KPI[4],
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs"),
+            value: `${report.reopenedCount} (${kpis.reopenedPct}%)`,
+        },
+        {
+            kpi: LIGHT_KPI[8],
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"),
+            value: String(report.outOfScopeCount),
+        },
+        {
+            kpi: LIGHT_KPI[9],
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime"),
+            value: t("defectManagementPage.stats.days", { value: kpis.avgClosureDays }),
         },
         {
             kpi: LIGHT_KPI[7],
             label: t("defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"),
             value: String(report.withoutResolutionDateCount),
-        },
-        ...(report.outOfScopeCount > 0
-            ? [
-                {
-                    kpi: LIGHT_KPI[8],
-                    label: t(
-                        "defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"
-                    ),
-                    value: `${report.outOfScopeCount}/${report.total}`,
-                },
-            ]
-            : []),
-        {
-            kpi: LIGHT_KPI[9],
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.notApplicableRate"),
-            value: `${kpis.notApplicableRate}%`,
         },
     ];
 }
@@ -2381,49 +2385,92 @@ export function buildStatusReportCardPdfDocument(
 
     y = ensurePdfSpace(doc, y, 24);
 
+    // Section label: test cases
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(LIGHT_INK_MUTED);
+    doc.text(
+        t("defectManagementPage.sprintReport.statusCard.kpis.testCasesSection").toUpperCase(),
+        PDF_MARGIN,
+        y + 3
+    );
+    y += 6;
+
+    const testKpiPalette = [LIGHT_KPI[0], LIGHT_KPI[2], LIGHT_KPI[1], LIGHT_KPI[4], LIGHT_KPI[5]];
+
     autoTable(doc, {
         startY: y,
         theme: "plain",
         head: [
             [
                 t("defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"),
+                t("defectManagementPage.sprintReport.statusCard.kpis.notRun"),
+                t("defectManagementPage.sprintReport.statusCard.kpis.executedCount"),
                 t("defectManagementPage.sprintReport.statusCard.kpis.passRate"),
-                t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosed", {
-                    percent: kpis.bugsClosedPct,
-                }),
-                t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"),
-                t("defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs", {
-                    percent: kpis.reopenedPct,
-                }),
-                t("defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime"),
+                t("defectManagementPage.sprintReport.statusCard.kpis.notApplicable"),
             ],
         ],
         body: [
             [
                 String(kpis.totalTestCases),
+                String(kpis.totalNotRun),
+                `${kpis.totalExecuted} (${kpis.executedPct}%)`,
                 `${kpis.passRate}%`,
-                `${kpis.bugsClosed}/${report.total}`,
-                String(kpis.criticalCount),
-                String(report.reopenedCount),
-                t("defectManagementPage.stats.days", { value: kpis.avgClosureDays }),
+                `${kpis.totalNotApplicable} (${kpis.notApplicableRate}%)`,
             ],
         ],
         tableWidth: innerWidth,
         styles: { fontSize: 7, halign: "center", cellPadding: 2, textColor: LIGHT_INK_MUTED },
         headStyles: { textColor: LIGHT_INK_MUTED, fontStyle: "normal" },
         bodyStyles: { fontSize: 12, fontStyle: "bold" },
-        // Explicit equal cellWidth (rather than autoTable's content-based
-        // default) so all 6 tiles are exactly innerWidth/6 wide - matching
-        // the standalone 7th tile below, which uses that same width.
         columnStyles: Object.fromEntries(
-            LIGHT_KPI.slice(0, 6).map((kpi, index) => [
+            testKpiPalette.map((kpi, index) => [
                 index,
-                { fillColor: kpi.bg, textColor: kpi.accent, cellWidth: innerWidth / 6 },
+                { fillColor: kpi.bg, textColor: kpi.accent, cellWidth: innerWidth / 5 },
             ])
         ),
         didParseCell: (hookData) => {
             if (hookData.section === "head") {
-                hookData.cell.styles.fillColor = LIGHT_KPI[hookData.column.index].bg;
+                hookData.cell.styles.fillColor = testKpiPalette[hookData.column.index].bg;
+                hookData.cell.styles.textColor = LIGHT_INK_MUTED;
+            }
+        },
+    });
+
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 4;
+
+    // Section label: bugs
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(LIGHT_INK_MUTED);
+    doc.text(
+        t("defectManagementPage.sprintReport.statusCard.kpis.bugsSection").toUpperCase(),
+        PDF_MARGIN,
+        y + 3
+    );
+    y += 6;
+
+    const bugRow1Defs = buildPdfBugRow1KpiDefs(kpis, report, t);
+
+    autoTable(doc, {
+        startY: y,
+        theme: "plain",
+        tableWidth: innerWidth,
+        margin: { left: PDF_MARGIN },
+        head: [bugRow1Defs.map((d) => d.label)],
+        body: [bugRow1Defs.map((d) => d.value)],
+        styles: { fontSize: 7, halign: "center", cellPadding: 2, textColor: LIGHT_INK_MUTED },
+        headStyles: { textColor: LIGHT_INK_MUTED, fontStyle: "normal" },
+        bodyStyles: { fontSize: 12, fontStyle: "bold" },
+        columnStyles: Object.fromEntries(
+            bugRow1Defs.map((d, index) => [
+                index,
+                { fillColor: d.kpi.bg, textColor: d.kpi.accent, cellWidth: innerWidth / 4 },
+            ])
+        ),
+        didParseCell: (hookData) => {
+            if (hookData.section === "head") {
+                hookData.cell.styles.fillColor = bugRow1Defs[hookData.column.index].kpi.bg;
                 hookData.cell.styles.textColor = LIGHT_INK_MUTED;
             }
         },
@@ -2431,27 +2478,27 @@ export function buildStatusReportCardPdfDocument(
 
     y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 2;
 
-    const row2Defs = buildPdfRow2KpiDefs(kpis, report, t);
+    const bugRow2Defs = buildPdfBugRow2KpiDefs(kpis, report, t);
 
     autoTable(doc, {
         startY: y,
         theme: "plain",
-        tableWidth: (innerWidth / 6) * row2Defs.length,
+        tableWidth: innerWidth,
         margin: { left: PDF_MARGIN },
-        head: [row2Defs.map((d) => d.label)],
-        body: [row2Defs.map((d) => d.value)],
+        head: [bugRow2Defs.map((d) => d.label)],
+        body: [bugRow2Defs.map((d) => d.value)],
         styles: { fontSize: 7, halign: "center", cellPadding: 2, textColor: LIGHT_INK_MUTED },
         headStyles: { textColor: LIGHT_INK_MUTED, fontStyle: "normal" },
         bodyStyles: { fontSize: 12, fontStyle: "bold" },
         columnStyles: Object.fromEntries(
-            row2Defs.map((d, index) => [
+            bugRow2Defs.map((d, index) => [
                 index,
-                { fillColor: d.kpi.bg, textColor: d.kpi.accent, cellWidth: innerWidth / 6 },
+                { fillColor: d.kpi.bg, textColor: d.kpi.accent, cellWidth: innerWidth / 4 },
             ])
         ),
         didParseCell: (hookData) => {
             if (hookData.section === "head") {
-                hookData.cell.styles.fillColor = row2Defs[hookData.column.index].kpi.bg;
+                hookData.cell.styles.fillColor = bugRow2Defs[hookData.column.index].kpi.bg;
                 hookData.cell.styles.textColor = LIGHT_INK_MUTED;
             }
         },
@@ -2746,7 +2793,7 @@ function computePptxNaturalHeights(params: {
         : 0;
     const naturalAlertBlock = hasAlert ? naturalAlertLineCount * 0.2 + 0.14 + 0.18 : 0;
 
-    const naturalKpiBlock = 0.62 + 0.08 + 0.62 + 0.15;
+    const naturalKpiBlock = 0.62 + 0.08 + 0.62 + 0.08 + 0.62 + 0.15;
 
     const naturalDashboardBlock = hasDashboard ? 0.32 + 0.2 : 0;
 
@@ -2804,28 +2851,20 @@ function buildPptxKpiDefs(
             label: t("defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"),
         },
         {
+            value: String(kpis.totalNotRun),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.notRun"),
+        },
+        {
+            value: `${kpis.totalExecuted} (${kpis.executedPct}%)`,
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.executedCount"),
+        },
+        {
             value: `${kpis.passRate}%`,
             label: t("defectManagementPage.sprintReport.statusCard.kpis.passRate"),
         },
         {
-            value: `${kpis.bugsClosed}/${report.total}`,
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosed", {
-                percent: kpis.bugsClosedPct,
-            }),
-        },
-        {
-            value: String(kpis.criticalCount),
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"),
-        },
-        {
-            value: String(report.reopenedCount),
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs", {
-                percent: kpis.reopenedPct,
-            }),
-        },
-        {
-            value: t("defectManagementPage.stats.days", { value: kpis.avgClosureDays }),
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime"),
+            value: `${kpis.totalNotApplicable} (${kpis.notApplicableRate}%)`,
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.notApplicable"),
         },
     ];
 }
@@ -2837,26 +2876,45 @@ function buildPptxRow2KpiDefs(
 ): { value: string; label: string }[] {
     return [
         {
-            value: `${report.effectiveCount}/${report.total}`,
+            value: String(kpis.bugsClosed),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedCount"),
+        },
+        {
+            value: `${kpis.bugsClosed}/${report.total} (${kpis.bugsClosedPct}%)`,
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio"),
+        },
+        {
+            value: String(report.effectiveCount),
             label: t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"),
+        },
+        {
+            value: String(kpis.criticalCount),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"),
+        },
+    ];
+}
+
+function buildPptxRow3KpiDefs(
+    kpis: StatusCardKpis,
+    report: SprintDefectReport,
+    t: TranslateFn
+): { value: string; label: string }[] {
+    return [
+        {
+            value: `${report.reopenedCount} (${kpis.reopenedPct}%)`,
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs"),
+        },
+        {
+            value: String(report.outOfScopeCount),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"),
+        },
+        {
+            value: t("defectManagementPage.stats.days", { value: kpis.avgClosureDays }),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime"),
         },
         {
             value: String(report.withoutResolutionDateCount),
             label: t("defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"),
-        },
-        ...(report.outOfScopeCount > 0
-            ? [
-                {
-                    value: `${report.outOfScopeCount}/${report.total}`,
-                    label: t(
-                        "defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"
-                    ),
-                },
-            ]
-            : []),
-        {
-            value: `${kpis.notApplicableRate}%`,
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.notApplicableRate"),
         },
     ];
 }
@@ -2920,49 +2978,50 @@ function pptxDrawKpiTiles(
     ctx: PptxDrawCtx,
     cursorY: number,
     kpiDefs: { value: string; label: string }[],
-    row2KpiDefs: { value: string; label: string }[]
+    row2KpiDefs: { value: string; label: string }[],
+    row3KpiDefs: { value: string; label: string }[]
 ): void {
     const { slide, M, innerW, s } = ctx;
     const kpiHeight = s(0.62);
     const kpiGap = 0.06;
-    const kpiColumns = 6;
-    const kpiTileWidth = (innerW - kpiGap * (kpiColumns - 1)) / kpiColumns;
 
-    const drawTile = (
-        kpi: { value: string; label: string },
-        paletteIndex: number,
-        positionIndex: number,
+    const drawRow = (
+        defs: { value: string; label: string }[],
+        paletteOffset: number,
         y: number
     ) => {
-        const kpiPalette = PPTX_KPI[paletteIndex];
-        const tileX = M + positionIndex * (kpiTileWidth + kpiGap);
+        const columns = defs.length;
+        const tileWidth = (innerW - kpiGap * (columns - 1)) / columns;
+        defs.forEach((kpi, index) => {
+            const kpiPalette = PPTX_KPI[(paletteOffset + index) % PPTX_KPI.length];
+            const tileX = M + index * (tileWidth + kpiGap);
 
-        slide.addText(
-            [
-                { text: kpi.value, options: { fontSize: s(15), bold: true, breakLine: true } },
-                { text: kpi.label, options: { fontSize: s(7) } },
-            ],
-            {
-                x: tileX,
-                y,
-                w: kpiTileWidth,
-                h: kpiHeight,
-                align: "center",
-                valign: "middle",
-                color: pptxHex(kpiPalette.accent),
-                fontFace: "Arial",
-                fill: { color: pptxHex(kpiPalette.bg) },
-                line: { color: pptxHex(kpiPalette.accent), width: 0.75 },
-                shape: "roundRect",
-                rectRadius: 0.06,
-            }
-        );
+            slide.addText(
+                [
+                    { text: kpi.value, options: { fontSize: s(15), bold: true, breakLine: true } },
+                    { text: kpi.label, options: { fontSize: s(7) } },
+                ],
+                {
+                    x: tileX,
+                    y,
+                    w: tileWidth,
+                    h: kpiHeight,
+                    align: "center",
+                    valign: "middle",
+                    color: pptxHex(kpiPalette.accent),
+                    fontFace: "Arial",
+                    fill: { color: pptxHex(kpiPalette.bg) },
+                    line: { color: pptxHex(kpiPalette.accent), width: 0.75 },
+                    shape: "roundRect",
+                    rectRadius: 0.06,
+                }
+            );
+        });
     };
 
-    kpiDefs.forEach((kpi, index) => drawTile(kpi, index, index, cursorY));
-    row2KpiDefs.forEach((kpi, index) =>
-        drawTile(kpi, 6 + index, index, cursorY + kpiHeight + s(0.08))
-    );
+    drawRow(kpiDefs, 0, cursorY);
+    drawRow(row2KpiDefs, 0, cursorY + kpiHeight + s(0.08));
+    drawRow(row3KpiDefs, 4, cursorY + (kpiHeight + s(0.08)) * 2);
 }
 
 function pptxDrawDashboardButton(
@@ -3468,8 +3527,9 @@ export async function exportStatusReportCardToPptx(
     const kpis = computeStatusCardKpis(suiteGroups, report);
     const kpiDefs = buildPptxKpiDefs(kpis, report, t);
     const row2KpiDefs = buildPptxRow2KpiDefs(kpis, report, t);
+    const row3KpiDefs = buildPptxRow3KpiDefs(kpis, report, t);
 
-    pptxDrawKpiTiles(ctx, cursorY, kpiDefs, row2KpiDefs);
+    pptxDrawKpiTiles(ctx, cursorY, kpiDefs, row2KpiDefs, row3KpiDefs);
     cursorY += s(heights.naturalKpiBlock);
 
     cursorY = pptxDrawDashboardButton(ctx, cursorY, dashboardUrl, heights.naturalDashboardBlock);

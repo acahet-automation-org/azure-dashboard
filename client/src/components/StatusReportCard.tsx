@@ -158,9 +158,33 @@ const useStyles = makeStyles({
         fontSize: "13px",
         lineHeight: 1.4,
     },
-    kpiGrid: {
+    kpiSections: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+    },
+    kpiSection: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "6px",
+    },
+    kpiSectionTitle: {
+        fontSize: "11px",
+        fontWeight: 700,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        color: "#a0a0a0",
+        paddingBottom: "4px",
+        borderBottom: "1px solid #3b3a39",
+    },
+    kpiGrid5: {
         display: "grid",
-        gridTemplateColumns: "repeat(6, 1fr)",
+        gridTemplateColumns: "repeat(5, 1fr)",
+        gap: "8px",
+    },
+    kpiGrid4: {
+        display: "grid",
+        gridTemplateColumns: "repeat(4, 1fr)",
         gap: "8px",
     },
     kpiTile: {
@@ -453,6 +477,20 @@ export const StatusReportCard = forwardRef<
         ? Math.round((totalNotApplicable / totalTestCases) * 100)
         : 0;
 
+    const totalFailed = suiteGroups.reduce(
+        (sum, group) => sum + group.outcomeCounts.Failed,
+        0
+    );
+    const totalBlocked = suiteGroups.reduce(
+        (sum, group) => sum + group.outcomeCounts.Blocked,
+        0
+    );
+    const totalExecuted = totalPassed + totalFailed + totalBlocked;
+    const executedPct = totalTestCases
+        ? Math.round((totalExecuted / totalTestCases) * 100)
+        : 0;
+    const totalNotRun = totalTestCases - totalExecuted - totalNotApplicable;
+
     // Bug status covers ALL detected bugs (including out-of-scope ones -
     // they still need to be tracked to closure), so this and "still open"
     // are measured against report.total via byStatusAll, not effectiveCount.
@@ -588,112 +626,155 @@ export const StatusReportCard = forwardRef<
                 </div>
             )}
 
-            <div className={styles.kpiGrid}>
-                <div className={styles.kpiTile}>
-                    <span className={styles.kpiValue} style={{ color: "#3aa0f3" }}>
-                        {totalTestCases}
+            <div className={styles.kpiSections}>
+                {/* Stato casi di test */}
+                <div className={styles.kpiSection}>
+                    <span className={styles.kpiSectionTitle}>
+                        🧪 {t("defectManagementPage.sprintReport.statusCard.kpis.testCasesSection")}
                     </span>
-                    <span className={styles.kpiLabel}>
-                        {t(
-                            "defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"
-                        )}
-                    </span>
-                </div>
-                <div className={styles.kpiTile}>
-                    <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
-                        {passRate}%
-                    </span>
-                    <span className={styles.kpiLabel}>
-                        {t(
-                            "defectManagementPage.sprintReport.statusCard.kpis.passRate"
-                        )}
-                    </span>
-                </div>
-                <div className={styles.kpiTile}>
-                    <span className={styles.kpiValue} style={{ color: "#f2b134" }}>
-                        {bugsClosed}/{report.total}
-                    </span>
-                    <span className={styles.kpiLabel}>
-                        {t(
-                            "defectManagementPage.sprintReport.statusCard.kpis.bugsClosed",
-                            { percent: bugsClosedPct }
-                        )}
-                    </span>
-                </div>
-                <div className={styles.kpiTile}>
-                    <span className={styles.kpiValue} style={{ color: "#ff6b6b" }}>
-                        {criticalCount}
-                    </span>
-                    <span className={styles.kpiLabel}>
-                        {t(
-                            "defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"
-                        )}
-                    </span>
-                </div>
-                <div className={styles.kpiTile}>
-                    <span className={styles.kpiValue} style={{ color: "#3aa0f3" }}>
-                        {report.reopenedCount}
-                    </span>
-                    <span className={styles.kpiLabel}>
-                        {t(
-                            "defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs",
-                            { percent: reopenedPct }
-                        )}
-                    </span>
-                </div>
-                <div className={styles.kpiTile}>
-                    <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
-                        {t("defectManagementPage.stats.days", {
-                            value: avgClosureDays,
-                        })}
-                    </span>
-                    <span className={styles.kpiLabel}>
-                        {t(
-                            "defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime"
-                        )}
-                    </span>
-                </div>
-                <div className={styles.kpiTile}>
-                    <span className={styles.kpiValue} style={{ color: "#b180d7" }}>
-                        {report.effectiveCount}/{report.total}
-                    </span>
-                    <span className={styles.kpiLabel}>
-                        {t(
-                            "defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"
-                        )}
-                    </span>
-                </div>
-                {report.outOfScopeCount > 0 && (
-                    <div className={styles.kpiTile}>
-                        <span className={styles.kpiValue} style={{ color: "#9e9e9e" }}>
-                            {report.outOfScopeCount}/{report.total}
-                        </span>
-                        <span className={styles.kpiLabel}>
-                            {t(
-                                "defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"
-                            )}
-                        </span>
+                    <div className={styles.kpiGrid5}>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#3aa0f3" }}>
+                                {totalTestCases}
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#f2b134" }}>
+                                {totalNotRun}
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.notRun"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
+                                {totalExecuted} ({executedPct}%)
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.executedCount"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
+                                {passRate}%
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.passRate"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#8a8886" }}>
+                                {totalNotApplicable} ({notApplicableRate}%)
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.notApplicable"
+                                )}
+                            </span>
+                        </div>
                     </div>
-                )}
-                <div className={styles.kpiTile}>
-                    <span className={styles.kpiValue} style={{ color: "#8a8886" }}>
-                        {report.withoutResolutionDateCount}
-                    </span>
-                    <span className={styles.kpiLabel}>
-                        {t(
-                            "defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"
-                        )}
-                    </span>
                 </div>
-                <div className={styles.kpiTile}>
-                    <span className={styles.kpiValue} style={{ color: "#8a8886" }}>
-                        {notApplicableRate}%
+
+                {/* Stato bug */}
+                <div className={styles.kpiSection}>
+                    <span className={styles.kpiSectionTitle}>
+                        🐛 {t("defectManagementPage.sprintReport.statusCard.kpis.bugsSection")}
                     </span>
-                    <span className={styles.kpiLabel}>
-                        {t(
-                            "defectManagementPage.sprintReport.statusCard.kpis.notApplicableRate"
-                        )}
-                    </span>
+                    <div className={styles.kpiGrid4}>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#3fb950" }}>
+                                {bugsClosed}
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.bugsClosedCount"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#f2b134" }}>
+                                {bugsClosed}/{report.total} ({bugsClosedPct}%)
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#b180d7" }}>
+                                {report.effectiveCount}
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#ff6b6b" }}>
+                                {criticalCount}
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#3aa0f3" }}>
+                                {report.reopenedCount} ({reopenedPct}%)
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#9e9e9e" }}>
+                                {report.outOfScopeCount}
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
+                                {t("defectManagementPage.stats.days", {
+                                    value: avgClosureDays,
+                                })}
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#8a8886" }}>
+                                {report.withoutResolutionDateCount}
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"
+                                )}
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </div>
 

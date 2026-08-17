@@ -446,16 +446,23 @@
                 "severityCaption": "Severity distribution of the {{count}} effective bugs",
                 "openSeverityCaption": "Severity distribution of the {{count}} bugs still open",
                 "kpis": {
-                    "totalTestCases": "Total Test Cases\n\n (Test Factory, Business, Test Agenti)",
-                    "passRate": "Pass Rate",
+                    "testCasesSection": "Test Case Status",
+                    "bugsSection": "Bug Status",
+                    "totalTestCases": "Total Test Cases",
+                    "notRun": "Test Cases To Execute",
+                    "executedCount": "Test Cases Executed",
+                    "passRate": "Pass Rate\n(Passed / Total excl. N/A)",
+                    "notApplicable": "Not Applicable",
+                    "notApplicableRate": "N/A Test Cases",
+                    "bugsClosedCount": "Bugs Closed",
+                    "bugsClosedRatio": "Bugs Closed / Total",
                     "bugsClosed": "Bugs Closed ({{percent}}%)",
                     "criticalBugs": "Critical Bugs (open)",
-                    "reopenedBugs": "Reopened Bugs ({{percent}}%)",
+                    "reopenedBugs": "Reopened Bugs",
                     "avgClosureTime": "Average Bug Closure Time",
                     "effectiveBugsDetected": "Effective Bugs Detected",
                     "outOfScopeBugsDetected": "Out of Scope Bugs",
-                    "withoutResolutionDate": "Bugs Without Resolution Date",
-                    "notApplicableRate": "N/A Test Cases"
+                    "withoutResolutionDate": "Bugs Without\nResolution Date"
                 },
                 "originBreakdown": {
                     "title": "Bugs by Suite",
