@@ -432,14 +432,14 @@
                 "noPlanSelected": "Nessuna suite ancora corrisponde - controlla i nomi di piano/suite configurati per questa scheda.",
                 "bugStatusTitle": "Stato bug",
                 "bugStatusSubtitle": "(rilevati da {{sources}})",
-                "bugsDetected": "{{count}} bug rilevati",
+                "bugsDetected": "{{count}} bug totali rilevati",
                 "bugStatusSummary": "{{effective}} effettivi, {{outOfScope}} out of scope",
-                "stillOpen": "{{count}} ancora aperti",
+                "stillOpen": "Di cui {{count}} ancora aperti",
                 "statusLabels": {
                     "closed": "Chiusi",
                     "resolved": "Da verificare",
                     "inProgress": "In lavorazione",
-                    "new": "Nuovi (da prendere in carico)",
+                    "new": "Da prendere in carico",
                     "reopened": "Riaperti",
                     "notApplicable": "Non applicabile (out of scope)"
                 },

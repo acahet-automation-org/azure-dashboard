@@ -534,9 +534,13 @@ export const StatusReportCard = forwardRef<
         (sum, count) => sum + count,
         0
     );
-    const severityEntries = SEVERITY_KEYS.map(
-        (key) => [key, report.bySeverity[key] ?? 0] as const
-    );
+    const severityEntries = [
+        ...SEVERITY_KEYS.map((key) => [key, report.bySeverity[key] ?? 0] as const),
+        ...Object.entries(report.bySeverity)
+            .filter(([key, count]) => !SEVERITY_KEYS.includes(key) && count > 0)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([key, count]) => [key, count] as const),
+    ];
 
     // Same idea as severityEntries above, but scoped to effective bugs that
     // are still open - lets the card show whether the remaining open work
@@ -556,9 +560,13 @@ export const StatusReportCard = forwardRef<
         (sum, count) => sum + count,
         0
     );
-    const openSeverityEntries = SEVERITY_KEYS.map(
-        (key) => [key, openSeverityCounts[key] ?? 0] as const
-    );
+    const openSeverityEntries = [
+        ...SEVERITY_KEYS.map((key) => [key, openSeverityCounts[key] ?? 0] as const),
+        ...Object.entries(openSeverityCounts)
+            .filter(([key, count]) => !SEVERITY_KEYS.includes(key) && count > 0)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([key, count]) => [key, count] as const),
+    ];
 
     const actionParagraphs = actionsText
         .split(/\n\s*\n/)
@@ -644,32 +652,12 @@ export const StatusReportCard = forwardRef<
                             </span>
                         </div>
                         <div className={styles.kpiTile}>
-                            <span className={styles.kpiValue} style={{ color: "#f2b134" }}>
-                                {totalNotRun}
-                            </span>
-                            <span className={styles.kpiLabel}>
-                                {t(
-                                    "defectManagementPage.sprintReport.statusCard.kpis.notRun"
-                                )}
-                            </span>
-                        </div>
-                        <div className={styles.kpiTile}>
                             <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
                                 {totalExecuted} ({executedPct}%)
                             </span>
                             <span className={styles.kpiLabel}>
                                 {t(
                                     "defectManagementPage.sprintReport.statusCard.kpis.executedCount"
-                                )}
-                            </span>
-                        </div>
-                        <div className={styles.kpiTile}>
-                            <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
-                                {passRate}%
-                            </span>
-                            <span className={styles.kpiLabel}>
-                                {t(
-                                    "defectManagementPage.sprintReport.statusCard.kpis.passRate"
                                 )}
                             </span>
                         </div>
@@ -683,6 +671,26 @@ export const StatusReportCard = forwardRef<
                                 )}
                             </span>
                         </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#f2b134" }}>
+                                {totalNotRun}
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.notRun"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
+                                {passRate}%
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.passRate"
+                                )}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
@@ -692,6 +700,26 @@ export const StatusReportCard = forwardRef<
                         🐛 {t("defectManagementPage.sprintReport.statusCard.kpis.bugsSection")}
                     </span>
                     <div className={styles.kpiGrid4}>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#b180d7" }}>
+                                {report.effectiveCount}
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#9e9e9e" }}>
+                                {report.outOfScopeCount}
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"
+                                )}
+                            </span>
+                        </div>
                         <div className={styles.kpiTile}>
                             <span className={styles.kpiValue} style={{ color: "#3fb950" }}>
                                 {bugsClosed}
@@ -713,16 +741,6 @@ export const StatusReportCard = forwardRef<
                             </span>
                         </div>
                         <div className={styles.kpiTile}>
-                            <span className={styles.kpiValue} style={{ color: "#b180d7" }}>
-                                {report.effectiveCount}
-                            </span>
-                            <span className={styles.kpiLabel}>
-                                {t(
-                                    "defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"
-                                )}
-                            </span>
-                        </div>
-                        <div className={styles.kpiTile}>
                             <span className={styles.kpiValue} style={{ color: "#ff6b6b" }}>
                                 {criticalCount}
                             </span>
@@ -739,16 +757,6 @@ export const StatusReportCard = forwardRef<
                             <span className={styles.kpiLabel}>
                                 {t(
                                     "defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs"
-                                )}
-                            </span>
-                        </div>
-                        <div className={styles.kpiTile}>
-                            <span className={styles.kpiValue} style={{ color: "#9e9e9e" }}>
-                                {report.outOfScopeCount}
-                            </span>
-                            <span className={styles.kpiLabel}>
-                                {t(
-                                    "defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"
                                 )}
                             </span>
                         </div>

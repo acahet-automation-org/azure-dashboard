@@ -1375,9 +1375,13 @@ export function buildStatusReportCardEmailBodyHtml(
         (sum, count) => sum + count,
         0
     );
-    const severityEntries = EMAIL_SEVERITY_KEYS.map(
-        (key) => [key, report.bySeverity[key] ?? 0] as const
-    );
+    const severityEntries: (readonly [string, number])[] = [
+        ...EMAIL_SEVERITY_KEYS.map((key) => [key, report.bySeverity[key] ?? 0] as const),
+        ...Object.entries(report.bySeverity)
+            .filter(([key, count]) => !EMAIL_SEVERITY_KEYS.includes(key) && count > 0)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([key, count]) => [key, count] as const),
+    ];
 
     // Same idea as severityEntries above, but scoped to effective bugs that
     // are still open - mirrors StatusReportCard.tsx's openSeverityEntries.
@@ -1396,9 +1400,13 @@ export function buildStatusReportCardEmailBodyHtml(
         (sum, count) => sum + count,
         0
     );
-    const openSeverityEntries = EMAIL_SEVERITY_KEYS.map(
-        (key) => [key, openSeverityCounts[key] ?? 0] as const
-    );
+    const openSeverityEntries: (readonly [string, number])[] = [
+        ...EMAIL_SEVERITY_KEYS.map((key) => [key, openSeverityCounts[key] ?? 0] as const),
+        ...Object.entries(openSeverityCounts)
+            .filter(([key, count]) => !EMAIL_SEVERITY_KEYS.includes(key) && count > 0)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([key, count]) => [key, count] as const),
+    ];
 
     const actionParagraphs = actionsText
         .split(/\n\s*\n/)
@@ -1494,21 +1502,21 @@ export function buildStatusReportCardEmailBodyHtml(
         kpiSectionTitle(`🧪 ${t("defectManagementPage.sprintReport.statusCard.kpis.testCasesSection")}`) +
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:4px;"><tr>` +
         lightKpiTile(String(totalTestCases), 0, t("defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"), "20%") +
-        lightKpiTile(String(totalNotRun), 2, t("defectManagementPage.sprintReport.statusCard.kpis.notRun"), "20%") +
         lightKpiTile(`${totalExecuted} (${executedPct}%)`, 1, t("defectManagementPage.sprintReport.statusCard.kpis.executedCount"), "20%") +
-        lightKpiTile(`${passRate}%`, 4, t("defectManagementPage.sprintReport.statusCard.kpis.passRate"), "20%") +
         lightKpiTile(`${totalNotApplicable} (${notApplicableRate}%)`, 5, t("defectManagementPage.sprintReport.statusCard.kpis.notApplicable"), "20%") +
+        lightKpiTile(String(totalNotRun), 2, t("defectManagementPage.sprintReport.statusCard.kpis.notRun"), "20%") +
+        lightKpiTile(`${passRate}%`, 4, t("defectManagementPage.sprintReport.statusCard.kpis.passRate"), "20%") +
         `</tr></table>` +
         kpiSectionTitle(`🐛 ${t("defectManagementPage.sprintReport.statusCard.kpis.bugsSection")}`) +
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:4px;"><tr>` +
+        lightKpiTile(String(report.effectiveCount), 6, t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"), "25%") +
+        lightKpiTile(String(report.outOfScopeCount), 8, t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"), "25%") +
         lightKpiTile(String(bugsClosed), 1, t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedCount"), "25%") +
         lightKpiTile(`${bugsClosed}/${report.total} (${bugsClosedPct}%)`, 2, t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio"), "25%") +
-        lightKpiTile(String(report.effectiveCount), 6, t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"), "25%") +
-        lightKpiTile(String(openSeverityEntries[0][1]), 3, t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"), "25%") +
         `</tr></table>` +
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;"><tr>` +
+        lightKpiTile(String(openSeverityEntries[0][1]), 3, t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"), "25%") +
         lightKpiTile(`${report.reopenedCount} (${reopenedPct}%)`, 4, t("defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs"), "25%") +
-        lightKpiTile(String(report.outOfScopeCount), 8, t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"), "25%") +
         lightKpiTile(t("defectManagementPage.stats.days", { value: avgClosureDays }), 9, t("defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime"), "25%") +
         lightKpiTile(String(report.withoutResolutionDateCount), 7, t("defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"), "25%") +
         `</tr></table>`;
@@ -1873,9 +1881,13 @@ function computeBugStatusData(report: SprintDefectReport): BugStatusData {
     }));
 
     const severityTotal = Object.values(report.bySeverity).reduce((sum, count) => sum + count, 0);
-    const severityEntries = EMAIL_SEVERITY_KEYS.map(
-        (key) => [key, report.bySeverity[key] ?? 0] as const
-    );
+    const severityEntries: (readonly [string, number])[] = [
+        ...EMAIL_SEVERITY_KEYS.map((key) => [key, report.bySeverity[key] ?? 0] as const),
+        ...Object.entries(report.bySeverity)
+            .filter(([key, count]) => !EMAIL_SEVERITY_KEYS.includes(key) && count > 0)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([key, count]) => [key, count] as const),
+    ];
 
     const openSeverityCounts = report.effectiveDefects.reduce<Record<string, number>>(
         (acc, bug) => {
@@ -1893,9 +1905,13 @@ function computeBugStatusData(report: SprintDefectReport): BugStatusData {
         (sum, count) => sum + count,
         0
     );
-    const openSeverityEntries = EMAIL_SEVERITY_KEYS.map(
-        (key) => [key, openSeverityCounts[key] ?? 0] as const
-    );
+    const openSeverityEntries: (readonly [string, number])[] = [
+        ...EMAIL_SEVERITY_KEYS.map((key) => [key, openSeverityCounts[key] ?? 0] as const),
+        ...Object.entries(openSeverityCounts)
+            .filter(([key, count]) => !EMAIL_SEVERITY_KEYS.includes(key) && count > 0)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([key, count]) => [key, count] as const),
+    ];
 
     return {
         statusEntries,
@@ -1976,6 +1992,16 @@ function buildPdfBugRow1KpiDefs(
 ): { kpi: (typeof LIGHT_KPI)[number]; label: string; value: string }[] {
     return [
         {
+            kpi: LIGHT_KPI[6],
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"),
+            value: String(report.effectiveCount),
+        },
+        {
+            kpi: LIGHT_KPI[8],
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"),
+            value: String(report.outOfScopeCount),
+        },
+        {
             kpi: LIGHT_KPI[1],
             label: t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedCount"),
             value: String(kpis.bugsClosed),
@@ -1984,16 +2010,6 @@ function buildPdfBugRow1KpiDefs(
             kpi: LIGHT_KPI[2],
             label: t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio"),
             value: `${kpis.bugsClosed}/${report.total} (${kpis.bugsClosedPct}%)`,
-        },
-        {
-            kpi: LIGHT_KPI[6],
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"),
-            value: String(report.effectiveCount),
-        },
-        {
-            kpi: LIGHT_KPI[3],
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"),
-            value: String(kpis.criticalCount),
         },
     ];
 }
@@ -2005,14 +2021,14 @@ function buildPdfBugRow2KpiDefs(
 ): { kpi: (typeof LIGHT_KPI)[number]; label: string; value: string }[] {
     return [
         {
+            kpi: LIGHT_KPI[3],
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"),
+            value: String(kpis.criticalCount),
+        },
+        {
             kpi: LIGHT_KPI[4],
             label: t("defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs"),
             value: `${report.reopenedCount} (${kpis.reopenedPct}%)`,
-        },
-        {
-            kpi: LIGHT_KPI[8],
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"),
-            value: String(report.outOfScopeCount),
         },
         {
             kpi: LIGHT_KPI[9],
@@ -2396,7 +2412,7 @@ export function buildStatusReportCardPdfDocument(
     );
     y += 6;
 
-    const testKpiPalette = [LIGHT_KPI[0], LIGHT_KPI[2], LIGHT_KPI[1], LIGHT_KPI[4], LIGHT_KPI[5]];
+    const testKpiPalette = [LIGHT_KPI[0], LIGHT_KPI[1], LIGHT_KPI[5], LIGHT_KPI[2], LIGHT_KPI[4]];
 
     autoTable(doc, {
         startY: y,
@@ -2404,19 +2420,19 @@ export function buildStatusReportCardPdfDocument(
         head: [
             [
                 t("defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"),
-                t("defectManagementPage.sprintReport.statusCard.kpis.notRun"),
                 t("defectManagementPage.sprintReport.statusCard.kpis.executedCount"),
-                t("defectManagementPage.sprintReport.statusCard.kpis.passRate"),
                 t("defectManagementPage.sprintReport.statusCard.kpis.notApplicable"),
+                t("defectManagementPage.sprintReport.statusCard.kpis.notRun"),
+                t("defectManagementPage.sprintReport.statusCard.kpis.passRate"),
             ],
         ],
         body: [
             [
                 String(kpis.totalTestCases),
-                String(kpis.totalNotRun),
                 `${kpis.totalExecuted} (${kpis.executedPct}%)`,
-                `${kpis.passRate}%`,
                 `${kpis.totalNotApplicable} (${kpis.notApplicableRate}%)`,
+                String(kpis.totalNotRun),
+                `${kpis.passRate}%`,
             ],
         ],
         tableWidth: innerWidth,
@@ -2851,20 +2867,20 @@ function buildPptxKpiDefs(
             label: t("defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"),
         },
         {
-            value: String(kpis.totalNotRun),
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.notRun"),
-        },
-        {
             value: `${kpis.totalExecuted} (${kpis.executedPct}%)`,
             label: t("defectManagementPage.sprintReport.statusCard.kpis.executedCount"),
         },
         {
-            value: `${kpis.passRate}%`,
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.passRate"),
-        },
-        {
             value: `${kpis.totalNotApplicable} (${kpis.notApplicableRate}%)`,
             label: t("defectManagementPage.sprintReport.statusCard.kpis.notApplicable"),
+        },
+        {
+            value: String(kpis.totalNotRun),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.notRun"),
+        },
+        {
+            value: `${kpis.passRate}%`,
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.passRate"),
         },
     ];
 }
@@ -2876,20 +2892,20 @@ function buildPptxRow2KpiDefs(
 ): { value: string; label: string }[] {
     return [
         {
+            value: String(report.effectiveCount),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"),
+        },
+        {
+            value: String(report.outOfScopeCount),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"),
+        },
+        {
             value: String(kpis.bugsClosed),
             label: t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedCount"),
         },
         {
             value: `${kpis.bugsClosed}/${report.total} (${kpis.bugsClosedPct}%)`,
             label: t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio"),
-        },
-        {
-            value: String(report.effectiveCount),
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"),
-        },
-        {
-            value: String(kpis.criticalCount),
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"),
         },
     ];
 }
@@ -2901,12 +2917,12 @@ function buildPptxRow3KpiDefs(
 ): { value: string; label: string }[] {
     return [
         {
-            value: `${report.reopenedCount} (${kpis.reopenedPct}%)`,
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs"),
+            value: String(kpis.criticalCount),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"),
         },
         {
-            value: String(report.outOfScopeCount),
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"),
+            value: `${report.reopenedCount} (${kpis.reopenedPct}%)`,
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs"),
         },
         {
             value: t("defectManagementPage.stats.days", { value: kpis.avgClosureDays }),

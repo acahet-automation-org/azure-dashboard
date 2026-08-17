@@ -432,14 +432,14 @@
                 "noPlanSelected": "No suites matched yet - check the plan/suite names configured for this card.",
                 "bugStatusTitle": "Bug Status",
                 "bugStatusSubtitle": "(reported by {{sources}})",
-                "bugsDetected": "{{count}} bugs detected",
+                "bugsDetected": "{{count}} total bugs detected",
                 "bugStatusSummary": "{{effective}} effective, {{outOfScope}} out of scope",
-                "stillOpen": "{{count}} still open",
+                "stillOpen": "of which {{count}} still open",
                 "statusLabels": {
                     "closed": "Closed",
                     "resolved": "To verify (DSI retest)",
                     "inProgress": "In progress",
-                    "new": "New (to be picked up)",
+                    "new": "To be picked up",
                     "reopened": "Reopened",
                     "notApplicable": "Not applicable (out of scope)"
                 },
