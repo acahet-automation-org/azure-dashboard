@@ -451,7 +451,7 @@
                     "totalTestCases": "Total Test Cases",
                     "notRun": "Test Cases To Execute",
                     "executedCount": "Test Cases Executed",
-                    "passRate": "Pass Rate\n(Passed / Total excl. N/A)",
+                    "passRate": "Pass Rate\n(Ok / Total excl. N/A)",
                     "notApplicable": "Not Applicable",
                     "notApplicableRate": "N/A Test Cases",
                     "bugsClosedCount": "Bugs Closed",

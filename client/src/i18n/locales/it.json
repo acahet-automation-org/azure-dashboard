@@ -451,7 +451,7 @@
                     "totalTestCases": "Casi di Test Totali",
                     "notRun": "Casi di Test da Eseguire",
                     "executedCount": "Casi di Test Eseguiti",
-                    "passRate": "Pass Rate\n(Passati / Totali escluso N/A)",
+                    "passRate": "Pass Rate\n(Ok / Totali esclusi gli N/A)",
                     "notApplicable": "Non Applicabili",
                     "notApplicableRate": "Casi di Test Non Applicabili",
                     "bugsClosedCount": "Bug Chiusi",
