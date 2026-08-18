@@ -952,10 +952,11 @@ export interface StatusReportCardEmailData {
 
 const EMAIL_CARD_WIDTH = 900;
 
-const EMAIL_STATUS_ORDER = ["Closed", "Resolved", "In Progress", "New", "Reopened", "Not Applicable"];
+const EMAIL_STATUS_ORDER = ["Closed", "Da verificare", "In verifica", "In Progress", "New", "Reopened", "Not Applicable"];
 const EMAIL_STATUS_LABEL_KEYS: Record<string, string> = {
     Closed: "closed",
-    Resolved: "resolved",
+    "Da verificare": "daVerificare",
+    "In verifica": "inVerifica",
     "In Progress": "inProgress",
     New: "new",
     Reopened: "reopened",
@@ -1084,7 +1085,8 @@ const LIGHT_OUTCOME_COLORS: Record<Outcome, string> = {
 };
 const LIGHT_STATUS_COLORS: Record<string, string> = {
     Closed: "#2e7d32",
-    Resolved: "#1565c0",
+    "Da verificare": "#1565c0",
+    "In verifica": "#0099a8",
     "In Progress": "#f0a500",
     New: "#e53935",
     Reopened: "#ad1457",

@@ -370,7 +370,8 @@
             },
             "status": {
                 "closed": "Closed",
-                "resolved": "Resolved",
+                "daVerificare": "To verify",
+                "inVerifica": "In verification",
                 "inProgress": "In Progress",
                 "new": "New",
                 "reopened": "Reopened"
@@ -437,7 +438,8 @@
                 "stillOpen": "of which {{count}} still open",
                 "statusLabels": {
                     "closed": "Closed",
-                    "resolved": "To verify (DSI retest)",
+                    "daVerificare": "To verify (DSI retest)",
+                    "inVerifica": "In verification",
                     "inProgress": "In progress",
                     "new": "To be picked up",
                     "reopened": "Reopened",

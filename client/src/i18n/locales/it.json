@@ -370,7 +370,8 @@
             },
             "status": {
                 "closed": "Chiusi",
-                "resolved": "Risolti",
+                "daVerificare": "Da verificare",
+                "inVerifica": "In verifica",
                 "inProgress": "In Lavorazione",
                 "new": "Nuovi",
                 "reopened": "Riaperti"
@@ -437,7 +438,8 @@
                 "stillOpen": "Di cui {{count}} ancora aperti",
                 "statusLabels": {
                     "closed": "Chiusi",
-                    "resolved": "Da verificare",
+                    "daVerificare": "Da verificare",
+                    "inVerifica": "In verifica",
                     "inProgress": "In lavorazione",
                     "new": "Da prendere in carico",
                     "reopened": "Riaperti",
