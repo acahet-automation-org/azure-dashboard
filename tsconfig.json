@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "exclude": ["client"]
+  "exclude": ["client", "tests"]
 }

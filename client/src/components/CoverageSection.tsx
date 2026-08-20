@@ -85,8 +85,8 @@ function SuiteCoverageTable({
 
     const styles = useStyles();
 
-    const entries = Object.entries(suites).sort(([a], [b]) =>
-        a.localeCompare(b)
+    const entries = Object.entries(suites).sort(([, a], [, b]) =>
+        a.suiteName.localeCompare(b.suiteName)
     );
 
     return (
@@ -122,13 +122,13 @@ function SuiteCoverageTable({
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {entries.map(([name, stat]) => {
+                    {entries.map(([key, stat]) => {
                         const delta = suitePassRateNADelta(stat);
 
                         return (
-                            <TableRow key={name}>
+                            <TableRow key={key}>
                                 <TableCell className={styles.nameCell}>
-                                    {name}
+                                    {stat.suiteName}
                                 </TableCell>
                                 <TableCell>{stat.total}</TableCell>
                                 <TableCell>{suiteExecuted(stat)}</TableCell>

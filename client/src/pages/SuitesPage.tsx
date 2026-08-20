@@ -74,11 +74,11 @@ export function SuitesPage() {
                 ) : (
                     <CardGrid>
                         {Object.entries(data)
-                            .sort(([a], [b]) => a.localeCompare(b))
-                            .map(([suiteName, stat]) => (
+                            .sort(([, a], [, b]) => a.suiteName.localeCompare(b.suiteName))
+                            .map(([key, stat]) => (
                                 <SuiteCard
-                                    key={suiteName}
-                                    suiteName={suiteName}
+                                    key={key}
+                                    suiteName={stat.suiteName}
                                     stat={stat}
                                 />
                             ))}
