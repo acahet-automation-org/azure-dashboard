@@ -36,8 +36,8 @@ export function SuitesPage() {
         }
 
         const suiteBugTotals = Object.entries(data)
-            .map(([suiteName, stat]) => ({
-                suiteName,
+            .map(([, stat]) => ({
+                suiteName: stat.suiteName,
                 totalBugs: stat.openBugs,
             }))
             .sort((a, b) => a.suiteName.localeCompare(b.suiteName));
@@ -74,11 +74,11 @@ export function SuitesPage() {
                 ) : (
                     <CardGrid>
                         {Object.entries(data)
-                            .sort(([a], [b]) => a.localeCompare(b))
-                            .map(([suiteName, stat]) => (
+                            .sort(([, a], [, b]) => a.suiteName.localeCompare(b.suiteName))
+                            .map(([suiteKey, stat]) => (
                                 <SuiteCard
-                                    key={suiteName}
-                                    suiteName={suiteName}
+                                    key={suiteKey}
+                                    suiteName={stat.suiteName}
                                     stat={stat}
                                 />
                             ))}

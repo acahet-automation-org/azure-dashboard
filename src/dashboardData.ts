@@ -120,6 +120,7 @@ export function resolveOutcome(
 
 export async function buildTestCaseRow(
     tc: any,
+    planId: number,
     planName: string,
     suiteName: string,
     suiteId: number,
@@ -161,6 +162,7 @@ export async function buildTestCaseRow(
 
     return {
         planName,
+        planId,
         areaPath:
             workItem.fields[
             "System.AreaPath"
@@ -286,6 +288,7 @@ export async function buildDashboard(project?: string): Promise<
                 testCases.map((tc: any) =>
                     buildTestCaseRow(
                         tc,
+                        plan.id,
                         plan.name,
                         suite.name,
                         suite.id,
@@ -457,8 +460,11 @@ export function computeSuiteStats(
     > = {};
 
     for (const tc of allTestCases) {
-        if (!suiteStats[tc.suiteName]) {
-            suiteStats[tc.suiteName] = {
+        const suiteKey = `${tc.planId}:${tc.suiteId}`;
+        if (!suiteStats[suiteKey]) {
+            suiteStats[suiteKey] = {
+                suiteName: tc.suiteName,
+                planId: tc.planId,
                 total: 0,
                 passed: 0,
                 failed: 0,
@@ -469,7 +475,7 @@ export function computeSuiteStats(
             };
         }
 
-        const stat = suiteStats[tc.suiteName];
+        const stat = suiteStats[suiteKey];
 
         stat.total++;
 

@@ -45,6 +45,7 @@ export interface WorkItemSummary {
 
 export interface TestCaseRow {
     planName: string;
+    planId: number;
     areaPath: string;
     iteration?: string;
     suiteName: string;
@@ -61,6 +62,8 @@ export interface TestCaseRow {
 }
 
 export interface SuiteStat {
+    suiteName: string;
+    planId: number;
     total: number;
     passed: number;
     failed: number;
