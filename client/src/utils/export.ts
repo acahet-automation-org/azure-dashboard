@@ -1362,6 +1362,8 @@ export function buildStatusReportCardEmailBodyHtml(
         ? Math.round((report.reopenedCount / report.total) * 1000) / 10
         : 0;
     const avgClosureDays = Math.round(report.mttrDays ?? 0);
+    const bugsByDsi = report.byOriginDetected["DSI"] ?? 0;
+    const bugsByUs = report.total - bugsByDsi;
 
     const statusEntries = EMAIL_STATUS_ORDER.map(
         (name) =>
@@ -1516,6 +1518,12 @@ export function buildStatusReportCardEmailBodyHtml(
         lightKpiTile(String(bugsClosed), 1, t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedCount"), "25%") +
         lightKpiTile(`${bugsClosed}/${report.total} (${bugsClosedPct}%)`, 2, t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio"), "25%") +
         `</tr></table>` +
+        (includeDsiSource
+            ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;"><tr>` +
+              lightKpiTile(String(bugsByUs), 4, t("defectManagementPage.sprintReport.statusCard.kpis.bugsByUs"), "50%") +
+              lightKpiTile(String(bugsByDsi), 0, t("defectManagementPage.sprintReport.statusCard.kpis.bugsByDsi"), "50%") +
+              `</tr></table>`
+            : "") +
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;"><tr>` +
         lightKpiTile(String(openSeverityEntries[0][1]), 3, t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"), "25%") +
         lightKpiTile(`${report.reopenedCount} (${reopenedPct}%)`, 4, t("defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs"), "25%") +

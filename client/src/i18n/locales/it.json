@@ -464,7 +464,9 @@
                     "avgClosureTime": "Tempo medio chiusura\nbug (gg)",
                     "effectiveBugsDetected": "Bug effettivi rilevati",
                     "outOfScopeBugsDetected": "Bug out of scope",
-                    "withoutResolutionDate": "Bug senza data di\nrisoluzione"
+                    "withoutResolutionDate": "Bug senza data di\nrisoluzione",
+                    "bugsByUs": "Bug aperti da Test Factory",
+                    "bugsByDsi": "Bug aperti da DSI"
                 },
                 "originBreakdown": {
                     "title": "Bug per Suite",

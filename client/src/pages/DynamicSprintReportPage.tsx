@@ -270,7 +270,7 @@ export function DynamicSprintReportPage() {
                         defaultHeaderSubtitle={t(
                             "dynamicSprintReportPage.defaultHeaderSubtitle"
                         )}
-                        includeDsiSource={false}
+                        includeDsiSource={(data.stats.sprintDefectReport.byOriginDetected["DSI"] ?? 0) > 0}
                         includeDeadline={false}
                         enableEmailPreface
                     />

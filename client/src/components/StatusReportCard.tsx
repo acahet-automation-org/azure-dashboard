@@ -510,6 +510,9 @@ export const StatusReportCard = forwardRef<
     // the exported card, 0 reads as "nothing to report yet".
     const avgClosureDays = Math.round(report.mttrDays ?? 0);
 
+    const bugsByDsi = report.byOriginDetected["DSI"] ?? 0;
+    const bugsByUs = report.total - bugsByDsi;
+
     // Only non-closed bugs count here - a closed critical bug isn't
     // something the reader still needs to act on.
     const criticalCount = report.effectiveDefects.filter(
@@ -722,6 +725,30 @@ export const StatusReportCard = forwardRef<
                                 )}
                             </span>
                         </div>
+                        {includeDsiSource && (
+                            <>
+                                <div className={styles.kpiTile}>
+                                    <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
+                                        {bugsByUs}
+                                    </span>
+                                    <span className={styles.kpiLabel}>
+                                        {t(
+                                            "defectManagementPage.sprintReport.statusCard.kpis.bugsByUs"
+                                        )}
+                                    </span>
+                                </div>
+                                <div className={styles.kpiTile}>
+                                    <span className={styles.kpiValue} style={{ color: "#3aa0f3" }}>
+                                        {bugsByDsi}
+                                    </span>
+                                    <span className={styles.kpiLabel}>
+                                        {t(
+                                            "defectManagementPage.sprintReport.statusCard.kpis.bugsByDsi"
+                                        )}
+                                    </span>
+                                </div>
+                            </>
+                        )}
                         <div className={styles.kpiTile}>
                             <span className={styles.kpiValue} style={{ color: "#3fb950" }}>
                                 {bugsClosed}
