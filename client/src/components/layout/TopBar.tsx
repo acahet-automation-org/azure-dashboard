@@ -10,9 +10,9 @@ import {
 import { useState } from "react";
 import { ArrowSyncRegular, QuestionCircleRegular } from "@fluentui/react-icons";
 import { useTranslation } from "react-i18next";
-import { useMsal } from "@azure/msal-react";
 import { NAV_HEIGHT, RAIL_BG, RAIL_FG, RAIL_FG_ACTIVE } from "../../layoutConstants";
 import { postRefresh } from "../../api/client";
+import { clearStoredAzdoConnection } from "../../azdoConnection";
 import { LanguageSwitcher } from "../LanguageSwitcher";
 import { ThemeSwitcher } from "../ThemeSwitcher";
 import { TestGraphMailButton } from "../TestGraphMailButton";
@@ -72,8 +72,6 @@ const useStyles = makeStyles({
 export function TopBar({ title }: { title: string }) {
     const styles = useStyles();
     const { t } = useTranslation();
-    const { instance, accounts } = useMsal();
-    const activeAccount = instance.getActiveAccount() ?? accounts[0];
     const queryClient = useQueryClient();
     const [helpOpen, setHelpOpen] = useState(false);
 
@@ -137,15 +135,19 @@ export function TopBar({ title }: { title: string }) {
                     )}
                 </Button>
 
-                {activeAccount && (
-                    <Text className={styles.welcome}>
-                        {t("nav.welcome", {
-                            name: activeAccount.name ?? activeAccount.username,
-                        })}
-                    </Text>
-                )}
-
                 <TestGraphMailButton />
+
+                <Button
+                    appearance="subtle"
+                    className={styles.refreshButton}
+                    onClick={() => {
+                        clearStoredAzdoConnection();
+                        localStorage.removeItem("azureDashboardScope");
+                        window.location.reload();
+                    }}
+                >
+                    {t("nav.changePat")}
+                </Button>
 
                 <Button
                     appearance="subtle"

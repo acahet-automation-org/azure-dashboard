@@ -237,12 +237,16 @@ export function SprintDefectReportTab({
 
   // Seeded as two paragraphs (blank-line separated) so each lands in its
   // own box below - defaultActionsText callers only ever supply one or
-  // two paragraphs today, so anything past the second is dropped.
+  // two paragraphs today, so anything past the second is dropped. The
+  // System Integrator note only makes sense when there's actually a bug
+  // missing a resolution date to act on.
   const [defaultActionText1, defaultActionText2] = (
     defaultActionsText
       ? defaultActionsText(report)
-      : "System Integrator: si prega di prendere in carico i nuovi bug e impostarne la data di risoluzione\n\n" +
-        "\n\n"
+      : report.withoutResolutionDateCount > 0
+        ? "System Integrator: si prega di prendere in carico i nuovi bug e impostarne la data di risoluzione\n\n" +
+          "\n\n"
+        : "\n\n"
   )
     .split(/\n\s*\n/)
     .map((p) => p.trim());

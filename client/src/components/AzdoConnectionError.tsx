@@ -35,13 +35,16 @@ const useStyles = makeStyles({
     },
 });
 
-// Rendered in place of the whole app when the "projects" query fails (see
-// App.tsx) - almost always an unset/expired/invalid AZDO_PAT, since that's
-// what actually gates data access (see the comment on App() there). This
-// replaces what used to be a blank white page with the one thing that
-// actually helps: the same setup steps as the first-load guide, plus a way
-// to retry once .env has been fixed and the server restarted.
-export function AzdoConnectionError({ onRetry }: { onRetry: () => void }) {
+// Rendered in place of the whole app when the initial Azure DevOps probe fails
+// (see App.tsx). In local CLI mode that usually means the saved PAT/org is
+// missing or invalid; in legacy server mode it can still be the server's env.
+export function AzdoConnectionError({
+    onRetry,
+    onChangeConnection,
+}: {
+    onRetry: () => void;
+    onChangeConnection: () => void;
+}) {
     const { t } = useTranslation();
     const styles = useStyles();
 
@@ -57,13 +60,18 @@ export function AzdoConnectionError({ onRetry }: { onRetry: () => void }) {
 
                 <AzdoPatSteps />
 
-                <Button
-                    appearance="primary"
-                    icon={<ArrowSyncRegular />}
-                    onClick={onRetry}
-                >
-                    {t("azdoConnectionError.retry")}
-                </Button>
+                <div style={{ display: "flex", gap: tokens.spacingHorizontalS }}>
+                    <Button
+                        appearance="primary"
+                        icon={<ArrowSyncRegular />}
+                        onClick={onRetry}
+                    >
+                        {t("azdoConnectionError.retry")}
+                    </Button>
+                    <Button appearance="secondary" onClick={onChangeConnection}>
+                        {t("azdoConnectionError.changePat")}
+                    </Button>
+                </div>
             </Card>
         </div>
     );

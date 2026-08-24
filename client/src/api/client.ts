@@ -23,14 +23,43 @@ import type {
     AreaPathNode,
 } from "../types";
 import i18n from "../i18n";
+import { loadStoredAzdoConnection } from "../azdoConnection";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+const LOCAL_API_BASE_URL = "http://localhost:4174";
+
+function getApiBaseUrl(): string {
+    if (import.meta.env.VITE_API_BASE_URL) {
+        return import.meta.env.VITE_API_BASE_URL;
+    }
+
+    return window.location.port === "4173" ? LOCAL_API_BASE_URL : "";
+}
+
+function buildRequestHeaders(
+    headers?: HeadersInit
+): Headers {
+    const nextHeaders = new Headers(headers);
+    const connection = loadStoredAzdoConnection();
+
+    if (connection?.pat) {
+        nextHeaders.set("x-ado-pat", connection.pat);
+    }
+
+    if (connection?.org) {
+        nextHeaders.set("x-ado-org", connection.org);
+    }
+
+    return nextHeaders;
+}
 
 async function apiFetch(
     path: string,
     init: RequestInit = {}
 ): Promise<Response> {
-    return fetch(`${API_BASE_URL}${path}`, init);
+    return fetch(`${getApiBaseUrl()}${path}`, {
+        ...init,
+        headers: buildRequestHeaders(init.headers),
+    });
 }
 
 async function throwForErrorResponse(

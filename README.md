@@ -1,6 +1,30 @@
 # Azure DevOps Dashboard
 
-Dashboard che raccoglie dati da Azure DevOps (test plan, test run, defect) e li mostra in un unico punto.
+## Run locally
+
+```bash
+npx @acahet/azure-dashboard
+```
+
+First run asks for your Azure DevOps organization and Personal Access Token
+(PAT). They are stored only in your browser's local storage.
+
+> Note: this package is hosted on GitHub Packages (private to the org).
+> One-time setup per machine — add to `~/.npmrc`:
+> ```
+> @acahet:registry=https://npm.pkg.github.com
+> //npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN
+> ```
+> GitHub Packages requires auth even for package install/read access in a
+> private org. The token needs `read:packages`.
+
+### Architecture note
+
+The React app does **not** call Azure DevOps directly today. It already goes
+through the existing Express API first (`/home/runner/work/azure-dashboard/azure-dashboard/client/src/api/client.ts`
+→ `/home/runner/work/azure-dashboard/azure-dashboard/src/server.ts`
+→ `/home/runner/work/azure-dashboard/azure-dashboard/src/azdo.ts`), so the
+local package reuses that backend and forwards PAT/org per request.
 
 Versione inglese: [README.en.md](README.en.md)
 

@@ -34,18 +34,19 @@
         "testGraphLoginFailed": "Login failed: {{message}}",
         "testGraphLogoutFailed": "Logout failed: {{message}}",
         "collapseSidebar": "Collapse sidebar",
-        "expandSidebar": "Expand sidebar"
+        "expandSidebar": "Expand sidebar",
+        "changePat": "Change PAT"
     },
     "azdoPatSteps": {
         "step1": "In Azure DevOps, open your profile (top right) and go to User Settings > Personal Access Tokens.",
         "step2": "Click \"New Token\", give it a name, and set scopes to Work Items (Read) and Test Plans (Read).",
         "step3": "Click \"Create\" and copy the token right away - Azure DevOps only shows it once.",
-        "step4": "Open the app's root .env file and set AZDO_PAT to your token (along with AZDO_ORG and AZDO_PROJECT).",
-        "step5": "Restart the server (npm run dev:all) so the new token takes effect."
+        "step4": "In the dashboard, click \"Change PAT\" (or use the first-run screen) and paste your organization name plus PAT.",
+        "step5": "The values stay only in this browser's local storage and are sent only to your local dashboard process."
     },
     "onboardingGuide": {
         "title": "Getting started",
-        "intro": "A quick look at emailing a report and connecting the dashboard to Azure DevOps.",
+        "intro": "A quick look at emailing a report and connecting the dashboard to Azure DevOps from this browser.",
         "emailSection": {
             "title": "Emailing a report",
             "quickExport": "Quick export: on the Dashboard or Plan Overview page, use the Export button and choose \"Email\" - one click, sent automatically, no sign-in needed. Only shown if your administrator has enabled it.",
@@ -53,7 +54,7 @@
         },
         "azdoSection": {
             "title": "Connecting to Azure DevOps",
-            "intro": "The dashboard only loads data once it has a valid Azure DevOps Personal Access Token (AZDO_PAT) configured on the server:"
+            "intro": "The local package loads data only after you save your Azure DevOps organization and PAT in this browser:"
         },
         "navSectionTitle": "What's in the menu",
         "navSections": {
@@ -68,8 +69,9 @@
     },
     "azdoConnectionError": {
         "title": "Can't reach Azure DevOps",
-        "message": "The dashboard couldn't load data from Azure DevOps - this almost always means the server's AZDO_PAT token is missing, expired, or invalid.",
-        "retry": "Retry"
+        "message": "The dashboard could not load data from Azure DevOps. The saved organization or PAT is usually missing, expired, or invalid.",
+        "retry": "Retry",
+        "changePat": "Change PAT"
     },
     "signInPage": {
         "title": "QA Dashboard",
@@ -425,11 +427,6 @@
                 "emailAddressPlaceholder": "email1@example.com, email2@example.com",
                 "emailFromNameLabel": "Sender name (optional)",
                 "emailFromNamePlaceholder": "Shown as the sender name",
-                "emailToLabel": "To",
-                "emailCcLabel": "Cc",
-                "emailAddressPlaceholder": "email1@example.com, email2@example.com",
-                "emailFromNameLabel": "Sender name (optional)",
-                "emailFromNamePlaceholder": "Shown as the sender name",
                 "emailPrefaceLabel": "Message before report",
                 "emailPrefacePlaceholder": "Write a message to include above the status card, e.g. a greeting or summary...",
                 "openDashboard": "Open monitoring dashboard",
@@ -754,5 +751,14 @@
             "title": "Blocking Defects at Release",
             "empty": "No open Critical or High severity bugs."
         }
+    },
+    "patSetup": {
+        "title": "Connect your Azure DevOps PAT",
+        "description": "Stored only in this browser's local storage and sent only to your local dashboard process.",
+        "orgLabel": "Azure DevOps organization",
+        "orgPlaceholder": "your-organization-name",
+        "patLabel": "Personal Access Token",
+        "patPlaceholder": "Paste your PAT",
+        "connect": "Connect"
     }
 }
