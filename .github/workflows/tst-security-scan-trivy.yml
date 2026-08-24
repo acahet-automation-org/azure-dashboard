@@ -66,15 +66,17 @@ jobs:
             --output trivy-fs.json \
             --cache-dir ~/.cache/trivy \
             --skip-dirs node_modules
-          [ -f /tmp/trivy-html.tpl ] && trivy fs . \
-            --scanners vuln \
-            --severity CRITICAL,HIGH,MEDIUM,LOW \
-            --exit-code 0 \
-            --format template \
-            --template "@/tmp/trivy-html.tpl" \
-            --output trivy-fs.html \
-            --cache-dir ~/.cache/trivy \
-            --skip-dirs node_modules || true
+          if [ -f /tmp/trivy-html.tpl ]; then
+            trivy fs . \
+              --scanners vuln \
+              --severity CRITICAL,HIGH,MEDIUM,LOW \
+              --exit-code 0 \
+              --format template \
+              --template "@/tmp/trivy-html.tpl" \
+              --output trivy-fs.html \
+              --cache-dir ~/.cache/trivy \
+              --skip-dirs node_modules
+          fi
         env:
           TRIVY_GITHUB_TOKEN: ${{ github.token }}
 
@@ -102,13 +104,15 @@ jobs:
             --format json \
             --output trivy-secrets.json \
             --cache-dir ~/.cache/trivy
-          [ -f /tmp/trivy-html.tpl ] && trivy fs . \
-            --scanners secret \
-            --exit-code 0 \
-            --format template \
-            --template "@/tmp/trivy-html.tpl" \
-            --output trivy-secrets.html \
-            --cache-dir ~/.cache/trivy || true
+          if [ -f /tmp/trivy-html.tpl ]; then
+            trivy fs . \
+              --scanners secret \
+              --exit-code 0 \
+              --format template \
+              --template "@/tmp/trivy-html.tpl" \
+              --output trivy-secrets.html \
+              --cache-dir ~/.cache/trivy
+          fi
         env:
           TRIVY_GITHUB_TOKEN: ${{ github.token }}
 
@@ -133,13 +137,15 @@ jobs:
             --format json \
             --output trivy-iac.json \
             --cache-dir ~/.cache/trivy
-          [ -f /tmp/trivy-html.tpl ] && trivy config . \
-            --severity CRITICAL,HIGH,MEDIUM,LOW \
-            --exit-code 0 \
-            --format template \
-            --template "@/tmp/trivy-html.tpl" \
-            --output trivy-iac.html \
-            --cache-dir ~/.cache/trivy || true
+          if [ -f /tmp/trivy-html.tpl ]; then
+            trivy config . \
+              --severity CRITICAL,HIGH,MEDIUM,LOW \
+              --exit-code 0 \
+              --format template \
+              --template "@/tmp/trivy-html.tpl" \
+              --output trivy-iac.html \
+              --cache-dir ~/.cache/trivy
+          fi
         env:
           TRIVY_GITHUB_TOKEN: ${{ github.token }}
 
