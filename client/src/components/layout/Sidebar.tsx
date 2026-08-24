@@ -252,8 +252,8 @@ const releaseReadinessEnabled =
     import.meta.env.VITE_ENABLE_RELEASE_READINESS === "true";
 // Mirrors the route restriction in App.tsx - when set, only the nav items for
 // pages that actually still have a route are shown.
-const showOnlyDefectAndRelease =
-    import.meta.env.VITE_SHOW_ONLY_DEFECT_AND_RELEASE === "true";
+const showOnlySprintReport =
+    import.meta.env.VITE_SHOW_ONLY_SPRINT_REPORT === "true";
 
 function NavRow({
     item,
@@ -444,22 +444,15 @@ export function Sidebar({
             </NavLink>
 
             <div className={styles.nav}>
-                {showOnlyDefectAndRelease ? (
-                    <>
-                        <NavRow
-                            item={MAIN_ITEMS.find((item) => item.key === "defects")!}
-                            collapsed={collapsed}
-                            badgeCount={defectBadgeCount}
-                        />
-                        <NavRow
-                            item={
-                                MAIN_ITEMS.find(
-                                    (item) => item.key === "dynamic-sprint-report"
-                                )!
-                            }
-                            collapsed={collapsed}
-                        />
-                    </>
+                {showOnlySprintReport ? (
+                    <NavRow
+                        item={
+                            MAIN_ITEMS.find(
+                                (item) => item.key === "dynamic-sprint-report"
+                            )!
+                        }
+                        collapsed={collapsed}
+                    />
                 ) : (
                     <>
                         {visibleMainItems.map((item) => (

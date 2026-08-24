@@ -64,21 +64,20 @@ function PageFallback() {
 
 const releaseReadinessEnabled =
     import.meta.env.VITE_ENABLE_RELEASE_READINESS === "true";
-// Locks the whole app down to just Defect Management (+ Release Readiness,
-// if that's also enabled) - every other route redirects to /defects rather
-// than rendering, so there's no way to reach them via a typed/bookmarked
-// URL either, not just via the nav bar (see NavBar.tsx for the matching tab
-// restriction).
-const showOnlyDefectAndRelease =
-    import.meta.env.VITE_SHOW_ONLY_DEFECT_AND_RELEASE === "true";
+// Locks the whole app down to just Sprint Report (+ Release Readiness, if
+// that's also enabled) - every other route redirects to /dynamic-sprint-report
+// rather than rendering, so there's no way to reach them via a typed/
+// bookmarked URL either, not just via the nav bar (see Sidebar.tsx for the
+// matching tab restriction).
+const showOnlySprintReport =
+    import.meta.env.VITE_SHOW_ONLY_SPRINT_REPORT === "true";
 
 function AppRoutes() {
     return (
         <Suspense fallback={<PageFallback />}>
             <Routes>
-                {showOnlyDefectAndRelease ? (
+                {showOnlySprintReport ? (
                     <>
-                        <Route path="/defects" element={<DefectManagementPage />} />
                         <Route
                             path="/dynamic-sprint-report"
                             element={<DynamicSprintReportPage />}
@@ -89,7 +88,10 @@ function AppRoutes() {
                                 element={<ReleaseReadinessPage />}
                             />
                         )}
-                        <Route path="*" element={<Navigate to="/defects" replace />} />
+                        <Route
+                            path="*"
+                            element={<Navigate to="/dynamic-sprint-report" replace />}
+                        />
                     </>
                 ) : (
                     <>
