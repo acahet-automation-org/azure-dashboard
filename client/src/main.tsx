@@ -71,32 +71,37 @@ function hasMsalAuthResponse(): boolean {
     return check(window.location.hash) || check(window.location.search);
 }
 
-if (useSwaAuth) {
-    const isPopup = Boolean(window.opener && window.opener !== window);
-    const isChildFrame = window.parent !== window;
-    const isMsalNamedWindow = window.name.startsWith("msal");
+// Popup/iframe detection is independent of VITE_AUTH_MODE - the mail button's
+// loginPopup (mailMsalInstance) runs in every auth mode and shares this app's
+// root as its redirect URI, so a popup can land back here regardless of
+// whether the dashboard itself is using SWA or local auth. Gating this check
+// behind useSwaAuth let a "local" mode popup fall through to booting the full
+// SPA inside itself instead of closing, which then risked a second,
+// nested loginPopup call from inside that popup.
+const isPopup = Boolean(window.opener && window.opener !== window);
+const isChildFrame = window.parent !== window;
+const isMsalNamedWindow = window.name.startsWith("msal");
 
-    const isMsalAuthWindow =
-        hasMsalAuthResponse() || isPopup || isMsalNamedWindow || isChildFrame;
+const isMsalAuthWindow =
+    hasMsalAuthResponse() || isPopup || isMsalNamedWindow || isChildFrame;
 
-    if (isMsalAuthWindow) {
-        document.title = "Microsoft Authentication";
+if (isMsalAuthWindow) {
+    document.title = "Microsoft Authentication";
 
-        try {
-            const { broadcastResponseToMainFrame } = await import(
-                "@azure/msal-browser/redirect-bridge"
-            );
-            // Hands the auth response back to the opener over BroadcastChannel and
-            // closes this popup / iframe. Never boot the SPA here - even if this
-            // throws (e.g. no parseable response), rendering the dashboard inside
-            // the sign-in popup is exactly the bug we're avoiding.
-            await broadcastResponseToMainFrame();
-        } catch (error) {
-            console.error("Failed to hand MSAL auth response back to the opener", error);
-        }
-    } else {
-        await bootAppWithDashboardMsal();
+    try {
+        const { broadcastResponseToMainFrame } = await import(
+            "@azure/msal-browser/redirect-bridge"
+        );
+        // Hands the auth response back to the opener over BroadcastChannel and
+        // closes this popup / iframe. Never boot the SPA here - even if this
+        // throws (e.g. no parseable response), rendering the dashboard inside
+        // the sign-in popup is exactly the bug we're avoiding.
+        await broadcastResponseToMainFrame();
+    } catch (error) {
+        console.error("Failed to hand MSAL auth response back to the opener", error);
     }
+} else if (useSwaAuth) {
+    await bootAppWithDashboardMsal();
 } else {
     await bootApp();
 }
