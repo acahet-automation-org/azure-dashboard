@@ -3,8 +3,10 @@ import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
   Button,
+  Dropdown,
   Field,
   Input,
+  Option,
   Spinner,
   Switch,
   Text,
@@ -14,6 +16,7 @@ import {
 } from "@fluentui/react-components";
 import {
   ArrowDownloadRegular,
+  ChevronDownRegular,
   ClipboardCheckmarkRegular,
   ClipboardRegular,
   CodeTextRegular,
@@ -154,6 +157,15 @@ const useStyles = makeStyles({
     display: "flex",
     flexDirection: "column",
     gap: tokens.spacingVerticalXS,
+  },
+  actionFieldBody: {
+    display: "flex",
+    flexDirection: "column",
+    gap: tokens.spacingVerticalXS,
+  },
+  chevron: {
+    color: tokens.colorBrandForeground1,
+    fontSize: "18px",
   },
 });
 
@@ -312,6 +324,52 @@ export function SprintDefectReportTab({
           count: countBusinessDaysRemaining(new Date(), deadlineDate),
         })
       : "";
+
+  // Quick-fill templates offered above each action Textarea - selecting one
+  // overwrites that field's text (still freely editable after), leaving
+  // manual typing and clearing the field untouched as the other two ways to
+  // set it. The "missing resolution dates" preset only makes sense - same
+  // rule as the default Action 1 text above - when there's actually a bug
+  // without one to act on.
+  const action1Presets: { key: string; label: string; text: string }[] = [
+    {
+      key: "si-deadline",
+      label: t(
+        "defectManagementPage.sprintReport.statusCard.actionsPreset1SiDeadline",
+      ),
+      text:
+        "System Integrator: come condiviso nella call odierna, si prega di aggiornare le date di risoluzione dei bug ed effettuare la chiusura degli stessi entro il "
+    },
+    ...(report.withoutResolutionDateCount > 0
+      ? [
+          {
+            key: "si-missing-dates",
+            label: t(
+              "defectManagementPage.sprintReport.statusCard.actionsPreset1SiMissingDates",
+              { count: report.withoutResolutionDateCount },
+            ),
+            text: `System Integrator: inserire entro la giornata di domani le date di risoluzione previste per gli ${report.withoutResolutionDateCount} bug ancora sprovvisti.`,
+          },
+        ]
+      : []),
+  ];
+
+  const action2Presets: { key: string; label: string; text: string }[] = [
+    {
+      key: "test-management-out-of-scope",
+      label: t(
+        "defectManagementPage.sprintReport.statusCard.actionsPreset2TestManagementOutOfScope",
+      ),
+      text: "Test Management: Agente complesso fuori ambito, poiché il ruolo sarà implementato nello Sprint 3.",
+    },
+    {
+      key: "test-funzionali-not-executable",
+      label: t(
+        "defectManagementPage.sprintReport.statusCard.actionsPreset2TestFunzionaliNotExecutable",
+      ),
+      text: "Test funzionali: Rilevato un numero significativo di test case non eseguibili, poiché associati a funzionalità non ancora rilasciate ma incluse nel piano di test condiviso.",
+    },
+  ];
 
   // Same per-plan endpoint Plan Overview uses (uncached, fetched fresh by
   // plan ID) rather than the whole-org /api/dashboard, which is cached
@@ -743,15 +801,37 @@ export function SprintDefectReportTab({
             )}
             className={styles.statusCardField}
           >
-            <Textarea
-              value={actionText1}
-              placeholder={t(
-                "defectManagementPage.sprintReport.statusCard.actionsPlaceholder",
-              )}
-              rows={3}
-              resize="vertical"
-              onChange={(_, data) => setActionText1(data.value)}
-            />
+            <div className={styles.actionFieldBody}>
+              <Dropdown
+                expandIcon={<ChevronDownRegular className={styles.chevron} />}
+                placeholder={t(
+                  "defectManagementPage.sprintReport.statusCard.actionsPresetPlaceholder",
+                )}
+                selectedOptions={[]}
+                value=""
+                onOptionSelect={(_, data) => {
+                  const preset = action1Presets.find(
+                    (p) => p.key === data.optionValue,
+                  );
+                  if (preset) setActionText1(preset.text);
+                }}
+              >
+                {action1Presets.map((preset) => (
+                  <Option key={preset.key} value={preset.key} text={preset.label}>
+                    {preset.label}
+                  </Option>
+                ))}
+              </Dropdown>
+              <Textarea
+                value={actionText1}
+                placeholder={t(
+                  "defectManagementPage.sprintReport.statusCard.actionsPlaceholder",
+                )}
+                rows={3}
+                resize="vertical"
+                onChange={(_, data) => setActionText1(data.value)}
+              />
+            </div>
           </Field>
 
           <Field
@@ -760,15 +840,37 @@ export function SprintDefectReportTab({
             )}
             className={styles.statusCardField}
           >
-            <Textarea
-              value={actionText2}
-              placeholder={t(
-                "defectManagementPage.sprintReport.statusCard.actionsPlaceholder",
-              )}
-              rows={3}
-              resize="vertical"
-              onChange={(_, data) => setActionText2(data.value)}
-            />
+            <div className={styles.actionFieldBody}>
+              <Dropdown
+                expandIcon={<ChevronDownRegular className={styles.chevron} />}
+                placeholder={t(
+                  "defectManagementPage.sprintReport.statusCard.actionsPresetPlaceholder",
+                )}
+                selectedOptions={[]}
+                value=""
+                onOptionSelect={(_, data) => {
+                  const preset = action2Presets.find(
+                    (p) => p.key === data.optionValue,
+                  );
+                  if (preset) setActionText2(preset.text);
+                }}
+              >
+                {action2Presets.map((preset) => (
+                  <Option key={preset.key} value={preset.key} text={preset.label}>
+                    {preset.label}
+                  </Option>
+                ))}
+              </Dropdown>
+              <Textarea
+                value={actionText2}
+                placeholder={t(
+                  "defectManagementPage.sprintReport.statusCard.actionsPlaceholder",
+                )}
+                rows={3}
+                resize="vertical"
+                onChange={(_, data) => setActionText2(data.value)}
+              />
+            </div>
           </Field>
         </div>
 
