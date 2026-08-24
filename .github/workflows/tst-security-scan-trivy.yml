@@ -31,7 +31,8 @@ jobs:
           wget -q "https://github.com/aquasecurity/trivy/releases/download/v0.70.0/trivy_0.70.0_Linux-64bit.deb"
           sudo dpkg -i trivy_0.70.0_Linux-64bit.deb
           rm trivy_0.70.0_Linux-64bit.deb
-          wget -q "https://raw.githubusercontent.com/aquasecurity/trivy/v0.70.0/contrib/html.tpl" -O /tmp/trivy-html.tpl
+          # HTML template is optional – if download fails, HTML reports are skipped
+          wget -q "https://raw.githubusercontent.com/aquasecurity/trivy/v0.70.0/contrib/html.tpl" -O /tmp/trivy-html.tpl || true
 
       - name: Cache Trivy DB
         uses: actions/cache@v5
@@ -65,7 +66,7 @@ jobs:
             --output trivy-fs.json \
             --cache-dir ~/.cache/trivy \
             --skip-dirs node_modules
-          trivy fs . \
+          [ -f /tmp/trivy-html.tpl ] && trivy fs . \
             --scanners vuln \
             --severity CRITICAL,HIGH,MEDIUM,LOW \
             --exit-code 0 \
@@ -73,7 +74,7 @@ jobs:
             --template "@/tmp/trivy-html.tpl" \
             --output trivy-fs.html \
             --cache-dir ~/.cache/trivy \
-            --skip-dirs node_modules
+            --skip-dirs node_modules || true
         env:
           TRIVY_GITHUB_TOKEN: ${{ github.token }}
 
@@ -101,13 +102,13 @@ jobs:
             --format json \
             --output trivy-secrets.json \
             --cache-dir ~/.cache/trivy
-          trivy fs . \
+          [ -f /tmp/trivy-html.tpl ] && trivy fs . \
             --scanners secret \
             --exit-code 0 \
             --format template \
             --template "@/tmp/trivy-html.tpl" \
             --output trivy-secrets.html \
-            --cache-dir ~/.cache/trivy
+            --cache-dir ~/.cache/trivy || true
         env:
           TRIVY_GITHUB_TOKEN: ${{ github.token }}
 
@@ -132,13 +133,13 @@ jobs:
             --format json \
             --output trivy-iac.json \
             --cache-dir ~/.cache/trivy
-          trivy config . \
+          [ -f /tmp/trivy-html.tpl ] && trivy config . \
             --severity CRITICAL,HIGH,MEDIUM,LOW \
             --exit-code 0 \
             --format template \
             --template "@/tmp/trivy-html.tpl" \
             --output trivy-iac.html \
-            --cache-dir ~/.cache/trivy
+            --cache-dir ~/.cache/trivy || true
         env:
           TRIVY_GITHUB_TOKEN: ${{ github.token }}
 
