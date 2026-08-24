@@ -89,7 +89,8 @@ const ORIGIN_COLORS: Record<string, string> = {
 // color.
 const STATUS_COLORS: Record<string, string> = {
     closed: "#107c10",
-    resolved: "#8764b8",
+    daVerificare: "#8764b8",
+    inVerifica: "#00b7c3",
     inProgress: "#eda100",
     new: "#0078d4",
     reopened: "#d13438",
@@ -97,13 +98,14 @@ const STATUS_COLORS: Record<string, string> = {
 
 const STATUS_KEY_BY_NAME: Record<string, string> = {
     Closed: "closed",
-    Resolved: "resolved",
+    "Da verificare": "daVerificare",
+    "In verifica": "inVerifica",
     "In Progress": "inProgress",
     New: "new",
     Reopened: "reopened",
 };
 
-const STATUS_SORT_ORDER = ["new", "inProgress", "resolved", "reopened", "closed"];
+const STATUS_SORT_ORDER = ["new", "inProgress", "daVerificare", "inVerifica", "reopened", "closed"];
 
 // Severity is stored as e.g. "1 - Critical" (see SLA_THRESHOLD_DAYS in
 // src/defectData.ts); rendered here as "Critical(P1)" and ordered P1..Pn
@@ -127,8 +129,12 @@ function statusBucketOf(state: string): string {
         return "new";
     }
 
-    if (state === "Resolved" || state === "Da verificare" || state === "In verifica") {
-        return "resolved";
+    if (state === "Resolved" || state === "Da verificare") {
+        return "daVerificare";
+    }
+
+    if (state === "In verifica") {
+        return "inVerifica";
     }
 
     if (state === "Closed") {

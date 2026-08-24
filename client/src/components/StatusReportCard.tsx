@@ -3,6 +3,7 @@ import type { RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "@fluentui/react-components";
 import { SuiteProgressBar } from "./SuiteProgressBar";
+import { computeBugStatusData, computeStatusCardKpis } from "../utils/export";
 import type { Outcome, SprintDefectReport } from "../types";
 
 function formatUpdatedTimestamp(date: Date): {
@@ -39,11 +40,6 @@ function severityLabel(raw: string): string {
     return match ? match[2] : raw;
 }
 
-// The three severities this card always shows a chip for, even when a
-// severity has zero bugs - keeps the row's shape stable sprint to sprint
-// instead of chips appearing/disappearing as counts hit zero.
-const SEVERITY_KEYS = ["1 - Critical", "2 - High", "3 - Medium"];
-
 const SEVERITY_PALETTE = [
     { bg: "#442726", border: "#d13438", text: "#ff9b93" },
     { bg: "#3d3319", border: "#eda100", text: "#f4c669" },
@@ -51,14 +47,14 @@ const SEVERITY_PALETTE = [
 ];
 const SEVERITY_FALLBACK = { bg: "#2d2d2d", border: "#605e5c", text: "#c8c6c4" };
 
-// Order/colors match the reference status card: most-done to least-done,
-// left to right (green -> blue -> amber -> salmon), with "Reopened" (a bug
-// that regressed past QA sign-off, not just unstarted work) and the
-// out-of-scope "Not Applicable" bucket trailing at the end.
-const STATUS_ORDER = ["Closed", "Resolved", "In Progress", "New", "Reopened", "Not Applicable"];
+// Colors match the reference status card (green -> blue -> amber -> salmon),
+// with "Reopened" (a bug that regressed past QA sign-off, not just unstarted
+// work) and the out-of-scope "Not Applicable" bucket trailing at the end -
+// see EMAIL_STATUS_ORDER in export.ts for the shared ordering this follows.
 const STATUS_COLORS: Record<string, string> = {
     Closed: "#3fb950",
-    Resolved: "#0078d4",
+    "Da verificare": "#0078d4",
+    "In verifica": "#00b7c3",
     "In Progress": "#eda100",
     New: "#e8746c",
     Reopened: "#d13438",
@@ -66,7 +62,8 @@ const STATUS_COLORS: Record<string, string> = {
 };
 const STATUS_LABEL_KEYS: Record<string, string> = {
     Closed: "closed",
-    Resolved: "resolved",
+    "Da verificare": "daVerificare",
+    "In verifica": "inVerifica",
     "In Progress": "inProgress",
     New: "new",
     Reopened: "reopened",
@@ -158,9 +155,33 @@ const useStyles = makeStyles({
         fontSize: "13px",
         lineHeight: 1.4,
     },
-    kpiGrid: {
+    kpiSections: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+    },
+    kpiSection: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "6px",
+    },
+    kpiSectionTitle: {
+        fontSize: "11px",
+        fontWeight: 700,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        color: "#a0a0a0",
+        paddingBottom: "4px",
+        borderBottom: "1px solid #3b3a39",
+    },
+    kpiGrid5: {
         display: "grid",
-        gridTemplateColumns: "repeat(6, 1fr)",
+        gridTemplateColumns: "repeat(5, 1fr)",
+        gap: "8px",
+    },
+    kpiGrid4: {
+        display: "grid",
+        gridTemplateColumns: "repeat(4, 1fr)",
         gap: "8px",
     },
     kpiTile: {
@@ -398,6 +419,59 @@ export interface StatusReportCardProps {
     includeDsiSource?: boolean;
 }
 
+// Renders one row of severity chips (used for both the "all effective bugs"
+// and "still open" breakdowns below, which are identical except for which
+// entries/total they're fed).
+function SeverityChipsRow({
+    entries,
+    total,
+}: {
+    entries: readonly (readonly [string, number])[];
+    total: number;
+}) {
+    const styles = useStyles();
+
+    return (
+        <div className={styles.severityRow}>
+            {entries.map(([raw, count]) => {
+                const rank = severityRank(raw);
+                const palette = SEVERITY_PALETTE[rank - 1] ?? SEVERITY_FALLBACK;
+                const percent = total ? Math.round((count / total) * 100) : 0;
+
+                return (
+                    <div
+                        key={raw}
+                        className={styles.severityChip}
+                        style={{
+                            backgroundColor: palette.bg,
+                            borderColor: palette.border,
+                        }}
+                    >
+                        <span
+                            className={styles.severityCount}
+                            style={{ color: palette.text }}
+                        >
+                            {count}
+                        </span>
+                        <span
+                            className={styles.severityPercent}
+                            style={{ color: palette.text }}
+                        >
+                            {percent}%
+                        </span>
+                        <span
+                            className={styles.severityLabelText}
+                            style={{ color: palette.text }}
+                        >
+                            {severityLabel(raw)}
+                        </span>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 export const StatusReportCard = forwardRef<
     HTMLDivElement,
     StatusReportCardProps
@@ -427,100 +501,33 @@ export const StatusReportCard = forwardRef<
         []
     );
 
-    const totalTestCases = suiteGroups.reduce(
-        (sum, group) => sum + group.totalTestCases,
-        0
-    );
+    // Shared with export.ts's PDF/PPTX/email renderings so the live card
+    // never drifts from what gets exported for the same report.
+    const {
+        totalTestCases,
+        totalNotApplicable,
+        totalExecuted,
+        executedPct,
+        totalNotRun,
+        passRate,
+        notApplicableRate,
+        bugsClosed,
+        bugsClosedPct,
+        stillOpen,
+        reopenedPct,
+        avgClosureDays,
+        bugsByDsi,
+        bugsByUs,
+        criticalCount,
+    } = computeStatusCardKpis(suiteGroups, report);
 
-    // Pass rate = Passed / everything except NotApplicable - matches the
-    // per-suite pass rate shown in SuiteProgressBar. NotApplicable is
-    // excluded because those cases were never meant to run; every other
-    // outcome (including NotRun/Blocked/InProgress) still counts against
-    // the rate since it isn't a pass yet.
-    const totalPassed = suiteGroups.reduce(
-        (sum, group) => sum + group.outcomeCounts.Passed,
-        0
-    );
-    const totalNotApplicable = suiteGroups.reduce(
-        (sum, group) => sum + group.outcomeCounts.NotApplicable,
-        0
-    );
-    const totalDecided = totalTestCases - totalNotApplicable;
-    const passRate = totalDecided
-        ? Math.round((totalPassed / totalDecided) * 100)
-        : 0;
-    const notApplicableRate = totalTestCases
-        ? Math.round((totalNotApplicable / totalTestCases) * 100)
-        : 0;
-
-    // Bug status covers ALL detected bugs (including out-of-scope ones -
-    // they still need to be tracked to closure), so this and "still open"
-    // are measured against report.total via byStatusAll, not effectiveCount.
-    const bugsClosed = report.byStatusAll.Closed ?? 0;
-    const bugsClosedPct = report.total
-        ? Math.round((bugsClosed / report.total) * 100)
-        : 0;
-    const stillOpen = report.total - bugsClosed;
-
-    const reopenedPct = report.total
-        ? Math.round((report.reopenedCount / report.total) * 1000) / 10
-        : 0;
-    // Always shown as a number, even when there's no closed bug yet to
-    // compute a real average from - a blank/"N/A" tile reads as broken on
-    // the exported card, 0 reads as "nothing to report yet".
-    const avgClosureDays = Math.round(report.mttrDays ?? 0);
-
-    // Only non-closed bugs count here - a closed critical bug isn't
-    // something the reader still needs to act on.
-    const criticalCount = report.effectiveDefects.filter(
-        (bug) => bug.state !== "Closed" && severityRank(bug.severity ?? "") === 1
-    ).length;
-
-    // Closed/Resolved/In Progress/New are scoped to effective (in-scope)
-    // bugs via byStatus - out-of-scope bugs are pulled into their own "Not
-    // Applicable" bucket instead, so the two together still sum to
-    // report.total like byStatusAll used to.
-    const statusEntries = STATUS_ORDER.map((name) => [
-        name,
-        name === "Not Applicable"
-            ? report.outOfScopeCount
-            : report.byStatus[name] ?? 0,
-    ] as const).filter(([, count]) => count > 0);
-
-    // Severity distribution stays scoped to effective (in-scope) bugs only,
-    // matching the caption under the chips. Always shows all three known
-    // severities (defaulting missing ones to 0) rather than only the
-    // severities present in the data, so e.g. "Critical" doesn't just
-    // disappear from the row when there happen to be zero critical bugs.
-    const severityTotal = Object.values(report.bySeverity).reduce(
-        (sum, count) => sum + count,
-        0
-    );
-    const severityEntries = SEVERITY_KEYS.map(
-        (key) => [key, report.bySeverity[key] ?? 0] as const
-    );
-
-    // Same idea as severityEntries above, but scoped to effective bugs that
-    // are still open - lets the card show whether the remaining open work
-    // skews critical/high even after most bugs have been closed out.
-    const openSeverityCounts = report.effectiveDefects.reduce<
-        Record<string, number>
-    >((acc, bug) => {
-        if (bug.state === "Closed") {
-            return acc;
-        }
-
-        const key = bug.severity ?? "Unspecified";
-        acc[key] = (acc[key] ?? 0) + 1;
-        return acc;
-    }, {});
-    const openSeverityTotal = Object.values(openSeverityCounts).reduce(
-        (sum, count) => sum + count,
-        0
-    );
-    const openSeverityEntries = SEVERITY_KEYS.map(
-        (key) => [key, openSeverityCounts[key] ?? 0] as const
-    );
+    const {
+        statusEntries,
+        severityTotal,
+        severityEntries,
+        openSeverityTotal,
+        openSeverityEntries,
+    } = computeBugStatusData(report);
 
     const actionParagraphs = actionsText
         .split(/\n\s*\n/)
@@ -588,112 +595,179 @@ export const StatusReportCard = forwardRef<
                 </div>
             )}
 
-            <div className={styles.kpiGrid}>
-                <div className={styles.kpiTile}>
-                    <span className={styles.kpiValue} style={{ color: "#3aa0f3" }}>
-                        {totalTestCases}
+            <div className={styles.kpiSections}>
+                {/* Stato casi di test */}
+                <div className={styles.kpiSection}>
+                    <span className={styles.kpiSectionTitle}>
+                        🧪 {t("defectManagementPage.sprintReport.statusCard.kpis.testCasesSection")}
                     </span>
-                    <span className={styles.kpiLabel}>
-                        {t(
-                            "defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"
-                        )}
-                    </span>
-                </div>
-                <div className={styles.kpiTile}>
-                    <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
-                        {passRate}%
-                    </span>
-                    <span className={styles.kpiLabel}>
-                        {t(
-                            "defectManagementPage.sprintReport.statusCard.kpis.passRate"
-                        )}
-                    </span>
-                </div>
-                <div className={styles.kpiTile}>
-                    <span className={styles.kpiValue} style={{ color: "#f2b134" }}>
-                        {bugsClosed}/{report.total}
-                    </span>
-                    <span className={styles.kpiLabel}>
-                        {t(
-                            "defectManagementPage.sprintReport.statusCard.kpis.bugsClosed",
-                            { percent: bugsClosedPct }
-                        )}
-                    </span>
-                </div>
-                <div className={styles.kpiTile}>
-                    <span className={styles.kpiValue} style={{ color: "#ff6b6b" }}>
-                        {criticalCount}
-                    </span>
-                    <span className={styles.kpiLabel}>
-                        {t(
-                            "defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"
-                        )}
-                    </span>
-                </div>
-                <div className={styles.kpiTile}>
-                    <span className={styles.kpiValue} style={{ color: "#3aa0f3" }}>
-                        {report.reopenedCount}
-                    </span>
-                    <span className={styles.kpiLabel}>
-                        {t(
-                            "defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs",
-                            { percent: reopenedPct }
-                        )}
-                    </span>
-                </div>
-                <div className={styles.kpiTile}>
-                    <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
-                        {t("defectManagementPage.stats.days", {
-                            value: avgClosureDays,
-                        })}
-                    </span>
-                    <span className={styles.kpiLabel}>
-                        {t(
-                            "defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime"
-                        )}
-                    </span>
-                </div>
-                <div className={styles.kpiTile}>
-                    <span className={styles.kpiValue} style={{ color: "#b180d7" }}>
-                        {report.effectiveCount}/{report.total}
-                    </span>
-                    <span className={styles.kpiLabel}>
-                        {t(
-                            "defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"
-                        )}
-                    </span>
-                </div>
-                {report.outOfScopeCount > 0 && (
-                    <div className={styles.kpiTile}>
-                        <span className={styles.kpiValue} style={{ color: "#9e9e9e" }}>
-                            {report.outOfScopeCount}/{report.total}
-                        </span>
-                        <span className={styles.kpiLabel}>
-                            {t(
-                                "defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"
-                            )}
-                        </span>
+                    <div className={styles.kpiGrid5}>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#3aa0f3" }}>
+                                {totalTestCases}
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
+                                {totalExecuted} ({executedPct}%)
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.executedCount"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#8a8886" }}>
+                                {totalNotApplicable} ({notApplicableRate}%)
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.notApplicable"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#f2b134" }}>
+                                {totalNotRun}
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.notRun"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
+                                {passRate}%
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.passRate"
+                                )}
+                            </span>
+                        </div>
                     </div>
-                )}
-                <div className={styles.kpiTile}>
-                    <span className={styles.kpiValue} style={{ color: "#8a8886" }}>
-                        {report.withoutResolutionDateCount}
-                    </span>
-                    <span className={styles.kpiLabel}>
-                        {t(
-                            "defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"
-                        )}
-                    </span>
                 </div>
-                <div className={styles.kpiTile}>
-                    <span className={styles.kpiValue} style={{ color: "#8a8886" }}>
-                        {notApplicableRate}%
+
+                {/* Stato bug */}
+                <div className={styles.kpiSection}>
+                    <span className={styles.kpiSectionTitle}>
+                        🐛 {t("defectManagementPage.sprintReport.statusCard.kpis.bugsSection")}
                     </span>
-                    <span className={styles.kpiLabel}>
-                        {t(
-                            "defectManagementPage.sprintReport.statusCard.kpis.notApplicableRate"
+                    <div className={styles.kpiGrid4}>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#b180d7" }}>
+                                {report.effectiveCount}
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#9e9e9e" }}>
+                                {report.outOfScopeCount}
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"
+                                )}
+                            </span>
+                        </div>
+                        {includeDsiSource && (
+                            <>
+                                <div className={styles.kpiTile}>
+                                    <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
+                                        {bugsByUs}
+                                    </span>
+                                    <span className={styles.kpiLabel}>
+                                        {t(
+                                            "defectManagementPage.sprintReport.statusCard.kpis.bugsByUs"
+                                        )}
+                                    </span>
+                                </div>
+                                <div className={styles.kpiTile}>
+                                    <span className={styles.kpiValue} style={{ color: "#3aa0f3" }}>
+                                        {bugsByDsi}
+                                    </span>
+                                    <span className={styles.kpiLabel}>
+                                        {t(
+                                            "defectManagementPage.sprintReport.statusCard.kpis.bugsByDsi"
+                                        )}
+                                    </span>
+                                </div>
+                            </>
                         )}
-                    </span>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#3fb950" }}>
+                                {bugsClosed}
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.bugsClosedCount"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#f2b134" }}>
+                                {bugsClosed}/{report.total} ({bugsClosedPct}%)
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#ff6b6b" }}>
+                                {criticalCount}
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#3aa0f3" }}>
+                                {report.reopenedCount} ({reopenedPct}%)
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
+                                {t("defectManagementPage.stats.days", {
+                                    value: avgClosureDays,
+                                })}
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime"
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.kpiTile}>
+                            <span className={styles.kpiValue} style={{ color: "#8a8886" }}>
+                                {report.withoutResolutionDateCount}
+                            </span>
+                            <span className={styles.kpiLabel}>
+                                {t(
+                                    "defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"
+                                )}
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -840,46 +914,7 @@ export const StatusReportCard = forwardRef<
                     ))}
                 </span>
 
-                <div className={styles.severityRow}>
-                    {severityEntries.map(([raw, count]) => {
-                        const rank = severityRank(raw);
-                        const palette =
-                            SEVERITY_PALETTE[rank - 1] ?? SEVERITY_FALLBACK;
-                        const percent = severityTotal
-                            ? Math.round((count / severityTotal) * 100)
-                            : 0;
-
-                        return (
-                            <div
-                                key={raw}
-                                className={styles.severityChip}
-                                style={{
-                                    backgroundColor: palette.bg,
-                                    borderColor: palette.border,
-                                }}
-                            >
-                                <span
-                                    className={styles.severityCount}
-                                    style={{ color: palette.text }}
-                                >
-                                    {count}
-                                </span>
-                                <span
-                                    className={styles.severityPercent}
-                                    style={{ color: palette.text }}
-                                >
-                                    {percent}%
-                                </span>
-                                <span
-                                    className={styles.severityLabelText}
-                                    style={{ color: palette.text }}
-                                >
-                                    {severityLabel(raw)}
-                                </span>
-                            </div>
-                        );
-                    })}
-                </div>
+                <SeverityChipsRow entries={severityEntries} total={severityTotal} />
 
                 <span className={styles.severityCaption}>
                     {t(
@@ -888,46 +923,7 @@ export const StatusReportCard = forwardRef<
                     )}
                 </span>
 
-                <div className={styles.severityRow}>
-                    {openSeverityEntries.map(([raw, count]) => {
-                        const rank = severityRank(raw);
-                        const palette =
-                            SEVERITY_PALETTE[rank - 1] ?? SEVERITY_FALLBACK;
-                        const percent = openSeverityTotal
-                            ? Math.round((count / openSeverityTotal) * 100)
-                            : 0;
-
-                        return (
-                            <div
-                                key={raw}
-                                className={styles.severityChip}
-                                style={{
-                                    backgroundColor: palette.bg,
-                                    borderColor: palette.border,
-                                }}
-                            >
-                                <span
-                                    className={styles.severityCount}
-                                    style={{ color: palette.text }}
-                                >
-                                    {count}
-                                </span>
-                                <span
-                                    className={styles.severityPercent}
-                                    style={{ color: palette.text }}
-                                >
-                                    {percent}%
-                                </span>
-                                <span
-                                    className={styles.severityLabelText}
-                                    style={{ color: palette.text }}
-                                >
-                                    {severityLabel(raw)}
-                                </span>
-                            </div>
-                        );
-                    })}
-                </div>
+                <SeverityChipsRow entries={openSeverityEntries} total={openSeverityTotal} />
 
                 <span className={styles.severityCaption}>
                     {t(
