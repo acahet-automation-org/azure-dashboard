@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { EventType } from "@azure/msal-browser";
 import { MsalProvider } from "@azure/msal-react";
+import "./index.css";
 import "./i18n";
 import { msalInstance } from "./msalInstance";
 import { ThemeModeProvider } from "./hooks/ThemeModeProvider";

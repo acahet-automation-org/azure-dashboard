@@ -55,6 +55,15 @@
             "title": "Connecting to Azure DevOps",
             "intro": "The dashboard only loads data once it has a valid Azure DevOps Personal Access Token (AZDO_PAT) configured on the server:"
         },
+        "navSectionTitle": "What's in the menu",
+        "navSections": {
+            "dashboard": "Your at-a-glance view of overall test execution and pass rates.",
+            "plans": "Browse and drill into Azure DevOps test plans and suites.",
+            "defects": "Track and manage defects linked to test executions.",
+            "automation-dashboard": "Coverage and health of automated test suites.",
+            "dynamic-sprint-report": "Build a report scoped to an area path, sprint, and test plan.",
+            "my-work-items": "Work items assigned to, mentioned, or created by you."
+        },
         "gotIt": "Got it"
     },
     "azdoConnectionError": {
