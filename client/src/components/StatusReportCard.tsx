@@ -3,6 +3,7 @@ import type { RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "@fluentui/react-components";
 import { SuiteProgressBar } from "./SuiteProgressBar";
+import { computeBugStatusData, computeStatusCardKpis } from "../utils/export";
 import type { Outcome, SprintDefectReport } from "../types";
 
 function formatUpdatedTimestamp(date: Date): {
@@ -39,11 +40,6 @@ function severityLabel(raw: string): string {
     return match ? match[2] : raw;
 }
 
-// The three severities this card always shows a chip for, even when a
-// severity has zero bugs - keeps the row's shape stable sprint to sprint
-// instead of chips appearing/disappearing as counts hit zero.
-const SEVERITY_KEYS = ["1 - Critical", "2 - High", "3 - Medium"];
-
 const SEVERITY_PALETTE = [
     { bg: "#442726", border: "#d13438", text: "#ff9b93" },
     { bg: "#3d3319", border: "#eda100", text: "#f4c669" },
@@ -51,11 +47,10 @@ const SEVERITY_PALETTE = [
 ];
 const SEVERITY_FALLBACK = { bg: "#2d2d2d", border: "#605e5c", text: "#c8c6c4" };
 
-// Order/colors match the reference status card: most-done to least-done,
-// left to right (green -> blue -> amber -> salmon), with "Reopened" (a bug
-// that regressed past QA sign-off, not just unstarted work) and the
-// out-of-scope "Not Applicable" bucket trailing at the end.
-const STATUS_ORDER = ["Closed", "Da verificare", "In verifica", "In Progress", "New", "Reopened", "Not Applicable"];
+// Colors match the reference status card (green -> blue -> amber -> salmon),
+// with "Reopened" (a bug that regressed past QA sign-off, not just unstarted
+// work) and the out-of-scope "Not Applicable" bucket trailing at the end -
+// see EMAIL_STATUS_ORDER in export.ts for the shared ordering this follows.
 const STATUS_COLORS: Record<string, string> = {
     Closed: "#3fb950",
     "Da verificare": "#0078d4",
@@ -424,6 +419,59 @@ export interface StatusReportCardProps {
     includeDsiSource?: boolean;
 }
 
+// Renders one row of severity chips (used for both the "all effective bugs"
+// and "still open" breakdowns below, which are identical except for which
+// entries/total they're fed).
+function SeverityChipsRow({
+    entries,
+    total,
+}: {
+    entries: readonly (readonly [string, number])[];
+    total: number;
+}) {
+    const styles = useStyles();
+
+    return (
+        <div className={styles.severityRow}>
+            {entries.map(([raw, count]) => {
+                const rank = severityRank(raw);
+                const palette = SEVERITY_PALETTE[rank - 1] ?? SEVERITY_FALLBACK;
+                const percent = total ? Math.round((count / total) * 100) : 0;
+
+                return (
+                    <div
+                        key={raw}
+                        className={styles.severityChip}
+                        style={{
+                            backgroundColor: palette.bg,
+                            borderColor: palette.border,
+                        }}
+                    >
+                        <span
+                            className={styles.severityCount}
+                            style={{ color: palette.text }}
+                        >
+                            {count}
+                        </span>
+                        <span
+                            className={styles.severityPercent}
+                            style={{ color: palette.text }}
+                        >
+                            {percent}%
+                        </span>
+                        <span
+                            className={styles.severityLabelText}
+                            style={{ color: palette.text }}
+                        >
+                            {severityLabel(raw)}
+                        </span>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 export const StatusReportCard = forwardRef<
     HTMLDivElement,
     StatusReportCardProps
@@ -453,133 +501,33 @@ export const StatusReportCard = forwardRef<
         []
     );
 
-    const totalTestCases = suiteGroups.reduce(
-        (sum, group) => sum + group.totalTestCases,
-        0
-    );
+    // Shared with export.ts's PDF/PPTX/email renderings so the live card
+    // never drifts from what gets exported for the same report.
+    const {
+        totalTestCases,
+        totalNotApplicable,
+        totalExecuted,
+        executedPct,
+        totalNotRun,
+        passRate,
+        notApplicableRate,
+        bugsClosed,
+        bugsClosedPct,
+        stillOpen,
+        reopenedPct,
+        avgClosureDays,
+        bugsByDsi,
+        bugsByUs,
+        criticalCount,
+    } = computeStatusCardKpis(suiteGroups, report);
 
-    // Pass rate = Passed / everything except NotApplicable - matches the
-    // per-suite pass rate shown in SuiteProgressBar. NotApplicable is
-    // excluded because those cases were never meant to run; every other
-    // outcome (including NotRun/Blocked/InProgress) still counts against
-    // the rate since it isn't a pass yet.
-    const totalPassed = suiteGroups.reduce(
-        (sum, group) => sum + group.outcomeCounts.Passed,
-        0
-    );
-    const totalNotApplicable = suiteGroups.reduce(
-        (sum, group) => sum + group.outcomeCounts.NotApplicable,
-        0
-    );
-    const totalDecided = totalTestCases - totalNotApplicable;
-    const passRate = totalDecided
-        ? Math.round((totalPassed / totalDecided) * 100)
-        : 0;
-    const notApplicableRate = totalTestCases
-        ? Math.round((totalNotApplicable / totalTestCases) * 100)
-        : 0;
-
-    const totalFailed = suiteGroups.reduce(
-        (sum, group) => sum + group.outcomeCounts.Failed,
-        0
-    );
-    const totalBlocked = suiteGroups.reduce(
-        (sum, group) => sum + group.outcomeCounts.Blocked,
-        0
-    );
-    // Executed = Passed + Failed + Blocked, deliberately NOT including
-    // NotApplicable - even though marking a test point N/A still requires a
-    // tester to open and assess it, this KPI tracks cases that reached a
-    // pass/fail-style verdict, not "was looked at". SuiteProgressBar uses a
-    // different, more inclusive definition (totalTestCases - NotRun, which
-    // counts NotApplicable as executed) - the two are intentionally
-    // different metrics, not a bug, but they will disagree on the same
-    // suite's numbers if compared directly.
-    const totalExecuted = totalPassed + totalFailed + totalBlocked;
-    const executedPct = totalTestCases
-        ? Math.round((totalExecuted / totalTestCases) * 100)
-        : 0;
-    const totalNotRun = totalTestCases - totalExecuted - totalNotApplicable;
-
-    // Bug status covers ALL detected bugs (including out-of-scope ones -
-    // they still need to be tracked to closure), so this and "still open"
-    // are measured against report.total via byStatusAll, not effectiveCount.
-    const bugsClosed = report.byStatusAll.Closed ?? 0;
-    const bugsClosedPct = report.total
-        ? Math.round((bugsClosed / report.total) * 100)
-        : 0;
-    const stillOpen = report.total - bugsClosed;
-
-    const reopenedPct = report.total
-        ? Math.round((report.reopenedCount / report.total) * 1000) / 10
-        : 0;
-    // Always shown as a number, even when there's no closed bug yet to
-    // compute a real average from - a blank/"N/A" tile reads as broken on
-    // the exported card, 0 reads as "nothing to report yet".
-    const avgClosureDays = Math.round(report.mttrDays ?? 0);
-
-    const bugsByDsi = report.byOriginDetected["DSI"] ?? 0;
-    const bugsByUs = report.total - bugsByDsi;
-
-    // Only non-closed bugs count here - a closed critical bug isn't
-    // something the reader still needs to act on.
-    const criticalCount = report.effectiveDefects.filter(
-        (bug) => bug.state !== "Closed" && severityRank(bug.severity ?? "") === 1
-    ).length;
-
-    // Closed/Resolved/In Progress/New are scoped to effective (in-scope)
-    // bugs via byStatus - out-of-scope bugs are pulled into their own "Not
-    // Applicable" bucket instead, so the two together still sum to
-    // report.total like byStatusAll used to.
-    const statusEntries = STATUS_ORDER.map((name) => [
-        name,
-        name === "Not Applicable"
-            ? report.outOfScopeCount
-            : report.byStatus[name] ?? 0,
-    ] as const).filter(([, count]) => count > 0);
-
-    // Severity distribution stays scoped to effective (in-scope) bugs only,
-    // matching the caption under the chips. Always shows all three known
-    // severities (defaulting missing ones to 0) rather than only the
-    // severities present in the data, so e.g. "Critical" doesn't just
-    // disappear from the row when there happen to be zero critical bugs.
-    const severityTotal = Object.values(report.bySeverity).reduce(
-        (sum, count) => sum + count,
-        0
-    );
-    const severityEntries = [
-        ...SEVERITY_KEYS.map((key) => [key, report.bySeverity[key] ?? 0] as const),
-        ...Object.entries(report.bySeverity)
-            .filter(([key, count]) => !SEVERITY_KEYS.includes(key) && count > 0)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([key, count]) => [key, count] as const),
-    ];
-
-    // Same idea as severityEntries above, but scoped to effective bugs that
-    // are still open - lets the card show whether the remaining open work
-    // skews critical/high even after most bugs have been closed out.
-    const openSeverityCounts = report.effectiveDefects.reduce<
-        Record<string, number>
-    >((acc, bug) => {
-        if (bug.state === "Closed") {
-            return acc;
-        }
-
-        const key = bug.severity ?? "Unspecified";
-        acc[key] = (acc[key] ?? 0) + 1;
-        return acc;
-    }, {});
-    const openSeverityTotal = Object.values(openSeverityCounts).reduce(
-        (sum, count) => sum + count,
-        0
-    );
-    const openSeverityEntries = [
-        ...SEVERITY_KEYS.map((key) => [key, openSeverityCounts[key] ?? 0] as const),
-        ...Object.entries(openSeverityCounts)
-            .filter(([key, count]) => !SEVERITY_KEYS.includes(key) && count > 0)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([key, count]) => [key, count] as const),
-    ];
+    const {
+        statusEntries,
+        severityTotal,
+        severityEntries,
+        openSeverityTotal,
+        openSeverityEntries,
+    } = computeBugStatusData(report);
 
     const actionParagraphs = actionsText
         .split(/\n\s*\n/)
@@ -966,46 +914,7 @@ export const StatusReportCard = forwardRef<
                     ))}
                 </span>
 
-                <div className={styles.severityRow}>
-                    {severityEntries.map(([raw, count]) => {
-                        const rank = severityRank(raw);
-                        const palette =
-                            SEVERITY_PALETTE[rank - 1] ?? SEVERITY_FALLBACK;
-                        const percent = severityTotal
-                            ? Math.round((count / severityTotal) * 100)
-                            : 0;
-
-                        return (
-                            <div
-                                key={raw}
-                                className={styles.severityChip}
-                                style={{
-                                    backgroundColor: palette.bg,
-                                    borderColor: palette.border,
-                                }}
-                            >
-                                <span
-                                    className={styles.severityCount}
-                                    style={{ color: palette.text }}
-                                >
-                                    {count}
-                                </span>
-                                <span
-                                    className={styles.severityPercent}
-                                    style={{ color: palette.text }}
-                                >
-                                    {percent}%
-                                </span>
-                                <span
-                                    className={styles.severityLabelText}
-                                    style={{ color: palette.text }}
-                                >
-                                    {severityLabel(raw)}
-                                </span>
-                            </div>
-                        );
-                    })}
-                </div>
+                <SeverityChipsRow entries={severityEntries} total={severityTotal} />
 
                 <span className={styles.severityCaption}>
                     {t(
@@ -1014,46 +923,7 @@ export const StatusReportCard = forwardRef<
                     )}
                 </span>
 
-                <div className={styles.severityRow}>
-                    {openSeverityEntries.map(([raw, count]) => {
-                        const rank = severityRank(raw);
-                        const palette =
-                            SEVERITY_PALETTE[rank - 1] ?? SEVERITY_FALLBACK;
-                        const percent = openSeverityTotal
-                            ? Math.round((count / openSeverityTotal) * 100)
-                            : 0;
-
-                        return (
-                            <div
-                                key={raw}
-                                className={styles.severityChip}
-                                style={{
-                                    backgroundColor: palette.bg,
-                                    borderColor: palette.border,
-                                }}
-                            >
-                                <span
-                                    className={styles.severityCount}
-                                    style={{ color: palette.text }}
-                                >
-                                    {count}
-                                </span>
-                                <span
-                                    className={styles.severityPercent}
-                                    style={{ color: palette.text }}
-                                >
-                                    {percent}%
-                                </span>
-                                <span
-                                    className={styles.severityLabelText}
-                                    style={{ color: palette.text }}
-                                >
-                                    {severityLabel(raw)}
-                                </span>
-                            </div>
-                        );
-                    })}
-                </div>
+                <SeverityChipsRow entries={openSeverityEntries} total={openSeverityTotal} />
 
                 <span className={styles.severityCaption}>
                     {t(

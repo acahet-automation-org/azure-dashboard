@@ -392,8 +392,7 @@ function buildPdfDocument(
             headStyles: { fillColor: [0, 90, 158] },
         });
 
-        nextY = (doc as unknown as { lastAutoTable: { finalY: number } })
-            .lastAutoTable.finalY + 10;
+        nextY = getLastAutoTableY(doc, 10);
     }
 
     if (rows.length > 0) {
@@ -407,8 +406,7 @@ function buildPdfDocument(
             headStyles: { fillColor: [0, 90, 158] },
         });
 
-        nextY = (doc as unknown as { lastAutoTable: { finalY: number } })
-            .lastAutoTable.finalY + 10;
+        nextY = getLastAutoTableY(doc, 10);
     }
 
     if (!suiteHeader && suiteBugTotals && suiteBugTotals.length > 0) {
@@ -471,6 +469,16 @@ function ensurePdfSpace(
     }
 
     return currentY;
+}
+
+// jspdf-autotable augments the doc instance with `lastAutoTable` at runtime
+// without a typed declaration, hence the cast - centralized here so every
+// "position the next block below the table I just drew" call reads the same.
+function getLastAutoTableY(doc: jsPDF, offset: number): number {
+    return (
+        (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable
+            .finalY + offset
+    );
 }
 
 const PDF_CHART_GAP = 6;
@@ -537,6 +545,44 @@ interface PlanOverviewSuiteSection {
     chart?: ChartImage | null;
 }
 
+// Shared by buildPlanOverviewPdfDocument's suite section and
+// buildPlanOverviewSuitePdfBase64 so a suite's chart-then-bugs block below
+// its summary table is laid out identically in both PDFs.
+function drawPdfSuiteChartAndBugs(
+    doc: jsPDF,
+    chart: ChartImage | null | undefined,
+    bugs: BugInfo[]
+): number {
+    let nextY = getLastAutoTableY(doc, 10);
+
+    if (chart) {
+        nextY = addChartImagesRow(doc, [chart], nextY);
+    }
+
+    if (bugs.length > 0) {
+        nextY = ensurePdfSpace(doc, nextY, 20);
+
+        doc.setFontSize(12);
+        doc.text("Bugs", PDF_MARGIN, nextY);
+        nextY += 4;
+
+        autoTable(doc, {
+            startY: nextY,
+            head: [["ID", "Title", "State", "Creator"]],
+            body: bugs.map((bug) => [
+                String(bug.id),
+                bug.title,
+                bug.state,
+                bug.creator ?? "",
+            ]),
+            styles: { fontSize: 8 },
+            headStyles: { fillColor: [0, 90, 158] },
+        });
+    }
+
+    return nextY;
+}
+
 function buildPlanOverviewPdfDocument(
     data: PlanOverviewResponse,
     charts: ChartImage[] = [],
@@ -591,9 +637,7 @@ function buildPlanOverviewPdfDocument(
         headStyles: { fillColor: [0, 90, 158] },
     });
 
-    let nextY =
-        (doc as unknown as { lastAutoTable: { finalY: number } })
-            .lastAutoTable.finalY + 10;
+    let nextY = getLastAutoTableY(doc, 10);
 
     nextY = addChartImagesRow(doc, charts, nextY);
 
@@ -617,9 +661,7 @@ function buildPlanOverviewPdfDocument(
             headStyles: { fillColor: [0, 90, 158] },
         });
 
-        nextY =
-            (doc as unknown as { lastAutoTable: { finalY: number } })
-                .lastAutoTable.finalY + 10;
+        nextY = getLastAutoTableY(doc, 10);
     }
 
     if (suiteSection) {
@@ -677,34 +719,7 @@ function buildPlanOverviewPdfDocument(
             headStyles: { fillColor: [0, 90, 158] },
         });
 
-        nextY =
-            (doc as unknown as { lastAutoTable: { finalY: number } })
-                .lastAutoTable.finalY + 10;
-
-        if (chart) {
-            nextY = addChartImagesRow(doc, [chart], nextY);
-        }
-
-        if (suite.bugs.length > 0) {
-            nextY = ensurePdfSpace(doc, nextY, 20);
-
-            doc.setFontSize(12);
-            doc.text("Bugs", PDF_MARGIN, nextY);
-            nextY += 4;
-
-            autoTable(doc, {
-                startY: nextY,
-                head: [["ID", "Title", "State", "Creator"]],
-                body: suite.bugs.map((bug) => [
-                    String(bug.id),
-                    bug.title,
-                    bug.state,
-                    bug.creator ?? "",
-                ]),
-                styles: { fontSize: 8 },
-                headStyles: { fillColor: [0, 90, 158] },
-            });
-        }
+        drawPdfSuiteChartAndBugs(doc, chart, suite.bugs);
     }
 
     return doc;
@@ -766,34 +781,7 @@ export function buildPlanOverviewSuitePdfBase64(
         headStyles: { fillColor: [0, 90, 158] },
     });
 
-    let nextY =
-        (doc as unknown as { lastAutoTable: { finalY: number } })
-            .lastAutoTable.finalY + 10;
-
-    if (chart) {
-        nextY = addChartImagesRow(doc, [chart], nextY);
-    }
-
-    if (suite.bugs.length > 0) {
-        nextY = ensurePdfSpace(doc, nextY, 20);
-
-        doc.setFontSize(12);
-        doc.text("Bugs", PDF_MARGIN, nextY);
-        nextY += 4;
-
-        autoTable(doc, {
-            startY: nextY,
-            head: [["ID", "Title", "State", "Creator"]],
-            body: suite.bugs.map((bug) => [
-                String(bug.id),
-                bug.title,
-                bug.state,
-                bug.creator ?? "",
-            ]),
-            styles: { fontSize: 8 },
-            headStyles: { fillColor: [0, 90, 158] },
-        });
-    }
+    drawPdfSuiteChartAndBugs(doc, chart, suite.bugs);
 
     return pdfDocToBase64(doc);
 }
@@ -865,9 +853,7 @@ function buildPlanProgressPdfDocument(
         headStyles: { fillColor: [0, 90, 158] },
     });
 
-    let nextY =
-        (doc as unknown as { lastAutoTable: { finalY: number } })
-            .lastAutoTable.finalY + 10;
+    let nextY = getLastAutoTableY(doc, 10);
 
     nextY = addChartImagesRow(doc, charts, nextY);
 
@@ -909,7 +895,8 @@ function buildPlanProgressPdfDocument(
 
 // Severity is stored as e.g. "1 - Critical", so sorting by the leading rank
 // number naturally orders Critical, High, Medium, ... to match the chart.
-function severityRank(raw: string): number {
+// Exported so StatusReportCard.tsx uses the same ranking as every export.
+export function severityRank(raw: string): number {
     const match = /^(\d+)\s*-/.exec(raw);
     return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
 }
@@ -1321,101 +1308,30 @@ export function buildStatusReportCardEmailBodyHtml(
 
     const { datePart, timePart } = formatEmailTimestamp(new Date());
 
-    const totalTestCases = suiteGroups.reduce(
-        (sum, group) => sum + group.totalTestCases,
-        0
-    );
-    const totalPassed = suiteGroups.reduce(
-        (sum, group) => sum + group.outcomeCounts.Passed,
-        0
-    );
-    const totalNotApplicable = suiteGroups.reduce(
-        (sum, group) => sum + group.outcomeCounts.NotApplicable,
-        0
-    );
-    const totalDecided = totalTestCases - totalNotApplicable;
-    const passRate = totalDecided
-        ? Math.round((totalPassed / totalDecided) * 100)
-        : 0;
-    const notApplicableRate = totalTestCases
-        ? Math.round((totalNotApplicable / totalTestCases) * 100)
-        : 0;
+    const {
+        totalTestCases,
+        totalNotApplicable,
+        totalExecuted,
+        executedPct,
+        totalNotRun,
+        passRate,
+        notApplicableRate,
+        bugsClosed,
+        bugsClosedPct,
+        stillOpen,
+        reopenedPct,
+        avgClosureDays,
+        bugsByDsi,
+        bugsByUs,
+    } = computeStatusCardKpis(suiteGroups, report);
 
-    const totalFailed = suiteGroups.reduce(
-        (sum, group) => sum + group.outcomeCounts.Failed,
-        0
-    );
-    const totalBlocked = suiteGroups.reduce(
-        (sum, group) => sum + group.outcomeCounts.Blocked,
-        0
-    );
-    // Excludes NotApplicable on purpose - see the matching comment on
-    // totalExecuted in StatusReportCard.tsx for why, and for the different
-    // (more inclusive) definition SuiteProgressBar uses.
-    const totalExecuted = totalPassed + totalFailed + totalBlocked;
-    const executedPct = totalTestCases
-        ? Math.round((totalExecuted / totalTestCases) * 100)
-        : 0;
-    const totalNotRun = totalTestCases - totalExecuted - totalNotApplicable;
-
-    const bugsClosed = report.byStatusAll.Closed ?? 0;
-    const bugsClosedPct = report.total
-        ? Math.round((bugsClosed / report.total) * 100)
-        : 0;
-    const stillOpen = report.total - bugsClosed;
-    const reopenedPct = report.total
-        ? Math.round((report.reopenedCount / report.total) * 1000) / 10
-        : 0;
-    const avgClosureDays = Math.round(report.mttrDays ?? 0);
-    const bugsByDsi = report.byOriginDetected["DSI"] ?? 0;
-    const bugsByUs = report.total - bugsByDsi;
-
-    const statusEntries = EMAIL_STATUS_ORDER.map(
-        (name) =>
-            [
-                name,
-                name === "Not Applicable"
-                    ? report.outOfScopeCount
-                    : report.byStatus[name] ?? 0,
-            ] as const
-    ).filter(([, count]) => count > 0);
-
-    const severityTotal = Object.values(report.bySeverity).reduce(
-        (sum, count) => sum + count,
-        0
-    );
-    const severityEntries: (readonly [string, number])[] = [
-        ...EMAIL_SEVERITY_KEYS.map((key) => [key, report.bySeverity[key] ?? 0] as const),
-        ...Object.entries(report.bySeverity)
-            .filter(([key, count]) => !EMAIL_SEVERITY_KEYS.includes(key) && count > 0)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([key, count]) => [key, count] as const),
-    ];
-
-    // Same idea as severityEntries above, but scoped to effective bugs that
-    // are still open - mirrors StatusReportCard.tsx's openSeverityEntries.
-    const openSeverityCounts = report.effectiveDefects.reduce<
-        Record<string, number>
-    >((acc, bug) => {
-        if (bug.state === "Closed") {
-            return acc;
-        }
-
-        const key = bug.severity ?? "Unspecified";
-        acc[key] = (acc[key] ?? 0) + 1;
-        return acc;
-    }, {});
-    const openSeverityTotal = Object.values(openSeverityCounts).reduce(
-        (sum, count) => sum + count,
-        0
-    );
-    const openSeverityEntries: (readonly [string, number])[] = [
-        ...EMAIL_SEVERITY_KEYS.map((key) => [key, openSeverityCounts[key] ?? 0] as const),
-        ...Object.entries(openSeverityCounts)
-            .filter(([key, count]) => !EMAIL_SEVERITY_KEYS.includes(key) && count > 0)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([key, count]) => [key, count] as const),
-    ];
+    const {
+        statusEntries,
+        severityTotal,
+        severityEntries,
+        openSeverityTotal,
+        openSeverityEntries,
+    } = computeBugStatusData(report);
 
     const actionParagraphs = actionsText
         .split(/\n\s*\n/)
@@ -1794,7 +1710,7 @@ function pdfSeverityChipsRow(
     return rowBottom + 6;
 }
 
-interface StatusCardKpis {
+export interface StatusCardKpis {
     totalTestCases: number;
     totalPassed: number;
     totalNotApplicable: number;
@@ -1809,12 +1725,15 @@ interface StatusCardKpis {
     stillOpen: number;
     reopenedPct: number;
     avgClosureDays: number;
+    bugsByDsi: number;
+    bugsByUs: number;
     criticalCount: number;
 }
 
-// Shared by the PDF and PPTX status card exports so the two renderings never
-// drift apart on how a rate/percentage is derived from the raw report.
-function computeStatusCardKpis(
+// Shared by the on-screen card, PDF/PPTX exports, and email body so all four
+// renderings never drift apart on how a rate/percentage is derived from the
+// raw report.
+export function computeStatusCardKpis(
     suiteGroups: SuiteProgressGroup[],
     report: SprintDefectReport
 ): StatusCardKpis {
@@ -1846,6 +1765,8 @@ function computeStatusCardKpis(
         ? Math.round((report.reopenedCount / report.total) * 1000) / 10
         : 0;
     const avgClosureDays = Math.round(report.mttrDays ?? 0);
+    const bugsByDsi = report.byOriginDetected["DSI"] ?? 0;
+    const bugsByUs = report.total - bugsByDsi;
 
     // Only non-closed bugs count here - a closed critical bug isn't
     // something the reader still needs to act on. Mirrors
@@ -1870,11 +1791,13 @@ function computeStatusCardKpis(
         stillOpen,
         reopenedPct,
         avgClosureDays,
+        bugsByDsi,
+        bugsByUs,
         criticalCount,
     };
 }
 
-interface BugStatusData {
+export interface BugStatusData {
     statusEntries: (readonly [string, number])[];
     statusSegments: { color: string; pct: number }[];
     severityTotal: number;
@@ -1883,9 +1806,10 @@ interface BugStatusData {
     openSeverityEntries: (readonly [string, number])[];
 }
 
-// Shared by the PDF and PPTX bug status sections - both render the same
-// status/severity breakdown, just with a different renderer underneath.
-function computeBugStatusData(report: SprintDefectReport): BugStatusData {
+// Shared by the PDF, PPTX, and email bug status sections, plus the on-screen
+// card - all render the same status/severity breakdown, just with a
+// different renderer underneath.
+export function computeBugStatusData(report: SprintDefectReport): BugStatusData {
     const statusEntries = EMAIL_STATUS_ORDER.map(
         (name) =>
             [
