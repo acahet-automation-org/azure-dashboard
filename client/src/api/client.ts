@@ -95,10 +95,20 @@ export function fetchRuns(project?: string): Promise<RunCard[]> {
     return getJson(`/api/runs${qs}`);
 }
 
-export function fetchPlans(project?: string): Promise<TestPlanSummary[]> {
-    const qs = project ? `?project=${encodeURIComponent(project)}` : "";
+export function fetchPlans(
+    project?: string,
+    areaPath?: string,
+    iteration?: string
+): Promise<TestPlanSummary[]> {
+    const params = new URLSearchParams();
 
-    return getJson(`/api/plans${qs}`);
+    if (project) params.set("project", project);
+    if (areaPath) params.set("areaPath", areaPath);
+    if (iteration) params.set("iteration", iteration);
+
+    const qs = params.toString();
+
+    return getJson(`/api/plans${qs ? `?${qs}` : ""}`);
 }
 
 export function fetchIterations(project?: string): Promise<IterationNode[]> {

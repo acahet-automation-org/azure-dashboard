@@ -1,16 +1,9 @@
 import { useMemo, useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import {
-    Dropdown,
-    Option,
-    Field,
-    Text,
-    makeStyles,
-    tokens,
-} from "@fluentui/react-components";
-import { ChevronDownRegular } from "@fluentui/react-icons";
+import { Text, makeStyles, tokens } from "@fluentui/react-components";
 import { PageLayout } from "../components/PageLayout";
+import { ReportSidebar } from "../components/ReportSidebar";
 import { LoadingCardGrid } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { DefectFilterBar } from "../components/DefectFilterBar";
@@ -22,30 +15,24 @@ import {
     fetchDefects,
 } from "../api/client";
 import { useScope } from "../hooks/useScope";
+import { useCheckedTestPlans } from "../hooks/useCheckedTestPlans";
 import type { DefectFilterOptions, DefectFilters } from "../types";
 
 const useStyles = makeStyles({
-    filters: {
-        display: "flex",
-        flexWrap: "wrap",
-        gap: tokens.spacingHorizontalM,
-        alignItems: "flex-end",
-    },
-    field: {
-        minWidth: "220px",
-        flex: "1 1 220px",
-    },
-    chevron: {
-        color: tokens.colorBrandForeground1,
-        fontSize: "18px",
-    },
-    dropdownButton: {
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-    },
     hint: {
         color: tokens.colorNeutralForeground3,
+    },
+    layout: {
+        display: "flex",
+        gap: tokens.spacingHorizontalXL,
+        alignItems: "flex-start",
+    },
+    main: {
+        flex: "1 1 auto",
+        minWidth: 0,
+        display: "flex",
+        flexDirection: "column",
+        gap: tokens.spacingVerticalL,
     },
 });
 
@@ -54,7 +41,6 @@ export function DynamicSprintReportPage() {
     const styles = useStyles();
     const scope = useScope();
 
-    const [selectedPlanIds, setSelectedPlanIds] = useState<number[]>([]);
     const [localFilters, setLocalFilters] = useState<DefectFilters>({
         iteration: "",
         area: "",
@@ -69,29 +55,36 @@ export function DynamicSprintReportPage() {
         area: scope.areaPath,
     };
 
-    const { data: plans } = useQuery({
-        queryKey: ["plans", scope.project],
-        queryFn: () => fetchPlans(scope.project),
-        enabled: scope.isComplete,
+    // Hard-filtered server-side to the selected area path + sprint (see
+    // ReportSidebar) - this is the whole point of the sidebar, so unlike
+    // the old project-wide dropdown there's no soft-match fallback: a plan
+    // whose own areaPath/iteration metadata is missing or wrong in Azure
+    // DevOps simply won't appear under any area+sprint combo here.
+    const { data: plans, isLoading: plansLoading } = useQuery({
+        queryKey: ["plans", scope.project, scope.areaPath, scope.sprint],
+        queryFn: () => fetchPlans(scope.project, scope.areaPath, scope.sprint),
+        enabled: scope.isComplete && !!scope.areaPath && !!scope.sprint,
     });
 
-    // Plans whose own iteration/area metadata match the current selection
-    // are surfaced first - shown as a hint, not enforced, since that
-    // metadata isn't always set reliably on every plan.
     const sortedPlans = useMemo(() => {
-        const list = plans ?? [];
+        return [...(plans ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+    }, [plans]);
 
-        return [...list].sort((a, b) => {
-            const aMatches = a.iteration === scope.sprint || a.areaPath === scope.areaPath;
-            const bMatches = b.iteration === scope.sprint || b.areaPath === scope.areaPath;
+    // Stable across refetches when content is unchanged (React Query's
+    // structural sharing), so this is safe as a useCheckedTestPlans dep.
+    const planIds = useMemo(
+        () => (plans ? plans.map((plan) => plan.id) : undefined),
+        [plans]
+    );
 
-            if (aMatches !== bMatches) {
-                return aMatches ? -1 : 1;
-            }
-
-            return a.name.localeCompare(b.name);
-        });
-    }, [plans, scope.sprint, scope.areaPath]);
+    const {
+        checkedPlanIds: selectedPlanIds,
+        setCheckedPlanIds: setSelectedPlanIds,
+        newPlanIds,
+    } = useCheckedTestPlans(
+        { project: scope.project, areaPath: scope.areaPath, sprint: scope.sprint },
+        planIds
+    );
 
     // Fetched to enumerate each selected plan's *real* suites, so the Suite
     // Progress table/PDF export and the "Includi Bug per Suite" toggle
@@ -183,17 +176,10 @@ export function DynamicSprintReportPage() {
         };
     }
 
-    const selectedPlansLabel =
-        selectedPlanIds.length > 0
-            ? t("dynamicSprintReportPage.selectedTestPlans", {
-                count: selectedPlanIds.length,
-            })
-            : t("dynamicSprintReportPage.testPlansPlaceholder");
-
     // Pre-fills the report card's title with the selected Test Plan name(s)
     // - falls back to the generic default until at least one is picked.
-    // Selection order (not sortedPlans' metadata-match order) so it matches
-    // what the user actually clicked in the dropdown.
+    // Selection order (the order checked in the sidebar) so it matches
+    // what the user actually clicked.
     const selectedPlanNames = selectedPlanIds
         .map((planId) => plans?.find((plan) => plan.id === planId)?.name)
         .filter((name): name is string => Boolean(name));
@@ -204,77 +190,78 @@ export function DynamicSprintReportPage() {
             : t("dynamicSprintReportPage.defaultHeaderTitle");
 
     return (
-        <PageLayout title={t("dynamicSprintReportPage.title")}>
+        <PageLayout
+            title={t("dynamicSprintReportPage.title")}
+            hideAreaSprintScope
+            wide
+        >
             {!scope.isComplete && (
                 <Text className={styles.hint}>
                     {t("dynamicSprintReportPage.selectProjectPrompt")}
                 </Text>
             )}
 
-            {scope.isComplete && !scope.sprint && (
-                <Text className={styles.hint}>
-                    {t("dynamicSprintReportPage.selectSprintPrompt")}
-                </Text>
-            )}
-
-            {scope.isComplete && scope.sprint && (
-                <div className={styles.filters}>
-                    <Field
-                        label={t("dynamicSprintReportPage.testPlansLabel")}
-                        className={styles.field}
-                    >
-                        <Dropdown
-                            multiselect
-                            expandIcon={<ChevronDownRegular className={styles.chevron} />}
-                            button={{ className: styles.dropdownButton }}
-                            value={selectedPlansLabel}
-                            selectedOptions={selectedPlanIds.map(String)}
-                            onOptionSelect={(_, optionData) =>
-                                setSelectedPlanIds(
-                                    optionData.selectedOptions.map(Number)
-                                )
-                            }
-                        >
-                            {sortedPlans.map((plan) => (
-                                <Option key={plan.id} value={String(plan.id)}>
-                                    {plan.name}
-                                </Option>
-                            ))}
-                        </Dropdown>
-                    </Field>
-                </div>
-            )}
-
-            {isLoading && <LoadingCardGrid />}
-
-            {isError && (
-                <ErrorState message={error.message} onRetry={refetch} />
-            )}
-
-            {data && scope.sprint && (
-                <>
-                    <DefectFilterBar
-                        availableFilters={scopeAvailableFilters(
-                            data.stats.availableFilters
-                        )}
-                        filters={filters}
-                        onChange={setLocalFilters}
-                        fields={["suites", "environment", "targetVersion"]}
-                    />
-
-                    <SprintDefectReportTab
-                        stats={data.stats}
+            {scope.isComplete && (
+                <div className={styles.layout}>
+                    <ReportSidebar
                         project={scope.project}
-                        suiteGroupDefs={suiteGroupDefs}
-                        defaultHeaderTitle={defaultHeaderTitle}
-                        defaultHeaderSubtitle={t(
-                            "dynamicSprintReportPage.defaultHeaderSubtitle"
-                        )}
-                        includeDsiSource={(data.stats.sprintDefectReport.byOriginDetected["DSI"] ?? 0) > 0}
-                        includeDeadline={false}
-                        enableEmailPreface
+                        areaPath={scope.areaPath}
+                        sprint={scope.sprint}
+                        onAreaPathChange={scope.setAreaPath}
+                        onSprintChange={scope.setSprint}
+                        plans={sortedPlans}
+                        plansLoading={plansLoading}
+                        checkedPlanIds={selectedPlanIds}
+                        onCheckedPlanIdsChange={setSelectedPlanIds}
+                        newPlanIds={newPlanIds}
                     />
-                </>
+
+                    <div className={styles.main}>
+                        {!scope.areaPath && (
+                            <Text className={styles.hint}>
+                                {t("dynamicSprintReportPage.selectAreaPathPrompt")}
+                            </Text>
+                        )}
+
+                        {scope.areaPath && !scope.sprint && (
+                            <Text className={styles.hint}>
+                                {t("dynamicSprintReportPage.selectSprintPrompt")}
+                            </Text>
+                        )}
+
+                        {isLoading && <LoadingCardGrid />}
+
+                        {isError && (
+                            <ErrorState message={error.message} onRetry={refetch} />
+                        )}
+
+                        {data && scope.sprint && (
+                            <>
+                                <DefectFilterBar
+                                    availableFilters={scopeAvailableFilters(
+                                        data.stats.availableFilters
+                                    )}
+                                    filters={filters}
+                                    onChange={setLocalFilters}
+                                    fields={["suites", "environment", "targetVersion"]}
+                                />
+
+                                <SprintDefectReportTab
+                                    stats={data.stats}
+                                    project={scope.project}
+                                    suiteGroupDefs={suiteGroupDefs}
+                                    defaultHeaderTitle={defaultHeaderTitle}
+                                    defaultHeaderSubtitle={t(
+                                        "dynamicSprintReportPage.defaultHeaderSubtitle"
+                                    )}
+                                    includeDsiSource={(data.stats.sprintDefectReport.byOriginDetected["DSI"] ?? 0) > 0}
+                                    includeDeadline={false}
+                                    enableEmailPreface
+                                />
+                            </>
+                        )}
+                    </div>
+                </div>
             )}
         </PageLayout>
     );

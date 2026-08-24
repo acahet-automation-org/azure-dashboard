@@ -491,13 +491,18 @@
   },
   "dynamicSprintReportPage": {
     "title": "Report Sprint",
-    "testPlansLabel": "Piani di Test",
-    "testPlansPlaceholder": "Seleziona i piani di test...",
-    "selectedTestPlans": "{{count}} selezionati",
     "selectProjectPrompt": "Seleziona un progetto nella barra in alto per iniziare.",
-    "selectSprintPrompt": "Seleziona uno sprint nella barra in alto per caricare il report.",
+    "selectAreaPathPrompt": "Seleziona un area path nel pannello laterale per iniziare.",
+    "selectSprintPrompt": "Seleziona uno sprint nel pannello laterale per caricare il report.",
     "defaultHeaderTitle": "Report di Stato Sprint",
     "defaultHeaderSubtitle": "Stato di esecuzione dei test"
+  },
+  "reportSidebar": {
+    "title": "Ambito Report",
+    "loadingPlans": "Caricamento piani di test...",
+    "noPlans": "Nessun piano di test trovato per questo sprint.",
+    "noSprints": "Nessuno sprint trovato per questo area path.",
+    "newPlanBadge": "Nuovo"
   },
   "commonErrorsPage": {
     "title": "Errori Comuni",

@@ -36,6 +36,11 @@ const useStyles = makeStyles({
         gap: tokens.spacingVerticalL,
         boxSizing: "border-box",
     },
+    contentWide: {
+        // Report page: ReportSidebar takes real horizontal space alongside
+        // the report content, so the usual 1200px column feels cramped.
+        maxWidth: "1600px",
+    },
 });
 
 function getInitialCollapsed(): boolean {
@@ -45,9 +50,13 @@ function getInitialCollapsed(): boolean {
 export function PageLayout({
     title,
     children,
+    hideAreaSprintScope = false,
+    wide = false,
 }: {
     title: string;
     children: ReactNode;
+    hideAreaSprintScope?: boolean;
+    wide?: boolean;
 }) {
     const styles = useStyles();
     const [collapsed, setCollapsed] = useState(getInitialCollapsed);
@@ -71,9 +80,16 @@ export function PageLayout({
                 )}
             >
                 <TopBar title={title} />
-                <ScopeBar />
+                <ScopeBar hideAreaSprint={hideAreaSprintScope} />
 
-                <div className={styles.content}>{children}</div>
+                <div
+                    className={mergeClasses(
+                        styles.content,
+                        wide && styles.contentWide
+                    )}
+                >
+                    {children}
+                </div>
             </div>
         </div>
     );
