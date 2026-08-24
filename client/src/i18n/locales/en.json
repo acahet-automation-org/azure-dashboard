@@ -491,13 +491,18 @@
     },
     "dynamicSprintReportPage": {
         "title": "Sprint Report",
-        "testPlansLabel": "Test Plans",
-        "testPlansPlaceholder": "Select test plans...",
-        "selectedTestPlans": "{{count}} selected",
         "selectProjectPrompt": "Select a project in the scope bar above to get started.",
-        "selectSprintPrompt": "Select a sprint in the scope bar above to load the report.",
+        "selectAreaPathPrompt": "Select an area path in the sidebar to get started.",
+        "selectSprintPrompt": "Select a sprint in the sidebar to load the report.",
         "defaultHeaderTitle": "Sprint Status Report",
         "defaultHeaderSubtitle": "Test execution status"
+    },
+    "reportSidebar": {
+        "title": "Report Scope",
+        "loadingPlans": "Loading test plans...",
+        "noPlans": "No test plans found for this sprint.",
+        "noSprints": "No sprints found for this area path.",
+        "newPlanBadge": "New"
     },
     "commonErrorsPage": {
         "title": "Common Errors",

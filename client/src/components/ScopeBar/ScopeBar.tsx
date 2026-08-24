@@ -71,7 +71,15 @@ const useStyles = makeStyles({
 // Area Path -> Sprint) selected once, collapsing to a chip summary once a
 // project is chosen. Rendered globally by PageLayout so every page shares
 // the same selection instead of each page owning its own copy.
-export function ScopeBar() {
+export function ScopeBar({
+    hideAreaSprint = false,
+}: {
+    // The Report page owns Area Path/Sprint selection itself via
+    // ReportSidebar - showing them here too would be two controls for the
+    // same shared scope. Project stays here since ReportSidebar still
+    // needs it and every other page keeps reading it from ScopeBar.
+    hideAreaSprint?: boolean;
+} = {}) {
     const styles = useStyles();
     const { t } = useTranslation();
     const scope = useScope();
@@ -96,10 +104,14 @@ export function ScopeBar() {
             <div className={styles.bar}>
                 <div className={styles.chipsRow}>
                     <span className={styles.chip}>{scope.project}</span>
-                    <span className={styles.separator}>&middot;</span>
-                    <span className={styles.chip}>{scope.areaPath || allAreas}</span>
-                    <span className={styles.separator}>&middot;</span>
-                    <span className={styles.chip}>{scope.sprint || allSprints}</span>
+                    {!hideAreaSprint && (
+                        <>
+                            <span className={styles.separator}>&middot;</span>
+                            <span className={styles.chip}>{scope.areaPath || allAreas}</span>
+                            <span className={styles.separator}>&middot;</span>
+                            <span className={styles.chip}>{scope.sprint || allSprints}</span>
+                        </>
+                    )}
                 </div>
 
                 <Button
@@ -134,7 +146,7 @@ export function ScopeBar() {
                 </Dropdown>
             </Field>
 
-            {scope.project && (
+            {scope.project && !hideAreaSprint && (
                 <>
                     <AreaPathFilter
                         project={scope.project}
@@ -160,15 +172,17 @@ export function ScopeBar() {
                             ))}
                         </Dropdown>
                     </Field>
-
-                    <Button
-                        appearance="primary"
-                        className={styles.changeScope}
-                        onClick={() => setEditing(false)}
-                    >
-                        {t("scopeBar.done")}
-                    </Button>
                 </>
+            )}
+
+            {scope.project && (
+                <Button
+                    appearance="primary"
+                    className={styles.changeScope}
+                    onClick={() => setEditing(false)}
+                >
+                    {t("scopeBar.done")}
+                </Button>
             )}
         </div>
     );

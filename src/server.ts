@@ -187,9 +187,20 @@ app.get("/api/iterations", async (req, res) => {
 
 app.get("/api/plans", async (req, res) => {
     try {
-        res.json(
-            await computeTestPlans(req.query.project as string | undefined)
+        const plans = await computeTestPlans(
+            req.query.project as string | undefined
         );
+
+        const areaPath = req.query.areaPath as string | undefined;
+        const iteration = req.query.iteration as string | undefined;
+
+        const scoped = plans.filter(
+            (plan) =>
+                (!areaPath || plan.areaPath === areaPath) &&
+                (!iteration || plan.iteration === iteration)
+        );
+
+        res.json(scoped);
     } catch (error: any) {
         sendApiError(res, error);
     }
