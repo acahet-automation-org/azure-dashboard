@@ -22,6 +22,7 @@ export interface NavItemConfig {
     enabled: boolean;
     end?: boolean;
     icon: FluentIcon;
+    descriptionKey: string;
 }
 
 export const NAV_ITEMS: NavItemConfig[] = [
@@ -32,6 +33,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
         enabled: false,
         end: true,
         icon: FolderRegular,
+        descriptionKey: "onboardingGuide.navSections.suites",
     },
     {
         key: "dashboard",
@@ -39,6 +41,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
         path: "/dashboard",
         enabled: true,
         icon: GridRegular,
+        descriptionKey: "onboardingGuide.navSections.dashboard",
     },
     {
         key: "runs",
@@ -46,6 +49,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
         path: "/last-10-runs",
         enabled: false,
         icon: HistoryRegular,
+        descriptionKey: "onboardingGuide.navSections.runs",
     },
     {
         key: "plans",
@@ -53,6 +57,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
         path: "/plans",
         enabled: true,
         icon: ClipboardTaskListLtrRegular,
+        descriptionKey: "onboardingGuide.navSections.plans",
     },
     {
         key: "plan-overview",
@@ -60,6 +65,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
         path: "/plan-overview",
         enabled: false,
         icon: DocumentBulletListRegular,
+        descriptionKey: "onboardingGuide.navSections.plan-overview",
     },
     {
         key: "plan-progress",
@@ -67,6 +73,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
         path: "/plan-progress",
         enabled: false,
         icon: ArrowTrendingRegular,
+        descriptionKey: "onboardingGuide.navSections.plan-progress",
     },
     {
         key: "execution",
@@ -74,6 +81,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
         path: "/test-execution",
         enabled: false,
         icon: PlayRegular,
+        descriptionKey: "onboardingGuide.navSections.execution",
     },
     {
         key: "defects",
@@ -81,6 +89,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
         path: "/defects",
         enabled: true,
         icon: BugRegular,
+        descriptionKey: "onboardingGuide.navSections.defects",
     },
     {
         key: "dynamic-sprint-report",
@@ -88,6 +97,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
         path: "/dynamic-sprint-report",
         enabled: true,
         icon: DocumentTextRegular,
+        descriptionKey: "onboardingGuide.navSections.dynamic-sprint-report",
     },
     {
         key: "my-work-items",
@@ -95,6 +105,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
         path: "/my-work-items",
         enabled: true,
         icon: PersonRegular,
+        descriptionKey: "onboardingGuide.navSections.my-work-items",
     },
     {
         key: "remove-test-cases",
@@ -102,6 +113,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
         path: "/remove-test-cases",
         enabled: false,
         icon: DeleteRegular,
+        descriptionKey: "onboardingGuide.navSections.remove-test-cases",
     },
 ];
 
@@ -112,6 +124,7 @@ export const AUTOMATION_ITEMS: NavItemConfig[] = [
         path: "/automation-dashboard",
         enabled: true,
         icon: GaugeRegular,
+        descriptionKey: "onboardingGuide.navSections.automation-dashboard",
     },
     {
         key: "common-errors",
@@ -119,5 +132,6 @@ export const AUTOMATION_ITEMS: NavItemConfig[] = [
         path: "/common-errors",
         enabled: false,
         icon: ErrorCircleRegular,
+        descriptionKey: "onboardingGuide.navSections.common-errors",
     },
 ];

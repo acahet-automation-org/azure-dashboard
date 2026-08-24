@@ -1,4 +1,8 @@
 import {
+    Accordion,
+    AccordionHeader,
+    AccordionItem,
+    AccordionPanel,
     Button,
     Dialog,
     DialogActions,
@@ -13,6 +17,11 @@ import {
 } from "@fluentui/react-components";
 import { useTranslation } from "react-i18next";
 import { AzdoPatSteps } from "./AzdoPatSteps";
+import { AUTOMATION_ITEMS, NAV_ITEMS } from "../config/navItems";
+
+const GUIDE_NAV_ITEMS = [...NAV_ITEMS, ...AUTOMATION_ITEMS].filter(
+    (item) => item.enabled
+);
 
 const useStyles = makeStyles({
     content: {
@@ -79,6 +88,29 @@ export function GettingStartedGuide({
                                 {t("onboardingGuide.azdoSection.intro")}
                             </Text>
                             <AzdoPatSteps />
+                        </div>
+
+                        <div className={styles.section}>
+                            <Title3 as="h3">
+                                {t("onboardingGuide.navSectionTitle")}
+                            </Title3>
+                            <Accordion collapsible>
+                                {GUIDE_NAV_ITEMS.map((item) => (
+                                    <AccordionItem
+                                        key={item.key}
+                                        value={item.key}
+                                    >
+                                        <AccordionHeader>
+                                            {t(item.labelKey)}
+                                        </AccordionHeader>
+                                        <AccordionPanel>
+                                            <Text block>
+                                                {t(item.descriptionKey)}
+                                            </Text>
+                                        </AccordionPanel>
+                                    </AccordionItem>
+                                ))}
+                            </Accordion>
                         </div>
                     </DialogContent>
                     <DialogActions>
