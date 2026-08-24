@@ -487,6 +487,14 @@ export const StatusReportCard = forwardRef<
         (sum, group) => sum + group.outcomeCounts.Blocked,
         0
     );
+    // Executed = Passed + Failed + Blocked, deliberately NOT including
+    // NotApplicable - even though marking a test point N/A still requires a
+    // tester to open and assess it, this KPI tracks cases that reached a
+    // pass/fail-style verdict, not "was looked at". SuiteProgressBar uses a
+    // different, more inclusive definition (totalTestCases - NotRun, which
+    // counts NotApplicable as executed) - the two are intentionally
+    // different metrics, not a bug, but they will disagree on the same
+    // suite's numbers if compared directly.
     const totalExecuted = totalPassed + totalFailed + totalBlocked;
     const executedPct = totalTestCases
         ? Math.round((totalExecuted / totalTestCases) * 100)

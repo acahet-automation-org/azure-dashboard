@@ -1167,6 +1167,8 @@ function lightSwatch(color: string): string {
 
 function lightSuiteRow(group: SuiteProgressGroup, t: TranslateFn): string {
     const { totalTestCases, outcomeCounts, label } = group;
+    // Counts NotApplicable as executed - see the comment on totalExecuted
+    // in StatusReportCard.tsx for why this differs from that KPI.
     const executed = totalTestCases - outcomeCounts.NotRun;
     const executedPct = totalTestCases
         ? Math.round((executed / totalTestCases) * 100)
@@ -1347,6 +1349,9 @@ export function buildStatusReportCardEmailBodyHtml(
         (sum, group) => sum + group.outcomeCounts.Blocked,
         0
     );
+    // Excludes NotApplicable on purpose - see the matching comment on
+    // totalExecuted in StatusReportCard.tsx for why, and for the different
+    // (more inclusive) definition SuiteProgressBar uses.
     const totalExecuted = totalPassed + totalFailed + totalBlocked;
     const executedPct = totalTestCases
         ? Math.round((totalExecuted / totalTestCases) * 100)
@@ -1827,6 +1832,9 @@ function computeStatusCardKpis(
 
     const totalFailed = suiteGroups.reduce((sum, group) => sum + group.outcomeCounts.Failed, 0);
     const totalBlocked = suiteGroups.reduce((sum, group) => sum + group.outcomeCounts.Blocked, 0);
+    // Excludes NotApplicable on purpose - see the matching comment on
+    // totalExecuted in StatusReportCard.tsx for why, and for the different
+    // (more inclusive) definition SuiteProgressBar uses.
     const totalExecuted = totalPassed + totalFailed + totalBlocked;
     const executedPct = totalTestCases ? Math.round((totalExecuted / totalTestCases) * 100) : 0;
     const totalNotRun = totalTestCases - totalExecuted - totalNotApplicable;
@@ -1943,6 +1951,8 @@ interface SuiteProgressRowData {
 // Shared by the PDF and PPTX suite-progress rows - both render the same
 // executed/pass-rate figures, just with a different renderer underneath.
 function computeSuiteProgressRowData(group: SuiteProgressGroup): SuiteProgressRowData {
+    // Counts NotApplicable as executed - see the comment on totalExecuted
+    // in StatusReportCard.tsx for why this differs from that KPI.
     const executed = group.totalTestCases - group.outcomeCounts.NotRun;
     const executedPct = group.totalTestCases
         ? Math.round((executed / group.totalTestCases) * 100)

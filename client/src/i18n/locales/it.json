@@ -453,7 +453,7 @@
           "bugsSection": "Stato bug",
           "totalTestCases": "Casi di test totali",
           "notRun": "Casi di test da eseguire",
-          "executedCount": "Casi di test eseguiti",
+          "executedCount": "Casi di test eseguiti\n- sono esclusi gli N/A",
           "passRate": "Pass Rate (Ok / Totali)\n- sono esclusi gli N/A",
           "notApplicable": "Non applicabili",
           "notApplicableRate": "Casi di test non applicabili",
