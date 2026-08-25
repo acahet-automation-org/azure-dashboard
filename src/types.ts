@@ -269,6 +269,20 @@ export interface DefectRecord {
     // to trigger the Teams "sent to verifica" notification without a second
     // revisions fetch.
     verificaTransition?: { changedDate: string };
+    // Same idea, but for the combined "Da verificare"/"In verifica" window
+    // (see VERIFICA_PENDING_STATES in defectData.ts) - used by the
+    // per-assignee verifica Teams notification, which cares about either
+    // sub-state.
+    verificaPendingTransition?: { changedDate: string };
+    // Opposite direction of verificaPendingTransition - last time the bug
+    // LEFT the "Da verificare"/"In verifica" window (whether it passed to
+    // Closed or bounced back to Reopened/New). Used to count "verified
+    // today" for the Sprint Defect Report's Azione 2 auto-text.
+    verificaExitTransition?: { changedDate: string };
+    // Last time the bug transitioned into "Riaperto" - same idea as
+    // reopenedCount (a lifetime total) but date-stamped, so "reopened today"
+    // can be computed without a second revisions fetch.
+    lastReopenedTransition?: { changedDate: string };
 }
 
 export interface DefectSummary {
@@ -302,6 +316,30 @@ export interface AgingBucket {
 }
 
 export type BacklogDirection = "growing" | "stable" | "shrinking";
+
+// Verifica activity for TEAMS_VERIFICA_ASSIGNEE_ALLOWLIST's people, scoped to
+// whatever records the caller passes in (e.g. the currently selected area
+// path/sprint) - drives the Sprint Defect Report's auto-generated Azione 2
+// text. All four counts are independent of each other (a bug can count
+// toward verifiedToday and closedToday at once if it was verified-and-closed
+// the same day).
+export interface VerificaActivitySummary {
+    // Left "Da verificare"/"In verifica" today, regardless of where it went.
+    verifiedToday: number;
+    closedToday: number;
+    // Transitioned into "Riaperto" today.
+    reopenedToday: number;
+    // Currently sitting in "Da verificare"/"In verifica" (not date-scoped).
+    stillPendingVerification: number;
+    // Separate from the allowlist-scoped counts above: bugs sitting in "Da
+    // verificare"/"In verifica" whose assignee is NOT on the allowlist,
+    // split by who they belong to - a @gruppoitas.it email is DSI, anyone
+    // else (not on the allowlist, not @gruppoitas.it) is the System
+    // Integrator. Priority order matters: an allowlisted person is always
+    // Test Factory even if their email happened to also match one of these.
+    dsiPendingCount: number;
+    siPendingCount: number;
+}
 
 export interface SprintDefectReport {
     total: number;
@@ -377,6 +415,7 @@ export interface DefectStats {
     outOfScopeRate: number;
     outOfScopeBySuite: Record<string, number>;
     sprintDefectReport: SprintDefectReport;
+    verificaActivitySummary: VerificaActivitySummary;
     firstTimeFixRate: number | null;
     densityByComponent: Record<string, number | null>;
     backlogTrend: BacklogTrendPoint[];

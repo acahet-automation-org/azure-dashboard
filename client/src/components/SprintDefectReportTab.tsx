@@ -43,7 +43,12 @@ import {
   exportStatusReportCardToPdf,
   exportStatusReportCardToPptx,
 } from "../utils/export";
-import type { DefectStats, Outcome, SprintDefectReport } from "../types";
+import type {
+  DefectStats,
+  Outcome,
+  SprintDefectReport,
+  VerificaActivitySummary,
+} from "../types";
 
 // Fallback only - used when none of the resolved plans for this report have
 // a report link saved in their Azure DevOps description (see
@@ -202,6 +207,39 @@ function formatDDMM(date: Date): string {
   return `${day}/${month}`;
 }
 
+// Default Azione 2 text - two independent lines (not blank-line separated,
+// since Azione 2 is a single textarea and a blank-line split would push a
+// second line into a dropped third paragraph - see the split() comment
+// below). Each line only appears when it's actually actionable; both empty
+// means no default text at all, matching Azione 1's "nothing to say"
+// behavior.
+function buildDefaultActionText2(activity: VerificaActivitySummary): string {
+  const lines: string[] = [];
+
+  const { verifiedToday, closedToday, reopenedToday, stillPendingVerification } =
+    activity;
+
+  if (verifiedToday > 0 || closedToday > 0 || reopenedToday > 0 || stillPendingVerification > 0) {
+    lines.push(
+      `Test Management: Test Factory ha verificato ${verifiedToday} bug oggi, di cui ${closedToday} chiusi e ${reopenedToday} riaperti; restano ancora ${stillPendingVerification} bug in fase di verifica.`,
+    );
+  }
+
+  if (activity.dsiPendingCount > 0) {
+    lines.push(
+      `DSI: ci sono ${activity.dsiPendingCount} bug ancora in fase di verifica.`,
+    );
+  }
+
+  if (activity.siPendingCount > 0) {
+    lines.push(
+      `System Integrator: ci sono ${activity.siPendingCount} bug ancora in fase di verifica.`,
+    );
+  }
+
+  return lines.join("\n");
+}
+
 export function SprintDefectReportTab({
   stats,
   suiteGroupDefs = AUTO_SUITE_GROUP_DEFS,
@@ -256,9 +294,9 @@ export function SprintDefectReportTab({
     defaultActionsText
       ? defaultActionsText(report)
       : report.withoutResolutionDateCount > 0
-        ? "System Integrator: si prega di prendere in carico i nuovi bug e impostarne la data di risoluzione\n\n" +
-          "\n\n"
-        : "\n\n"
+        ? `System Integrator: si prega di prendere in carico i ${report.withoutResolutionDateCount} nuovi bug e impostarne la data di risoluzione\n\n` +
+          buildDefaultActionText2(stats.verificaActivitySummary)
+        : `\n\n${buildDefaultActionText2(stats.verificaActivitySummary)}`
   )
     .split(/\n\s*\n/)
     .map((p) => p.trim());

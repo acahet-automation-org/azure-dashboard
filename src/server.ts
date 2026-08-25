@@ -65,6 +65,7 @@ import {
 import {
     startBugSummaryScheduler,
     startVerificaNotificationScheduler,
+    startAssigneeVerificaNotificationScheduler,
     startSprintReportFileExportScheduler,
 } from "./scheduler.js";
 
@@ -574,6 +575,7 @@ app.post("/api/refresh", (_, res) => {
 
 startBugSummaryScheduler();
 startVerificaNotificationScheduler();
+startAssigneeVerificaNotificationScheduler();
 startSprintReportFileExportScheduler();
 
 const port = Number(process.env.PORT) || 3000;

@@ -112,6 +112,51 @@ export function buildBugsReadyToBeVerifiedCard(bugs: DefectRecord[]) {
     };
 }
 
+// Same one-card-per-check shape as buildBugsReadyToBeVerifiedCard, but for
+// the per-assignee notifier (checkAssigneeVerificaNotifications in
+// scheduler.ts), which can match several different people on
+// TEAMS_VERIFICA_ASSIGNEE_ALLOWLIST at once - the card posts to one shared
+// channel, not a per-person DM, so each line names its own assignee rather
+// than assuming "you", and includes the bug's current state since it fires
+// for both "Da verificare" and "In verifica".
+export function buildBugsPendingVerificationCard(bugs: DefectRecord[]) {
+    const title = "Bug in verifica";
+
+    const bugLines = bugs.map((bug) =>
+        [
+            `**#${bug.id} - ${bug.title}**`,
+            `Assegnato a: ${bug.assignedTo?.displayName ?? "Non assegnato"}`,
+            `Stato: ${bug.state}`,
+            bug.url ? `[Apri in Azure DevOps](${bug.url})` : "",
+        ]
+            .filter(Boolean)
+            .join("  \n")
+    );
+
+    return {
+        "@type": "MessageCard",
+        "@context": "http://schema.org/extensions",
+        themeColor: "0078D4",
+        summary: title,
+        title,
+        text: bugLines.join("\n\n---\n\n"),
+        // Structured duplicate of the same data - the legacy MessageCard
+        // schema above has no @mention support at all, so tagging the
+        // assignee (if wanted) has to happen on the Power Automate flow
+        // side (e.g. "Get user profile" + insert-mention on assigneeEmail).
+        // Also useful since the flow doesn't appear to read title/text
+        // dynamically - gives it a clean field to bind against instead.
+        bugs: bugs.map((bug) => ({
+            id: bug.id,
+            title: bug.title,
+            state: bug.state,
+            url: bug.url ?? null,
+            assigneeName: bug.assignedTo?.displayName ?? null,
+            assigneeEmail: bug.assignedTo?.uniqueName ?? null,
+        })),
+    };
+}
+
 export function buildBugsReportedTodayCard(
     bugs: DefectRecord[]
 ) {
