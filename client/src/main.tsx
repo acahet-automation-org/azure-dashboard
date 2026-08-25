@@ -8,6 +8,7 @@ import "./index.css";
 import "./i18n";
 import { msalInstance } from "./msalInstance";
 import { ThemeModeProvider } from "./hooks/ThemeModeProvider";
+import { NavVisibilityProvider } from "./hooks/NavVisibilityProvider";
 import { ThemedFluentProvider } from "./components/ThemedFluentProvider";
 import { ScopeProvider } from "./context/ScopeContext";
 import App from "./App";
@@ -152,6 +153,26 @@ async function bootAppWithDashboardMsal() {
     renderApp(
         <MsalProvider instance={msalInstance}>
             <ThemeModeProvider>
+                <NavVisibilityProvider>
+                    <ThemedFluentProvider>
+                        <QueryClientProvider client={queryClient}>
+                            <ScopeProvider>
+                                <BrowserRouter basename={import.meta.env.BASE_URL}>
+                                    <App />
+                                </BrowserRouter>
+                            </ScopeProvider>
+                        </QueryClientProvider>
+                    </ThemedFluentProvider>
+                </NavVisibilityProvider>
+            </ThemeModeProvider>
+        </MsalProvider>
+    );
+}
+
+async function bootApp() {
+    renderApp(
+        <ThemeModeProvider>
+            <NavVisibilityProvider>
                 <ThemedFluentProvider>
                     <QueryClientProvider client={queryClient}>
                         <ScopeProvider>
@@ -161,23 +182,7 @@ async function bootAppWithDashboardMsal() {
                         </ScopeProvider>
                     </QueryClientProvider>
                 </ThemedFluentProvider>
-            </ThemeModeProvider>
-        </MsalProvider>
-    );
-}
-
-async function bootApp() {
-    renderApp(
-        <ThemeModeProvider>
-            <ThemedFluentProvider>
-                <QueryClientProvider client={queryClient}>
-                    <ScopeProvider>
-                        <BrowserRouter basename={import.meta.env.BASE_URL}>
-                            <App />
-                        </BrowserRouter>
-                    </ScopeProvider>
-                </QueryClientProvider>
-            </ThemedFluentProvider>
+            </NavVisibilityProvider>
         </ThemeModeProvider>
     );
 }

@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Spinner } from "@fluentui/react-components";
 import { useIsRestrictedOwner } from "./hooks/useIsRestrictedOwner";
+import { useNavVisibility } from "./hooks/useNavVisibility";
 import { fetchProjects } from "./api/client";
 import { AzdoConnectionError } from "./components/AzdoConnectionError";
 import { GettingStartedGuide } from "./components/GettingStartedGuide";
@@ -54,6 +55,27 @@ function RestrictedRoute({ children }: { children: ReactNode }) {
     return <>{children}</>;
 }
 
+// Enforces a user's personal "hide this section" preference (Settings panel,
+// see NavVisibilityProvider) at the route level too, so a typed/bookmarked
+// URL can't bypass a hidden item any more than useIsRestrictedOwner's
+// restriction can - same redirect-to-home strength, different (self-service,
+// not admin) gate.
+function HiddenRoute({
+    navKey,
+    children,
+}: {
+    navKey: string;
+    children: ReactNode;
+}) {
+    const { isHidden } = useNavVisibility();
+
+    if (isHidden(navKey)) {
+        return <Navigate to="/" replace />;
+    }
+
+    return <>{children}</>;
+}
+
 function PageFallback() {
     return (
         <div style={{ display: "flex", justifyContent: "center", padding: "48px" }}>
@@ -64,72 +86,129 @@ function PageFallback() {
 
 const releaseReadinessEnabled =
     import.meta.env.VITE_ENABLE_RELEASE_READINESS === "true";
-// Locks the whole app down to just Sprint Report (+ Release Readiness, if
-// that's also enabled) - every other route redirects to /dynamic-sprint-report
-// rather than rendering, so there's no way to reach them via a typed/
-// bookmarked URL either, not just via the nav bar (see Sidebar.tsx for the
-// matching tab restriction).
-const showOnlySprintReport =
-    import.meta.env.VITE_SHOW_ONLY_SPRINT_REPORT === "true";
 
 function AppRoutes() {
     return (
         <Suspense fallback={<PageFallback />}>
             <Routes>
-                {showOnlySprintReport ? (
-                    <>
-                        <Route
-                            path="/dynamic-sprint-report"
-                            element={<DynamicSprintReportPage />}
-                        />
-                        {releaseReadinessEnabled && (
-                            <Route
-                                path="/release-readiness"
-                                element={<ReleaseReadinessPage />}
-                            />
-                        )}
-                        <Route
-                            path="*"
-                            element={<Navigate to="/dynamic-sprint-report" replace />}
-                        />
-                    </>
-                ) : (
-                    <>
-                        <Route path="/" element={<SuitesPage />} />
-                        <Route path="/dashboard" element={<DashboardPage />} />
-                        <Route path="/last-10-runs" element={<RunsPage />} />
-                        <Route path="/plans" element={<PlansPage />} />
-                        <Route path="/plans/:planId" element={<PlanDetailPage />} />
-                        <Route path="/plan-overview" element={<PlanOverviewPage />} />
-                        <Route
-                            path="/plan-progress"
-                            element={
-                                <RestrictedRoute>
-                                    <PlanProgressPage />
-                                </RestrictedRoute>
-                            }
-                        />
-                        <Route path="/automation-dashboard" element={<AutomationDashboardPage />} />
-                        <Route path="/test-execution" element={<TestExecutionPage />} />
-                        <Route path="/defects" element={<DefectManagementPage />} />
-                        <Route path="/dynamic-sprint-report" element={<DynamicSprintReportPage />} />
-                        <Route path="/common-errors" element={<CommonErrorsPage />} />
-                        <Route path="/my-work-items" element={<MyWorkItemsPage />} />
-                        <Route
-                            path="/remove-test-cases"
-                            element={
-                                <RestrictedRoute>
-                                    <RemoveTestCasesPage />
-                                </RestrictedRoute>
-                            }
-                        />
-                        {releaseReadinessEnabled && (
-                            <Route
-                                path="/release-readiness"
-                                element={<ReleaseReadinessPage />}
-                            />
-                        )}
-                    </>
+                <Route path="/" element={<SuitesPage />} />
+                <Route
+                    path="/dashboard"
+                    element={
+                        <HiddenRoute navKey="dashboard">
+                            <DashboardPage />
+                        </HiddenRoute>
+                    }
+                />
+                <Route
+                    path="/last-10-runs"
+                    element={
+                        <HiddenRoute navKey="runs">
+                            <RunsPage />
+                        </HiddenRoute>
+                    }
+                />
+                <Route
+                    path="/plans"
+                    element={
+                        <HiddenRoute navKey="plans">
+                            <PlansPage />
+                        </HiddenRoute>
+                    }
+                />
+                <Route
+                    path="/plans/:planId"
+                    element={
+                        <HiddenRoute navKey="plans">
+                            <PlanDetailPage />
+                        </HiddenRoute>
+                    }
+                />
+                <Route
+                    path="/plan-overview"
+                    element={
+                        <HiddenRoute navKey="plan-overview">
+                            <PlanOverviewPage />
+                        </HiddenRoute>
+                    }
+                />
+                <Route
+                    path="/plan-progress"
+                    element={
+                        <RestrictedRoute>
+                            <HiddenRoute navKey="plan-progress">
+                                <PlanProgressPage />
+                            </HiddenRoute>
+                        </RestrictedRoute>
+                    }
+                />
+                <Route
+                    path="/automation-dashboard"
+                    element={
+                        <HiddenRoute navKey="automation-dashboard">
+                            <AutomationDashboardPage />
+                        </HiddenRoute>
+                    }
+                />
+                <Route
+                    path="/test-execution"
+                    element={
+                        <HiddenRoute navKey="execution">
+                            <TestExecutionPage />
+                        </HiddenRoute>
+                    }
+                />
+                <Route
+                    path="/defects"
+                    element={
+                        <HiddenRoute navKey="defects">
+                            <DefectManagementPage />
+                        </HiddenRoute>
+                    }
+                />
+                <Route
+                    path="/dynamic-sprint-report"
+                    element={
+                        <HiddenRoute navKey="dynamic-sprint-report">
+                            <DynamicSprintReportPage />
+                        </HiddenRoute>
+                    }
+                />
+                <Route
+                    path="/common-errors"
+                    element={
+                        <HiddenRoute navKey="common-errors">
+                            <CommonErrorsPage />
+                        </HiddenRoute>
+                    }
+                />
+                <Route
+                    path="/my-work-items"
+                    element={
+                        <HiddenRoute navKey="my-work-items">
+                            <MyWorkItemsPage />
+                        </HiddenRoute>
+                    }
+                />
+                <Route
+                    path="/remove-test-cases"
+                    element={
+                        <RestrictedRoute>
+                            <HiddenRoute navKey="remove-test-cases">
+                                <RemoveTestCasesPage />
+                            </HiddenRoute>
+                        </RestrictedRoute>
+                    }
+                />
+                {releaseReadinessEnabled && (
+                    <Route
+                        path="/release-readiness"
+                        element={
+                            <HiddenRoute navKey="release-readiness">
+                                <ReleaseReadinessPage />
+                            </HiddenRoute>
+                        }
+                    />
                 )}
             </Routes>
         </Suspense>

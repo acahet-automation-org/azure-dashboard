@@ -2,6 +2,8 @@ import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useIsRestrictedOwner } from "../../hooks/useIsRestrictedOwner";
+import { useNavVisibility } from "../../hooks/useNavVisibility";
+import { RESTRICTED_ITEM_KEYS } from "../../config/restrictedNavKeys";
 import {
     Button,
     Text,
@@ -246,14 +248,8 @@ const AUTOMATION_ITEMS: NavItem[] = [
 
 const AUTOMATION_PATHS = AUTOMATION_ITEMS.map((item) => item.to);
 
-const RESTRICTED_ITEM_KEYS = new Set(["plan-progress", "remove-test-cases"]);
-
 const releaseReadinessEnabled =
     import.meta.env.VITE_ENABLE_RELEASE_READINESS === "true";
-// Mirrors the route restriction in App.tsx - when set, only the nav items for
-// pages that actually still have a route are shown.
-const showOnlySprintReport =
-    import.meta.env.VITE_SHOW_ONLY_SPRINT_REPORT === "true";
 
 function NavRow({
     item,
@@ -394,8 +390,20 @@ export function Sidebar({
     const { t } = useTranslation();
     const location = useLocation();
     const isRestrictedOwner = useIsRestrictedOwner();
-    const visibleMainItems = MAIN_ITEMS.filter(
-        (item) => isRestrictedOwner || !RESTRICTED_ITEM_KEYS.has(item.key)
+    const { isHidden } = useNavVisibility();
+    const visibleMainItems = MAIN_ITEMS.filter((item) => {
+        if (item.key === "suites") {
+            return true;
+        }
+
+        if (RESTRICTED_ITEM_KEYS.has(item.key) && !isRestrictedOwner) {
+            return false;
+        }
+
+        return !isHidden(item.key);
+    });
+    const visibleAutomationItems = AUTOMATION_ITEMS.filter(
+        (item) => !isHidden(item.key)
     );
     const [automationOpen, setAutomationOpen] = useState(
         AUTOMATION_PATHS.includes(location.pathname)
@@ -444,61 +452,48 @@ export function Sidebar({
             </NavLink>
 
             <div className={styles.nav}>
-                {showOnlySprintReport ? (
+                {visibleMainItems.map((item) => (
                     <NavRow
-                        item={
-                            MAIN_ITEMS.find(
-                                (item) => item.key === "dynamic-sprint-report"
-                            )!
-                        }
+                        key={item.key}
+                        item={item}
                         collapsed={collapsed}
+                        badgeCount={
+                            item.key === "defects" ? defectBadgeCount : undefined
+                        }
                     />
-                ) : (
-                    <>
-                        {visibleMainItems.map((item) => (
+                ))}
+
+                {visibleAutomationItems.length > 0 && (
+                    <AutomationToggle
+                        collapsed={collapsed}
+                        active={AUTOMATION_PATHS.includes(location.pathname)}
+                        open={automationOpen}
+                        onToggle={() => setAutomationOpen((open) => !open)}
+                    />
+                )}
+
+                {!collapsed && automationOpen && visibleAutomationItems.length > 0 && (
+                    <div className={styles.groupChildren}>
+                        {visibleAutomationItems.map((item) => (
                             <NavRow
                                 key={item.key}
                                 item={item}
                                 collapsed={collapsed}
-                                badgeCount={
-                                    item.key === "defects"
-                                        ? defectBadgeCount
-                                        : undefined
-                                }
                             />
                         ))}
-
-                        <AutomationToggle
-                            collapsed={collapsed}
-                            active={AUTOMATION_PATHS.includes(location.pathname)}
-                            open={automationOpen}
-                            onToggle={() => setAutomationOpen((open) => !open)}
-                        />
-
-                        {!collapsed && automationOpen && (
-                            <div className={styles.groupChildren}>
-                                {AUTOMATION_ITEMS.map((item) => (
-                                    <NavRow
-                                        key={item.key}
-                                        item={item}
-                                        collapsed={collapsed}
-                                    />
-                                ))}
-                            </div>
-                        )}
-
-                        {collapsed &&
-                            AUTOMATION_ITEMS.map((item) => (
-                                <NavRow
-                                    key={item.key}
-                                    item={item}
-                                    collapsed={collapsed}
-                                />
-                            ))}
-                    </>
+                    </div>
                 )}
 
-                {releaseReadinessEnabled && (
+                {collapsed &&
+                    visibleAutomationItems.map((item) => (
+                        <NavRow
+                            key={item.key}
+                            item={item}
+                            collapsed={collapsed}
+                        />
+                    ))}
+
+                {releaseReadinessEnabled && !isHidden("release-readiness") && (
                     <NavRow
                         item={{
                             key: "release-readiness",
