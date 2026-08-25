@@ -261,6 +261,7 @@ export interface SprintDefectReport {
 export interface VerificaActivitySummary {
     verifiedToday: number;
     closedToday: number;
+    closedTodayOutOfScopeCount: number;
     reopenedToday: number;
     stillPendingVerification: number;
     dsiPendingCount: number;

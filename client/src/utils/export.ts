@@ -965,11 +965,22 @@ function outcomeCountLabel(t: TranslateFn, outcome: Outcome, count: number): str
     return `${count} ${label}`;
 }
 
-function statusCountLabel(t: TranslateFn, name: string, count: number): string {
+function statusCountLabel(
+    t: TranslateFn,
+    name: string,
+    count: number,
+    closedOutOfScopeCount = 0
+): string {
     const label = t(
         `defectManagementPage.sprintReport.statusCard.statusLabels.${EMAIL_STATUS_LABEL_KEYS[name]}`
     );
-    return `${count} ${label}`;
+    const suffix =
+        name === "Closed" && closedOutOfScopeCount > 0
+            ? t("defectManagementPage.sprintReport.statusCard.closedOutOfScopeNote", {
+                  count: closedOutOfScopeCount,
+              })
+            : "";
+    return `${count} ${label}${suffix}`;
 }
 
 function formatEmailTimestamp(date: Date): { datePart: string; timePart: string } {
@@ -989,14 +1000,18 @@ function emailSeverityLabel(raw: string): string {
     return match ? match[2] : raw;
 }
 
-function splitEmailActionLeadIn(paragraph: string): {
+// Applied per-line (an Action box can hold several independently-labeled
+// lines, e.g. "Test Management:"/"DSI:"/"System Integrator:" all in the
+// same Azione 2 box - see buildDefaultActionText2 in SprintDefectReportTab.tsx),
+// mirroring StatusReportCard.tsx's splitActionLeadIn.
+function splitEmailActionLeadIn(line: string): {
     lead: string | null;
     rest: string;
 } {
-    const match = /^([^:\n]{1,80}:)\s*([\s\S]*)$/.exec(paragraph);
+    const match = /^([^:\n]{1,80}:)\s*([\s\S]*)$/.exec(line);
 
     if (!match) {
-        return { lead: null, rest: paragraph };
+        return { lead: null, rest: line };
     }
 
     return { lead: match[1], rest: match[2] };
@@ -1327,6 +1342,7 @@ export function buildStatusReportCardEmailBodyHtml(
 
     const {
         statusEntries,
+        closedOutOfScopeCount,
         severityTotal,
         severityEntries,
         openSeverityTotal,
@@ -1434,10 +1450,9 @@ export function buildStatusReportCardEmailBodyHtml(
         `</tr></table>` +
         kpiSectionTitle(`🐛 ${t("defectManagementPage.sprintReport.statusCard.kpis.bugsSection")}`) +
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:4px;"><tr>` +
-        lightKpiTile(String(report.effectiveCount), 6, t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"), "25%") +
-        lightKpiTile(String(report.outOfScopeCount), 8, t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"), "25%") +
-        lightKpiTile(String(bugsClosed), 1, t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedCount"), "25%") +
-        lightKpiTile(`${bugsClosed}/${report.total} (${bugsClosedPct}%)`, 2, t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio"), "25%") +
+        lightKpiTile(`${report.effectiveCount}/${report.total}`, 6, t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"), "33%") +
+        lightKpiTile(String(report.outOfScopeCount), 8, t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"), "33%") +
+        lightKpiTile(`${bugsClosed}/${report.total} (${bugsClosedPct}%)`, 2, t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio"), "33%") +
         `</tr></table>` +
         (includeDsiSource
             ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;"><tr>` +
@@ -1465,13 +1480,22 @@ export function buildStatusReportCardEmailBodyHtml(
               .map((paragraph, index) => {
                   const palette =
                       LIGHT_ACTION_PALETTE[index % LIGHT_ACTION_PALETTE.length];
-                  const { lead, rest } = splitEmailActionLeadIn(paragraph);
+                  const linesHtml = paragraph
+                      .split("\n")
+                      .map((line) => {
+                          const { lead, rest } = splitEmailActionLeadIn(line);
+
+                          return (
+                              (lead ? `<strong>${escapeHtml(lead)}</strong> ` : "") +
+                              escapeHtml(rest)
+                          );
+                      })
+                      .join("<br>");
 
                   return (
                       `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${palette.bg}" style="background-color:${palette.bg};border-radius:6px;margin-top:8px;">` +
                       `<tr><td style="border-left:4px solid ${palette.border};padding:10px 12px;font-size:13px;line-height:1.4;color:${LIGHT_INK};font-family:${EMAIL_FONT_FAMILY};">` +
-                      (lead ? `<strong>${escapeHtml(lead)}</strong> ` : "") +
-                      `${escapeHtml(rest)}</td></tr></table>`
+                      `${linesHtml}</td></tr></table>`
                   );
               })
               .join("")
@@ -1487,7 +1511,7 @@ export function buildStatusReportCardEmailBodyHtml(
         .map(
             ([name, count]) =>
                 lightSwatch(LIGHT_STATUS_COLORS[name]) +
-                `${count} ${escapeHtml(t(`defectManagementPage.sprintReport.statusCard.statusLabels.${EMAIL_STATUS_LABEL_KEYS[name]}`))}`
+                escapeHtml(statusCountLabel(t, name, count, closedOutOfScopeCount))
         )
         .join(`<span style="color:${LIGHT_RULE};"> | </span>`);
 
@@ -1800,6 +1824,13 @@ export function computeStatusCardKpis(
 export interface BugStatusData {
     statusEntries: (readonly [string, number])[];
     statusSegments: { color: string; pct: number }[];
+    // Closed bugs that are also out-of-scope - byStatusAll.Closed includes
+    // them but byStatus.Closed (effective-only) doesn't, so this is exactly
+    // that gap. Folded into the Closed legend entry as a "(of which N out
+    // of scope)" suffix rather than kept as its own "Not Applicable"
+    // segment, since that segment only ever showed this same subset in
+    // practice (out-of-scope bugs are closed once triaged).
+    closedOutOfScopeCount: number;
     severityTotal: number;
     severityEntries: (readonly [string, number])[];
     openSeverityTotal: number;
@@ -1810,13 +1841,16 @@ export interface BugStatusData {
 // card - all render the same status/severity breakdown, just with a
 // different renderer underneath.
 export function computeBugStatusData(report: SprintDefectReport): BugStatusData {
-    const statusEntries = EMAIL_STATUS_ORDER.map(
-        (name) =>
-            [
-                name,
-                name === "Not Applicable" ? report.outOfScopeCount : report.byStatus[name] ?? 0,
-            ] as const
-    ).filter(([, count]) => count > 0);
+    const closedTotal = report.byStatusAll.Closed ?? 0;
+    const closedEffective = report.byStatus.Closed ?? 0;
+    const closedOutOfScopeCount = closedTotal - closedEffective;
+
+    const statusEntries = EMAIL_STATUS_ORDER.filter((name) => name !== "Not Applicable")
+        .map(
+            (name) =>
+                [name, name === "Closed" ? closedTotal : report.byStatus[name] ?? 0] as const
+        )
+        .filter(([, count]) => count > 0);
     const statusSegments = statusEntries.map(([name, count]) => ({
         color: LIGHT_STATUS_COLORS[name],
         pct: report.total ? (count / report.total) * 100 : 0,
@@ -1858,6 +1892,7 @@ export function computeBugStatusData(report: SprintDefectReport): BugStatusData 
     return {
         statusEntries,
         statusSegments,
+        closedOutOfScopeCount,
         severityTotal,
         severityEntries,
         openSeverityTotal,
@@ -1938,17 +1973,12 @@ function buildPdfBugRow1KpiDefs(
         {
             kpi: LIGHT_KPI[6],
             label: t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"),
-            value: String(report.effectiveCount),
+            value: `${report.effectiveCount}/${report.total}`,
         },
         {
             kpi: LIGHT_KPI[8],
             label: t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"),
             value: String(report.outOfScopeCount),
-        },
-        {
-            kpi: LIGHT_KPI[1],
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedCount"),
-            value: String(kpis.bugsClosed),
         },
         {
             kpi: LIGHT_KPI[2],
@@ -2149,6 +2179,7 @@ function pdfDrawBugStatusSection(
     const {
         statusEntries,
         statusSegments,
+        closedOutOfScopeCount,
         severityTotal,
         severityEntries,
         openSeverityTotal,
@@ -2223,7 +2254,9 @@ function pdfDrawBugStatusSection(
     doc.setFontSize(8);
     doc.setTextColor(LIGHT_INK_MUTED);
     doc.text(
-        statusEntries.map(([name, count]) => statusCountLabel(t, name, count)).join("   |   "),
+        statusEntries
+            .map(([name, count]) => statusCountLabel(t, name, count, closedOutOfScopeCount))
+            .join("   |   "),
         PDF_MARGIN,
         cursorY
     );
@@ -2506,7 +2539,6 @@ const KPI_LEGEND_BUGS: KpiLegendEntry[] = [
     { labelKey: "outOfScopeBugsDetected", helpKey: "outOfScopeBugsDetected" },
     { labelKey: "bugsByUs", helpKey: "bugsByUs" },
     { labelKey: "bugsByDsi", helpKey: "bugsByDsi" },
-    { labelKey: "bugsClosedCount", helpKey: "bugsClosedCount" },
     { labelKey: "bugsClosedRatio", helpKey: "bugsClosedRatio" },
     { labelKey: "criticalBugs", helpKey: "criticalBugs" },
     { labelKey: "reopenedBugs", helpKey: "reopenedBugs" },
@@ -2964,16 +2996,12 @@ function buildPptxRow2KpiDefs(
 ): { value: string; label: string }[] {
     return [
         {
-            value: String(report.effectiveCount),
+            value: `${report.effectiveCount}/${report.total}`,
             label: t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"),
         },
         {
             value: String(report.outOfScopeCount),
             label: t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"),
-        },
-        {
-            value: String(kpis.bugsClosed),
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedCount"),
         },
         {
             value: `${kpis.bugsClosed}/${report.total} (${kpis.bugsClosedPct}%)`,
@@ -3338,6 +3366,7 @@ function pptxDrawBugStatusSection(
     const {
         statusEntries,
         statusSegments,
+        closedOutOfScopeCount,
         severityTotal,
         severityEntries,
         openSeverityTotal,
@@ -3411,7 +3440,9 @@ function pptxDrawBugStatusSection(
     localY += s(0.1);
 
     slide.addText(
-        statusEntries.map(([name, count]) => statusCountLabel(t, name, count)).join("   |   "),
+        statusEntries
+            .map(([name, count]) => statusCountLabel(t, name, count, closedOutOfScopeCount))
+            .join("   |   "),
         {
             x: M,
             y: localY,

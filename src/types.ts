@@ -327,6 +327,8 @@ export interface VerificaActivitySummary {
     // Left "Da verificare"/"In verifica" today, regardless of where it went.
     verifiedToday: number;
     closedToday: number;
+    // Subset of closedToday that's also tagged OutOfScope.
+    closedTodayOutOfScopeCount: number;
     // Transitioned into "Riaperto" today.
     reopenedToday: number;
     // Currently sitting in "Da verificare"/"In verifica" (not date-scoped).
