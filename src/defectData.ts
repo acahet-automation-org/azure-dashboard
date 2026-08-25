@@ -1024,6 +1024,14 @@ function computeVerificaActivitySummary(
         (r) => r.state === "Closed" && r.closedDate && isToday(r.closedDate, timezone)
     ).length;
 
+    const closedTodayOutOfScopeCount = scoped.filter(
+        (r) =>
+            r.state === "Closed" &&
+            r.closedDate &&
+            isToday(r.closedDate, timezone) &&
+            r.tags.includes(OUT_OF_SCOPE_TAG)
+    ).length;
+
     const reopenedToday = scoped.filter(
         (r) => r.lastReopenedTransition && isToday(r.lastReopenedTransition.changedDate, timezone)
     ).length;
@@ -1052,6 +1060,7 @@ function computeVerificaActivitySummary(
     return {
         verifiedToday,
         closedToday,
+        closedTodayOutOfScopeCount,
         reopenedToday,
         stillPendingVerification,
         dsiPendingCount,

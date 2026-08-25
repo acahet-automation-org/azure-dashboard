@@ -83,18 +83,22 @@ const ACTION_PALETTE = [
     { bg: "#1f3550", border: "#3aa0f3" },
 ];
 
-// A paragraph like "In arrivo su Azure DevOps: la maschera..." gets its
-// "Label:" lead-in bolded, matching the reference card - only when the
-// colon shows up early/on the first line, so it doesn't misfire on
-// sentences that just happen to contain a colon further in.
-function splitActionLeadIn(paragraph: string): {
+// A line like "DSI: ci sono 10 bug..." gets its "Label:" lead-in bolded,
+// matching the reference card - only when the colon shows up early, so it
+// doesn't misfire on a sentence that just happens to contain a colon
+// further in. Applied per-line (see splitActionLeadInLines below) rather
+// than once per paragraph, since an Action box can hold several
+// independently-labeled lines (e.g. "Test Management:"/"DSI:"/"System
+// Integrator:" all in the same Azione 2 box - see
+// buildDefaultActionText2 in SprintDefectReportTab.tsx).
+function splitActionLeadIn(line: string): {
     lead: string | null;
     rest: string;
 } {
-    const match = /^([^:\n]{1,80}:)\s*([\s\S]*)$/.exec(paragraph);
+    const match = /^([^:\n]{1,80}:)\s*([\s\S]*)$/.exec(line);
 
     if (!match) {
-        return { lead: null, rest: paragraph };
+        return { lead: null, rest: line };
     }
 
     return { lead: match[1], rest: match[2] };
@@ -576,6 +580,7 @@ export const StatusReportCard = forwardRef<
 
     const {
         statusEntries,
+        closedOutOfScopeCount,
         severityTotal,
         severityEntries,
         openSeverityTotal,
@@ -695,7 +700,7 @@ export const StatusReportCard = forwardRef<
                     </span>
                     <div className={styles.kpiGrid4}>
                         <KpiTile
-                            value={report.effectiveCount}
+                            value={`${report.effectiveCount}/${report.total}`}
                             color="#b180d7"
                             labelKey="defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"
                             helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.effectiveBugsDetected"
@@ -722,12 +727,6 @@ export const StatusReportCard = forwardRef<
                                 />
                             </>
                         )}
-                        <KpiTile
-                            value={bugsClosed}
-                            color="#3fb950"
-                            labelKey="defectManagementPage.sprintReport.statusCard.kpis.bugsClosedCount"
-                            helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.bugsClosedCount"
-                        />
                         <KpiTile
                             value={`${bugsClosed}/${report.total} (${bugsClosedPct}%)`}
                             color="#f2b134"
@@ -789,7 +788,7 @@ export const StatusReportCard = forwardRef<
                     {actionParagraphs.map((paragraph, index) => {
                         const palette =
                             ACTION_PALETTE[index % ACTION_PALETTE.length];
-                        const { lead, rest } = splitActionLeadIn(paragraph);
+                        const lines = paragraph.split("\n");
 
                         return (
                             <div
@@ -800,8 +799,17 @@ export const StatusReportCard = forwardRef<
                                     borderLeftColor: palette.border,
                                 }}
                             >
-                                {lead && <strong>{lead} </strong>}
-                                {rest}
+                                {lines.map((line, lineIndex) => {
+                                    const { lead, rest } = splitActionLeadIn(line);
+
+                                    return (
+                                        <span key={lineIndex}>
+                                            {lead && <strong>{lead} </strong>}
+                                            {rest}
+                                            {lineIndex < lines.length - 1 && "\n"}
+                                        </span>
+                                    );
+                                })}
                             </div>
                         );
                     })}
@@ -903,6 +911,12 @@ export const StatusReportCard = forwardRef<
                             {t(
                                 `defectManagementPage.sprintReport.statusCard.statusLabels.${STATUS_LABEL_KEYS[name]}`
                             )}
+                            {name === "Closed" &&
+                                closedOutOfScopeCount > 0 &&
+                                t(
+                                    "defectManagementPage.sprintReport.statusCard.closedOutOfScopeNote",
+                                    { count: closedOutOfScopeCount },
+                                )}
                         </span>
                     ))}
                 </span>

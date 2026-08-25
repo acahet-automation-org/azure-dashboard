@@ -218,12 +218,30 @@ function formatDDMM(date: Date): string {
 function buildDefaultActionText2(activity: VerificaActivitySummary): string {
   const lines: string[] = [];
 
-  const { verifiedToday, closedToday, reopenedToday, stillPendingVerification } =
-    activity;
+  const {
+    verifiedToday,
+    closedToday,
+    closedTodayOutOfScopeCount,
+    reopenedToday,
+    stillPendingVerification,
+  } = activity;
 
   if (verifiedToday > 0 || closedToday > 0 || reopenedToday > 0 || stillPendingVerification > 0) {
+    // Only mentioned when there's actually a closed-today bug that's also
+    // out-of-scope - same "(N out of scope)" phrasing as the status card's
+    // Closed legend entry (see computeBugStatusData in export.ts).
+    const closedOutOfScopeNote =
+      closedTodayOutOfScopeCount > 0 ? ` (${closedTodayOutOfScopeCount} out of scope)` : "";
+    // Dropped entirely (not "0 bug in fase di verifica") when there's
+    // nothing left pending - a trailing zero read as noise once verified/
+    // closed/reopened already told the actionable part of the story.
+    const pendingClause =
+      stillPendingVerification > 0
+        ? `; restano ancora ${stillPendingVerification} bug in fase di verifica.`
+        : ".";
+
     lines.push(
-      `Test Management: Test Factory ha verificato ${verifiedToday} bug oggi, di cui ${closedToday} chiusi e ${reopenedToday} riaperti; restano ancora ${stillPendingVerification} bug in fase di verifica.`,
+      `Test Management: Test Factory ha verificato ${verifiedToday} bug oggi, di cui ${closedToday} chiusi${closedOutOfScopeNote} e ${reopenedToday} riaperti${pendingClause}`,
     );
   }
 
