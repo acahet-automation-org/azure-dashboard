@@ -2484,6 +2484,134 @@ export function exportStatusReportCardToPdf(
     doc.save(filename);
 }
 
+interface KpiLegendEntry {
+    labelKey: string;
+    helpKey: string;
+}
+
+// Same key sets/order as the "Casi di test"/"Stato bug" tile grids in
+// StatusReportCard.tsx (KpiTile usages) and the kpis/kpisHelp translation
+// objects, so this legend never lists a tile the live card doesn't have (or
+// vice versa).
+const KPI_LEGEND_TEST_CASES: KpiLegendEntry[] = [
+    { labelKey: "totalTestCases", helpKey: "totalTestCases" },
+    { labelKey: "executedCount", helpKey: "executedCount" },
+    { labelKey: "notApplicable", helpKey: "notApplicable" },
+    { labelKey: "notRun", helpKey: "notRun" },
+    { labelKey: "passRate", helpKey: "passRate" },
+];
+
+const KPI_LEGEND_BUGS: KpiLegendEntry[] = [
+    { labelKey: "effectiveBugsDetected", helpKey: "effectiveBugsDetected" },
+    { labelKey: "outOfScopeBugsDetected", helpKey: "outOfScopeBugsDetected" },
+    { labelKey: "bugsByUs", helpKey: "bugsByUs" },
+    { labelKey: "bugsByDsi", helpKey: "bugsByDsi" },
+    { labelKey: "bugsClosedCount", helpKey: "bugsClosedCount" },
+    { labelKey: "bugsClosedRatio", helpKey: "bugsClosedRatio" },
+    { labelKey: "criticalBugs", helpKey: "criticalBugs" },
+    { labelKey: "reopenedBugs", helpKey: "reopenedBugs" },
+    { labelKey: "avgClosureTime", helpKey: "avgClosureTime" },
+    { labelKey: "withoutResolutionDate", helpKey: "withoutResolutionDate" },
+];
+
+function pdfDrawKpiLegendSection(
+    doc: jsPDF,
+    innerWidth: number,
+    startY: number,
+    sectionTitle: string,
+    entries: KpiLegendEntry[],
+    t: TranslateFn
+): number {
+    let y = ensurePdfSpace(doc, startY, 20);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(LIGHT_HEADER_BG);
+    doc.text(sectionTitle, PDF_MARGIN, y);
+    y += 4;
+
+    autoTable(doc, {
+        startY: y,
+        theme: "grid",
+        head: [
+            [
+                t("defectManagementPage.sprintReport.statusCard.kpiLegend.columnIndicator"),
+                t("defectManagementPage.sprintReport.statusCard.kpiLegend.columnExplanation"),
+            ],
+        ],
+        body: entries.map((entry) => [
+            // Some kpis.* labels carry a "\n(...)" line-wrap hint for the
+            // narrow on-screen tile (e.g. bugsClosedCount) - not meaningful
+            // in a table cell, so it's flattened to a single line here.
+            t(`defectManagementPage.sprintReport.statusCard.kpis.${entry.labelKey}`).replace(
+                /\n/g,
+                " "
+            ),
+            t(`defectManagementPage.sprintReport.statusCard.kpisHelp.${entry.helpKey}`),
+        ]),
+        tableWidth: innerWidth,
+        margin: { left: PDF_MARGIN },
+        styles: { fontSize: 9, cellPadding: 3, textColor: LIGHT_INK, valign: "top" },
+        headStyles: { fillColor: LIGHT_HEADER_BG, textColor: "#ffffff", fontStyle: "bold" },
+        columnStyles: {
+            0: { cellWidth: innerWidth * 0.32, fontStyle: "bold" },
+            1: { cellWidth: innerWidth * 0.68 },
+        },
+    });
+
+    return getLastAutoTableY(doc, 8);
+}
+
+// A standalone "how do I read this card" one-pager - independent of any
+// specific sprint's report data, so it can be generated once and shared
+// alongside report sends without needing to regenerate it every sprint.
+export function buildKpiLegendPdfDocument(t: TranslateFn): jsPDF {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const innerWidth = pageWidth - PDF_MARGIN * 2;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(LIGHT_INK);
+    doc.text(t("defectManagementPage.sprintReport.statusCard.kpiLegend.title"), PDF_MARGIN, 16);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(LIGHT_INK_MUTED);
+    const subtitleLines = doc.splitTextToSize(
+        t("defectManagementPage.sprintReport.statusCard.kpiLegend.subtitle"),
+        innerWidth
+    );
+    doc.text(subtitleLines, PDF_MARGIN, 23);
+
+    let y = 23 + subtitleLines.length * 5 + 6;
+
+    y = pdfDrawKpiLegendSection(
+        doc,
+        innerWidth,
+        y,
+        t("defectManagementPage.sprintReport.statusCard.kpis.testCasesSection"),
+        KPI_LEGEND_TEST_CASES,
+        t
+    );
+
+    pdfDrawKpiLegendSection(
+        doc,
+        innerWidth,
+        y,
+        t("defectManagementPage.sprintReport.statusCard.kpis.bugsSection"),
+        KPI_LEGEND_BUGS,
+        t
+    );
+
+    return doc;
+}
+
+export function exportKpiLegendToPdf(filename: string, t: TranslateFn): void {
+    const doc = buildKpiLegendPdfDocument(t);
+    doc.save(filename);
+}
+
 export function downloadStatusReportCardEmailHtml(
     filename: string,
     data: StatusReportCardEmailData,

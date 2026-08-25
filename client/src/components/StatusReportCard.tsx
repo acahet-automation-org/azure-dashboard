@@ -1,7 +1,8 @@
 import { forwardRef, useMemo } from "react";
-import type { RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { makeStyles } from "@fluentui/react-components";
+import { Tooltip, makeStyles } from "@fluentui/react-components";
+import { InfoRegular } from "@fluentui/react-icons";
 import { SuiteProgressBar } from "./SuiteProgressBar";
 import { computeBugStatusData, computeStatusCardKpis } from "../utils/export";
 import type { Outcome, SprintDefectReport } from "../types";
@@ -218,6 +219,18 @@ const useStyles = makeStyles({
         // Lets \n in translation strings (e.g. kpis.totalTestCases) render
         // as an actual line break instead of collapsing to a space.
         whiteSpace: "pre-line",
+    },
+    kpiLabelRow: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "3px",
+    },
+    kpiHelpIcon: {
+        display: "flex",
+        flexShrink: 0,
+        color: "#8a8886",
+        cursor: "help",
     },
     dashboardButton: {
         display: "inline-flex",
@@ -477,6 +490,41 @@ function SeverityChipsRow({
     );
 }
 
+// One KPI tile: a value, a label, and an (i) icon whose hover/focus tooltip
+// explains in plain language how the value is calculated - the reader
+// shouldn't have to guess why a number excludes N/A or only counts open
+// bugs. helpKey is a translation key under statusCard.kpisHelp.
+function KpiTile({
+    value,
+    color,
+    labelKey,
+    helpKey,
+}: {
+    value: ReactNode;
+    color: string;
+    labelKey: string;
+    helpKey: string;
+}) {
+    const { t } = useTranslation();
+    const styles = useStyles();
+
+    return (
+        <div className={styles.kpiTile}>
+            <span className={styles.kpiValue} style={{ color }}>
+                {value}
+            </span>
+            <span className={styles.kpiLabelRow}>
+                <span className={styles.kpiLabel}>{t(labelKey)}</span>
+                <Tooltip content={t(helpKey)} relationship="description" withArrow>
+                    <span className={styles.kpiHelpIcon} tabIndex={0}>
+                        <InfoRegular fontSize={12} />
+                    </span>
+                </Tooltip>
+            </span>
+        </div>
+    );
+}
+
 export const StatusReportCard = forwardRef<
     HTMLDivElement,
     StatusReportCardProps
@@ -607,56 +655,36 @@ export const StatusReportCard = forwardRef<
                         🧪 {t("defectManagementPage.sprintReport.statusCard.kpis.testCasesSection")}
                     </span>
                     <div className={styles.kpiGrid5}>
-                        <div className={styles.kpiTile}>
-                            <span className={styles.kpiValue} style={{ color: "#3aa0f3" }}>
-                                {totalTestCases}
-                            </span>
-                            <span className={styles.kpiLabel}>
-                                {t(
-                                    "defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"
-                                )}
-                            </span>
-                        </div>
-                        <div className={styles.kpiTile}>
-                            <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
-                                {totalExecuted} ({executedPct}%)
-                            </span>
-                            <span className={styles.kpiLabel}>
-                                {t(
-                                    "defectManagementPage.sprintReport.statusCard.kpis.executedCount"
-                                )}
-                            </span>
-                        </div>
-                        <div className={styles.kpiTile}>
-                            <span className={styles.kpiValue} style={{ color: "#8a8886" }}>
-                                {totalNotApplicable} ({notApplicableRate}%)
-                            </span>
-                            <span className={styles.kpiLabel}>
-                                {t(
-                                    "defectManagementPage.sprintReport.statusCard.kpis.notApplicable"
-                                )}
-                            </span>
-                        </div>
-                        <div className={styles.kpiTile}>
-                            <span className={styles.kpiValue} style={{ color: "#f2b134" }}>
-                                {totalNotRun}
-                            </span>
-                            <span className={styles.kpiLabel}>
-                                {t(
-                                    "defectManagementPage.sprintReport.statusCard.kpis.notRun"
-                                )}
-                            </span>
-                        </div>
-                        <div className={styles.kpiTile}>
-                            <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
-                                {passRate}%
-                            </span>
-                            <span className={styles.kpiLabel}>
-                                {t(
-                                    "defectManagementPage.sprintReport.statusCard.kpis.passRate"
-                                )}
-                            </span>
-                        </div>
+                        <KpiTile
+                            value={totalTestCases}
+                            color="#3aa0f3"
+                            labelKey="defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"
+                            helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.totalTestCases"
+                        />
+                        <KpiTile
+                            value={`${totalExecuted} (${executedPct}%)`}
+                            color="#6bcf6b"
+                            labelKey="defectManagementPage.sprintReport.statusCard.kpis.executedCount"
+                            helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.executedCount"
+                        />
+                        <KpiTile
+                            value={`${totalNotApplicable} (${notApplicableRate}%)`}
+                            color="#8a8886"
+                            labelKey="defectManagementPage.sprintReport.statusCard.kpis.notApplicable"
+                            helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.notApplicable"
+                        />
+                        <KpiTile
+                            value={totalNotRun}
+                            color="#f2b134"
+                            labelKey="defectManagementPage.sprintReport.statusCard.kpis.notRun"
+                            helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.notRun"
+                        />
+                        <KpiTile
+                            value={`${passRate}%`}
+                            color="#6bcf6b"
+                            labelKey="defectManagementPage.sprintReport.statusCard.kpis.passRate"
+                            helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.passRate"
+                        />
                     </div>
                 </div>
 
@@ -666,112 +694,72 @@ export const StatusReportCard = forwardRef<
                         🐛 {t("defectManagementPage.sprintReport.statusCard.kpis.bugsSection")}
                     </span>
                     <div className={styles.kpiGrid4}>
-                        <div className={styles.kpiTile}>
-                            <span className={styles.kpiValue} style={{ color: "#b180d7" }}>
-                                {report.effectiveCount}
-                            </span>
-                            <span className={styles.kpiLabel}>
-                                {t(
-                                    "defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"
-                                )}
-                            </span>
-                        </div>
-                        <div className={styles.kpiTile}>
-                            <span className={styles.kpiValue} style={{ color: "#9e9e9e" }}>
-                                {report.outOfScopeCount}
-                            </span>
-                            <span className={styles.kpiLabel}>
-                                {t(
-                                    "defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"
-                                )}
-                            </span>
-                        </div>
+                        <KpiTile
+                            value={report.effectiveCount}
+                            color="#b180d7"
+                            labelKey="defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"
+                            helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.effectiveBugsDetected"
+                        />
+                        <KpiTile
+                            value={report.outOfScopeCount}
+                            color="#9e9e9e"
+                            labelKey="defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"
+                            helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.outOfScopeBugsDetected"
+                        />
                         {includeDsiSource && (
                             <>
-                                <div className={styles.kpiTile}>
-                                    <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
-                                        {bugsByUs}
-                                    </span>
-                                    <span className={styles.kpiLabel}>
-                                        {t(
-                                            "defectManagementPage.sprintReport.statusCard.kpis.bugsByUs"
-                                        )}
-                                    </span>
-                                </div>
-                                <div className={styles.kpiTile}>
-                                    <span className={styles.kpiValue} style={{ color: "#3aa0f3" }}>
-                                        {bugsByDsi}
-                                    </span>
-                                    <span className={styles.kpiLabel}>
-                                        {t(
-                                            "defectManagementPage.sprintReport.statusCard.kpis.bugsByDsi"
-                                        )}
-                                    </span>
-                                </div>
+                                <KpiTile
+                                    value={bugsByUs}
+                                    color="#6bcf6b"
+                                    labelKey="defectManagementPage.sprintReport.statusCard.kpis.bugsByUs"
+                                    helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.bugsByUs"
+                                />
+                                <KpiTile
+                                    value={bugsByDsi}
+                                    color="#3aa0f3"
+                                    labelKey="defectManagementPage.sprintReport.statusCard.kpis.bugsByDsi"
+                                    helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.bugsByDsi"
+                                />
                             </>
                         )}
-                        <div className={styles.kpiTile}>
-                            <span className={styles.kpiValue} style={{ color: "#3fb950" }}>
-                                {bugsClosed}
-                            </span>
-                            <span className={styles.kpiLabel}>
-                                {t(
-                                    "defectManagementPage.sprintReport.statusCard.kpis.bugsClosedCount"
-                                )}
-                            </span>
-                        </div>
-                        <div className={styles.kpiTile}>
-                            <span className={styles.kpiValue} style={{ color: "#f2b134" }}>
-                                {bugsClosed}/{report.total} ({bugsClosedPct}%)
-                            </span>
-                            <span className={styles.kpiLabel}>
-                                {t(
-                                    "defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio"
-                                )}
-                            </span>
-                        </div>
-                        <div className={styles.kpiTile}>
-                            <span className={styles.kpiValue} style={{ color: "#ff6b6b" }}>
-                                {criticalCount}
-                            </span>
-                            <span className={styles.kpiLabel}>
-                                {t(
-                                    "defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"
-                                )}
-                            </span>
-                        </div>
-                        <div className={styles.kpiTile}>
-                            <span className={styles.kpiValue} style={{ color: "#3aa0f3" }}>
-                                {report.reopenedCount} ({reopenedPct}%)
-                            </span>
-                            <span className={styles.kpiLabel}>
-                                {t(
-                                    "defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs"
-                                )}
-                            </span>
-                        </div>
-                        <div className={styles.kpiTile}>
-                            <span className={styles.kpiValue} style={{ color: "#6bcf6b" }}>
-                                {t("defectManagementPage.stats.days", {
-                                    value: avgClosureDays,
-                                })}
-                            </span>
-                            <span className={styles.kpiLabel}>
-                                {t(
-                                    "defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime"
-                                )}
-                            </span>
-                        </div>
-                        <div className={styles.kpiTile}>
-                            <span className={styles.kpiValue} style={{ color: "#8a8886" }}>
-                                {report.withoutResolutionDateCount}
-                            </span>
-                            <span className={styles.kpiLabel}>
-                                {t(
-                                    "defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"
-                                )}
-                            </span>
-                        </div>
+                        <KpiTile
+                            value={bugsClosed}
+                            color="#3fb950"
+                            labelKey="defectManagementPage.sprintReport.statusCard.kpis.bugsClosedCount"
+                            helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.bugsClosedCount"
+                        />
+                        <KpiTile
+                            value={`${bugsClosed}/${report.total} (${bugsClosedPct}%)`}
+                            color="#f2b134"
+                            labelKey="defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio"
+                            helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.bugsClosedRatio"
+                        />
+                        <KpiTile
+                            value={criticalCount}
+                            color="#ff6b6b"
+                            labelKey="defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"
+                            helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.criticalBugs"
+                        />
+                        <KpiTile
+                            value={`${report.reopenedCount} (${reopenedPct}%)`}
+                            color="#3aa0f3"
+                            labelKey="defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs"
+                            helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.reopenedBugs"
+                        />
+                        <KpiTile
+                            value={t("defectManagementPage.stats.days", {
+                                value: avgClosureDays,
+                            })}
+                            color="#6bcf6b"
+                            labelKey="defectManagementPage.sprintReport.statusCard.kpis.avgClosureTime"
+                            helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.avgClosureTime"
+                        />
+                        <KpiTile
+                            value={report.withoutResolutionDateCount}
+                            color="#8a8886"
+                            labelKey="defectManagementPage.sprintReport.statusCard.kpis.withoutResolutionDate"
+                            helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.withoutResolutionDate"
+                        />
                     </div>
                 </div>
             </div>
