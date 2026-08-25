@@ -9,6 +9,7 @@ import {
     buildWorkItemUrl,
 } from "./azdo.js";
 import { getDashboardData } from "./dashboardData.js";
+import { parseAllowedSenders, isAllowedSender } from "./teamsNotifier.js";
 import type {
     DefectRecord,
     DefectStats,
@@ -21,6 +22,7 @@ import type {
     DefectFilterOptions,
     ClosureReason,
     SprintDefectReport,
+    VerificaActivitySummary,
 } from "./types.js";
 
 // Keyed by resolved project (see resolveProjectKey) rather than a single
@@ -46,6 +48,13 @@ const REOPENED_TO_STATES = ["Riaperto"];
 // QA to re-test. Drives the Teams "sent to verifica" notification (see
 // startVerificaNotificationScheduler in scheduler.ts).
 export const VERIFICA_STATE = "Da verificare";
+
+// VERIFICA_STATE plus "In verifica" (QA actively re-testing) - the combined
+// "pending/undergoing verification" window. Drives the per-assignee Teams
+// notification (see startAssigneeVerificaNotificationScheduler in
+// scheduler.ts), which cares about either sub-state, not just the moment a
+// bug first lands in the queue.
+export const VERIFICA_PENDING_STATES = [VERIFICA_STATE, "In verifica"];
 
 // Seeded with the canonical VSTS/Agile rejection reasons. Whether these
 // actually appear depends on the project's process template - some
@@ -154,9 +163,12 @@ function countReopenings(revisions: any[]): number {
 // countReopenings' walk over revisions), so callers know whether a bug
 // currently in that state just arrived there or has been sitting for a
 // while - without a second per-bug revisions fetch.
+// targetStates is a set to enter, not a single value - e.g. VERIFICA_PENDING_STATES,
+// so moving between its members (Da verificare <-> In verifica) doesn't count
+// as a fresh entry, only arriving from outside the set does.
 function findLastTransitionInto(
     revisions: any[],
-    targetState: string
+    targetStates: string[]
 ): { changedDate: string } | undefined {
     let result: { changedDate: string } | undefined;
 
@@ -164,7 +176,28 @@ function findLastTransitionInto(
         const prevState = revisions[i - 1].fields?.["System.State"];
         const currState = revisions[i].fields?.["System.State"];
 
-        if (currState === targetState && currState !== prevState) {
+        if (targetStates.includes(currState) && !targetStates.includes(prevState)) {
+            result = { changedDate: revisions[i].fields?.["System.ChangedDate"] };
+        }
+    }
+
+    return result;
+}
+
+// Mirror of findLastTransitionInto - last time the bug LEFT targetStates
+// (arrived somewhere outside the set, having been inside it), rather than
+// entered it. Used for verificaExitTransition ("verified today").
+function findLastTransitionOutOf(
+    revisions: any[],
+    targetStates: string[]
+): { changedDate: string } | undefined {
+    let result: { changedDate: string } | undefined;
+
+    for (let i = 1; i < revisions.length; i++) {
+        const prevState = revisions[i - 1].fields?.["System.State"];
+        const currState = revisions[i].fields?.["System.State"];
+
+        if (!targetStates.includes(currState) && targetStates.includes(prevState)) {
             result = { changedDate: revisions[i].fields?.["System.ChangedDate"] };
         }
     }
@@ -415,7 +448,10 @@ async function buildDefectRecord(
         estimatedResolutionDate:
             bug.fields["Custom.EstimatedResolutionDate"],
         reopenedCount: countReopenings(revisions),
-        verificaTransition: findLastTransitionInto(revisions, VERIFICA_STATE),
+        verificaTransition: findLastTransitionInto(revisions, [VERIFICA_STATE]),
+        verificaPendingTransition: findLastTransitionInto(revisions, VERIFICA_PENDING_STATES),
+        verificaExitTransition: findLastTransitionOutOf(revisions, VERIFICA_PENDING_STATES),
+        lastReopenedTransition: findLastTransitionInto(revisions, REOPENED_TO_STATES),
         hasLinkedTestCase: linkedTestCaseIds.length > 0,
         url: buildWorkItemUrl(bug.id, project),
         creator: bug.fields["System.CreatedBy"]?.displayName,
@@ -944,6 +980,85 @@ export function computeSprintDefectReport(
     };
 }
 
+function isToday(dateString: string, timeZone: string): boolean {
+    const fmt = new Intl.DateTimeFormat("en-CA", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    });
+
+    return fmt.format(new Date(dateString)) === fmt.format(new Date());
+}
+
+// Drives the Sprint Defect Report's auto-generated Azione 2 text (see
+// SprintDefectReportTab.tsx). Reads TEAMS_VERIFICA_ASSIGNEE_ALLOWLIST /
+// TEAMS_VERIFICA_TIMEZONE directly (same env vars the per-assignee Teams
+// notifier uses - see scheduler.ts), matching this file's existing
+// process.env.AZDO_PROJECT precedent rather than threading them through
+// every caller.
+// Anyone assigned a bug with this email domain who isn't already on the
+// allowlist is treated as DSI (see computeVerificaActivitySummary) - not
+// configurable via env since, unlike the allowlist itself, this is a fixed
+// organizational fact (gruppoitas.it is ITAS's own domain) rather than a
+// per-deployment choice.
+const DSI_EMAIL_DOMAIN = "gruppoitas.it";
+
+function computeVerificaActivitySummary(
+    records: DefectRecord[]
+): VerificaActivitySummary {
+    const allowedAssignees = parseAllowedSenders(
+        process.env.TEAMS_VERIFICA_ASSIGNEE_ALLOWLIST ?? ""
+    );
+    const timezone = process.env.TEAMS_VERIFICA_TIMEZONE ?? "Europe/Rome";
+
+    const scoped = records.filter((r) =>
+        isAllowedSender(r.assignedTo?.uniqueName, allowedAssignees)
+    );
+
+    const verifiedToday = scoped.filter(
+        (r) => r.verificaExitTransition && isToday(r.verificaExitTransition.changedDate, timezone)
+    ).length;
+
+    const closedToday = scoped.filter(
+        (r) => r.state === "Closed" && r.closedDate && isToday(r.closedDate, timezone)
+    ).length;
+
+    const reopenedToday = scoped.filter(
+        (r) => r.lastReopenedTransition && isToday(r.lastReopenedTransition.changedDate, timezone)
+    ).length;
+
+    const stillPendingVerification = scoped.filter((r) =>
+        VERIFICA_PENDING_STATES.includes(r.state)
+    ).length;
+
+    // Priority order: Test Factory (allowlist) beats DSI beats SI, even if
+    // an email were to match more than one bucket - see the field comment
+    // on VerificaActivitySummary.
+    const dsiPendingCount = records.filter(
+        (r) =>
+            !isAllowedSender(r.assignedTo?.uniqueName, allowedAssignees) &&
+            isAllowedSender(r.assignedTo?.uniqueName, [DSI_EMAIL_DOMAIN]) &&
+            VERIFICA_PENDING_STATES.includes(r.state)
+    ).length;
+
+    const siPendingCount = records.filter(
+        (r) =>
+            !isAllowedSender(r.assignedTo?.uniqueName, allowedAssignees) &&
+            !isAllowedSender(r.assignedTo?.uniqueName, [DSI_EMAIL_DOMAIN]) &&
+            VERIFICA_PENDING_STATES.includes(r.state)
+    ).length;
+
+    return {
+        verifiedToday,
+        closedToday,
+        reopenedToday,
+        stillPendingVerification,
+        dsiPendingCount,
+        siPendingCount,
+    };
+}
+
 function computeFirstTimeFixRate(
     records: DefectRecord[]
 ): number | null {
@@ -1376,6 +1491,7 @@ export function computeDefectStats(
         outOfScopeRate: computeOutOfScopeRate(records),
         outOfScopeBySuite: computeOutOfScopeBySuite(records),
         sprintDefectReport: computeSprintDefectReport(records, allSuiteNames),
+        verificaActivitySummary: computeVerificaActivitySummary(records),
         firstTimeFixRate: computeFirstTimeFixRate(records),
         densityByComponent: computeDensityByComponent(
             records,

@@ -101,7 +101,12 @@ function splitActionLeadIn(paragraph: string): {
 
 const useStyles = makeStyles({
     card: {
-        maxWidth: "900px",
+        // Fixed (not maxWidth) so every card renders the same size
+        // regardless of content - a report with fewer suites/shorter
+        // actions text would otherwise shrink narrower than one with more,
+        // making exported cards visibly inconsistent send to send.
+        width: "900px",
+        flexShrink: 0,
         display: "flex",
         flexDirection: "column",
         borderRadius: "8px",

@@ -258,6 +258,15 @@ export interface SprintDefectReport {
     withoutResolutionDateCount: number;
 }
 
+export interface VerificaActivitySummary {
+    verifiedToday: number;
+    closedToday: number;
+    reopenedToday: number;
+    stillPendingVerification: number;
+    dsiPendingCount: number;
+    siPendingCount: number;
+}
+
 export interface DefectSummary extends BugInfo {
     severity?: string;
     ageDays?: number;
@@ -306,6 +315,7 @@ export interface DefectStats {
     outOfScopeRate: number;
     outOfScopeBySuite: Record<string, number>;
     sprintDefectReport: SprintDefectReport;
+    verificaActivitySummary: VerificaActivitySummary;
     firstTimeFixRate: number | null;
     densityByComponent: Record<string, number | null>;
     backlogTrend: BacklogTrendPoint[];

@@ -28,7 +28,8 @@
     "start": "tsx src/server.ts",
     "kill:dev": "node scripts/kill-dev.js",
     "test:teams": "tsx src/scripts/testTeamsNotification.ts",
-    "verifica:check-now": "tsx src/scripts/runVerificaCheckNow.ts"
+    "verifica:check-now": "tsx src/scripts/runVerificaCheckNow.ts",
+    "verifica:assignee-check-now": "tsx src/scripts/assigneeVerificaCheckNow.ts"
   },
   "dependencies": {
     "@azure/msal-browser": "^5.17.3",
