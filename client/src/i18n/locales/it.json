@@ -25,6 +25,7 @@
     "refreshFailed": "Aggiornamento non riuscito: {{message}}",
     "refreshUpToDate": "Già aggiornato (riprova tra {{minutes}}m)",
     "help": "Guida",
+    "settings": "Impostazioni",
     "welcome": "Benvenuto, {{name}}",
     "signOut": "Esci",
     "testGraphLogin": "Login",
@@ -641,6 +642,11 @@
   },
   "loadingState": {
     "label": "Caricamento"
+  },
+  "settings": {
+    "title": "Impostazioni menu",
+    "description": "Scegli quali sezioni compaiono nella barra laterale. Le sezioni nascoste non saranno raggiungibili finché non le riattivi.",
+    "close": "Chiudi"
   },
   "themeSwitcher": {
     "label": "Tema",

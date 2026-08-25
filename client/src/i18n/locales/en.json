@@ -25,6 +25,7 @@
         "refreshFailed": "Refresh failed: {{message}}",
         "refreshUpToDate": "Already up to date (try again in {{minutes}}m)",
         "help": "Help",
+        "settings": "Settings",
         "welcome": "Welcome, {{name}}",
         "signOut": "Sign Out",
         "testGraphLogin": "Login",
@@ -641,6 +642,11 @@
     },
     "loadingState": {
         "label": "Loading"
+    },
+    "settings": {
+        "title": "Menu settings",
+        "description": "Choose which sections appear in the sidebar. Hidden sections won't be reachable until you turn them back on.",
+        "close": "Close"
     },
     "themeSwitcher": {
         "label": "Theme",
