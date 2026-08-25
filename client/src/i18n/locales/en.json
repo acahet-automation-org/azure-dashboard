@@ -466,7 +466,7 @@
                     "totalTestCases": "Total Test Cases",
                     "notRun": "Test Cases To Execute",
                     "executedCount": "Test Cases Executed",
-                    "passRate": "Pass Rate (Ok / Total)\n- N/A excluded",
+                    "passRate": "Pass Rate (Ok / Total)",
                     "notApplicable": "Not Applicable",
                     "notApplicableRate": "N/A Test Cases",
                     "bugsClosedCount": "Bugs Closed\n(all detected)",
@@ -480,6 +480,31 @@
                     "withoutResolutionDate": "Bugs Without\nResolution Date",
                     "bugsByUs": "Bugs opened by Test Factory",
                     "bugsByDsi": "Bugs opened by DSI"
+                },
+                "kpisHelp": {
+                    "totalTestCases": "All test cases in the selected plan, regardless of their status.",
+                    "executedCount": "Cases with outcome Passed, Failed or Blocked. Not Applicable (N/A) cases are excluded.",
+                    "notApplicable": "Cases marked Not Applicable (N/A), i.e. not relevant for this sprint.",
+                    "notRun": "Cases not executed yet: Total minus Executed minus N/A.",
+                    "passRate": "Percentage of Passed cases over the total usable cases (Total minus N/A). N/A cases are excluded.",
+                    "effectiveBugsDetected": "Valid bugs found, excluding out-of-scope ones (duplicates, not relevant, etc.).",
+                    "outOfScopeBugsDetected": "Bugs found but excluded from the main count because they're out of scope (duplicates, not reproducible, not relevant).",
+                    "bugsByUs": "Bugs found by our test team (Total minus the ones opened by DSI).",
+                    "bugsByDsi": "Bugs reported directly by DSI, not found by our test team.",
+                    "bugsClosedCount": "Number of bugs with status Closed, out of the total bugs found (including out-of-scope ones).",
+                    "bugsClosedRatio": "Percentage of Closed bugs over the total bugs found (Closed divided by Total).",
+                    "criticalBugs": "Critical-severity bugs that are still open. Already-closed critical bugs aren't counted here.",
+                    "reopenedBugs": "Bugs that were closed and got reopened because the issue came back.",
+                    "avgClosureTime": "Average number of days between a bug being opened and closed.",
+                    "withoutResolutionDate": "Closed bugs missing a resolution date in the system, so they don't contribute to the average closure time."
+                },
+                "kpiLegend": {
+                    "title": "Sprint Status Card Guide",
+                    "subtitle": "Simple explanation of every indicator shown on the card, so you can see at a glance how each number is calculated.",
+                    "columnIndicator": "Indicator",
+                    "columnExplanation": "How it's calculated",
+                    "downloadButton": "Download Guide (PDF)",
+                    "filename": "sprint_status_card_guide"
                 },
                 "originBreakdown": {
                     "title": "Bugs by Suite",

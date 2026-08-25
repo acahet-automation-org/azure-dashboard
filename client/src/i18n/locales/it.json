@@ -465,8 +465,8 @@
           "bugsSection": "Stato bug",
           "totalTestCases": "Casi di test totali",
           "notRun": "Casi di test da eseguire",
-          "executedCount": "Casi di test eseguiti\n- sono esclusi gli N/A",
-          "passRate": "Pass Rate (Ok / Totali)\n- sono esclusi gli N/A",
+          "executedCount": "Casi di test eseguiti",
+          "passRate": "Pass Rate (Ok / Totali)",
           "notApplicable": "Non applicabili",
           "notApplicableRate": "Casi di test non applicabili",
           "bugsClosedCount": "Bug chiusi\n(tot. rilevati)",
@@ -480,6 +480,31 @@
           "withoutResolutionDate": "Bug senza data di\nrisoluzione",
           "bugsByUs": "Bug aperti da Test Factory",
           "bugsByDsi": "Bug aperti da DSI"
+        },
+        "kpisHelp": {
+          "totalTestCases": "Tutti i casi di test presenti nel piano selezionato, qualsiasi sia il loro stato.",
+          "executedCount": "Casi con esito Passato, Fallito o Bloccato. Sono esclusi i casi Non Applicabile (N/A).",
+          "notApplicable": "Casi segnati come Non Applicabile (N/A), cioè non pertinenti per questo sprint.",
+          "notRun": "Casi non ancora eseguiti: Totale meno Eseguiti meno N/A.",
+          "passRate": "Percentuale di casi Passati sul totale dei casi utili (Totale meno N/A). Sono esclusi gli N/A.",
+          "effectiveBugsDetected": "Bug validi rilevati, cioè esclusi quelli fuori perimetro (duplicati, non pertinenti, ecc.).",
+          "outOfScopeBugsDetected": "Bug rilevati ma esclusi dal conteggio principale perché fuori perimetro (duplicati, non riproducibili, non pertinenti).",
+          "bugsByUs": "Bug rilevati dal nostro team di test (Totale meno quelli aperti da DSI).",
+          "bugsByDsi": "Bug segnalati direttamente da DSI, non trovati dal nostro team di test.",
+          "bugsClosedCount": "Numero di bug con stato Chiuso, sul totale dei bug rilevati (inclusi quelli fuori perimetro).",
+          "bugsClosedRatio": "Percentuale di bug Chiusi sul totale dei bug rilevati (Chiusi diviso Totale).",
+          "criticalBugs": "Bug di severity Critica ancora aperti. I critici già chiusi non vengono contati qui.",
+          "reopenedBugs": "Bug che erano stati chiusi e sono stati riaperti perché il problema si è ripresentato.",
+          "avgClosureTime": "Numero medio di giorni che passano tra l'apertura e la chiusura di un bug.",
+          "withoutResolutionDate": "Bug chiusi per cui manca la data di risoluzione nel sistema, quindi non contribuiscono al calcolo del tempo medio di chiusura."
+        },
+        "kpiLegend": {
+          "title": "Guida alla Scheda Stato Sprint",
+          "subtitle": "Spiegazione semplice di ogni indicatore mostrato nella scheda, per capire subito come viene calcolato ogni numero.",
+          "columnIndicator": "Indicatore",
+          "columnExplanation": "Come si calcola",
+          "downloadButton": "Scarica Guida (PDF)",
+          "filename": "guida_scheda_stato_sprint"
         },
         "originBreakdown": {
           "title": "Bug per Suite",

@@ -16,6 +16,7 @@ import {
 } from "@fluentui/react-components";
 import {
   ArrowDownloadRegular,
+  BookQuestionMarkRegular,
   ChevronDownRegular,
   ClipboardCheckmarkRegular,
   ClipboardRegular,
@@ -40,6 +41,7 @@ import {
   buildStatusReportCardFilename,
   copyStatusReportCardEmailHtmlToClipboard,
   downloadStatusReportCardEmailHtml,
+  exportKpiLegendToPdf,
   exportStatusReportCardToPdf,
   exportStatusReportCardToPptx,
 } from "../utils/export";
@@ -339,6 +341,7 @@ export function SprintDefectReportTab({
 
   const [isExportingCard, setIsExportingCard] = useState(false);
   const [isExportingPptx, setIsExportingPptx] = useState(false);
+  const [isExportingLegend, setIsExportingLegend] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   // Off by default: the Test Factory/Test Agenti/Business breakdown is
   // still being validated, so regular report sends shouldn't include it
@@ -575,6 +578,22 @@ export function SprintDefectReportTab({
       );
     } finally {
       setIsExportingCard(false);
+    }
+  };
+
+  // Independent of the current report's data (see buildKpiLegendPdfDocument
+  // in export.ts) - a "how to read this card" one-pager generated once and
+  // shared alongside sprint report sends, not regenerated per sprint.
+  const handleExportKpiLegend = () => {
+    setIsExportingLegend(true);
+
+    try {
+      exportKpiLegendToPdf(
+        `${t("defectManagementPage.sprintReport.statusCard.kpiLegend.filename")}.pdf`,
+        t,
+      );
+    } finally {
+      setIsExportingLegend(false);
     }
   };
 
@@ -1012,6 +1031,19 @@ export function SprintDefectReportTab({
                 ? "defectManagementPage.sprintReport.statusCard.copyHtmlButtonCopied"
                 : "defectManagementPage.sprintReport.statusCard.copyHtmlButton",
             )}
+          </Button>
+
+          <Button
+            appearance="secondary"
+            icon={<BookQuestionMarkRegular />}
+            disabled={isExportingLegend}
+            onClick={handleExportKpiLegend}
+          >
+            {isExportingLegend
+              ? t("planOverviewPage.exporting")
+              : t(
+                  "defectManagementPage.sprintReport.statusCard.kpiLegend.downloadButton",
+                )}
           </Button>
 
           <Switch
