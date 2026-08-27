@@ -89,6 +89,7 @@
         "actionsLabel2": "Azione 2 (opzionale)",
         "actionsPlaceholder": "Testo dell'azione",
         "actionsPresetPlaceholder": "Inserisci un modello...",
+        "actionsPresetAutoSuggested": "Testo suggerito (generato da questo report)",
         "actionsPreset1SiDeadline": "System Integrator: aggiornare/chiudere i bug entro la deadline",
         "actionsPreset1SiMissingDates": "System Integrator: date di risoluzione mancanti ({{count}} bug)",
         "actionsPreset2TestManagementOutOfScope": "Test Management: agente complesso fuori ambito (Sprint 3)",
@@ -153,20 +154,25 @@
           "bugsByDsi": "Bug aperti da DSI"
         },
         "kpisHelp": {
-          "totalTestCases": "Tutti i casi di test presenti nel piano selezionato, qualsiasi sia il loro stato.",
-          "executedCount": "Casi con esito Passato, Fallito o Bloccato. Sono esclusi i casi Non Applicabile (N/A).",
+          "totalTestCases": "Tutti i casi di test presenti nel/i piano/i selezionato/i, qualsiasi sia il loro stato.",
+          "executedCount": "Casi con esito Passato, Fallito o Bloccato. Qualsiasi altro esito (Non Applicabile, Da eseguire, In pausa, In corso) non viene conteggiato come eseguito qui - a differenza del badge \"% Eseguiti\" di ogni suite più in basso, che conta anche i Non Applicabile come eseguiti.",
           "notApplicable": "Casi segnati come Non Applicabile (N/A), cioè non pertinenti per questo sprint.",
-          "notRun": "Casi non ancora eseguiti: Totale meno Eseguiti meno N/A.",
+          "notRun": "Casi non ancora eseguiti: Totale meno Eseguiti meno N/A. Include anche eventuali casi In pausa o In corso, perché solo Passato/Fallito/Bloccato contano come \"eseguiti\" qui sopra.",
           "passRate": "Percentuale di casi Passati sul totale dei casi utili (Totale meno N/A). Sono esclusi gli N/A.",
-          "effectiveBugsDetected": "Bug validi rilevati, cioè esclusi quelli fuori perimetro (duplicati, non pertinenti, ecc.).",
+          "effectiveBugsDetected": "Bug validi rilevati, cioè esclusi quelli fuori perimetro (duplicati, non pertinenti, ecc.) - mostrati come bug effettivi sul totale rilevato.",
           "outOfScopeBugsDetected": "Bug rilevati ma esclusi dal conteggio principale perché fuori perimetro (duplicati, non riproducibili, non pertinenti).",
-          "bugsByUs": "Bug rilevati dal nostro team di test (Totale meno quelli aperti da DSI).",
-          "bugsByDsi": "Bug segnalati direttamente da DSI, non trovati dal nostro team di test.",
-          "bugsClosedRatio": "Percentuale di bug Chiusi sul totale dei bug rilevati (Chiusi diviso Totale).",
-          "criticalBugs": "Bug di severity Critica ancora aperti. I critici già chiusi non vengono contati qui.",
-          "reopenedBugs": "Bug che erano stati chiusi e sono stati riaperti perché il problema si è ripresentato.",
-          "avgClosureTime": "Numero medio di giorni che passano tra l'apertura e la chiusura di un bug.",
-          "withoutResolutionDate": "Bug chiusi per cui manca la data di risoluzione nel sistema, quindi non contribuiscono al calcolo del tempo medio di chiusura."
+          "bugsByUs": "Bug rilevati dal nostro team di test: ogni bug rilevato (compresi quelli fuori perimetro) la cui origine non è DSI.",
+          "bugsByDsi": "Bug segnalati direttamente da DSI: ogni bug rilevato (compresi quelli fuori perimetro) collegato all'origine DSI.",
+          "bugsClosedRatio": "Percentuale di bug Chiusi sul totale dei bug rilevati (Chiusi diviso Totale), inclusi eventuali bug fuori perimetro chiusi.",
+          "criticalBugs": "Bug di severity Critica ancora aperti, conteggiati solo tra i bug effettivi (in perimetro) - a differenza degli altri conteggi bug di questa scheda, qui i bug fuori perimetro sono esclusi.",
+          "reopenedBugs": "Bug che sono stati riaperti almeno una volta dopo essere stati chiusi, in base alla loro storia completa - indipendentemente dallo stato attuale, e conteggiati su ogni bug rilevato inclusi quelli fuori perimetro.",
+          "avgClosureTime": "Numero medio di giorni tra l'apertura e la chiusura di un bug, calcolato su ogni bug rilevato (compresi quelli fuori perimetro) che ha una data di chiusura effettiva. I bug ancora aperti non vengono conteggiati.",
+          "withoutResolutionDate": "Bug ancora attivi (non Chiusi, non Da verificare, non In verifica) che non hanno ancora una data di risoluzione stimata. Un dato separato dalla media del tempo di chiusura qui sopra, che si basa sulla data di chiusura effettiva di ogni bug."
+        },
+        "sectionHelp": {
+          "suiteProgress": "Il \"% Eseguiti\" di ogni suite conta anche i casi Non Applicabile come eseguiti (viene escluso solo Da eseguire) - più ampio della KPI \"Casi di test eseguiti\" qui sopra, che esclude del tutto i Non Applicabile. Pass Rate = Passati ÷ (Totale meno Non Applicabile).",
+          "bugStatus": "Ogni bug rilevato per questo sprint/area, compresi quelli fuori perimetro, raggruppato per stato attuale su Azure DevOps. \"Ancora aperti\" conta solo i bug effettivi (in perimetro) non ancora Chiusi - un numero più ristretto rispetto ai totali qui sopra.",
+          "originBreakdown": "\"Rilevati\" conta ogni bug attribuito a questa origine, compresi quelli fuori perimetro. \"Accettati\" conta solo i bug effettivi (in perimetro) di quella stessa origine. L'origine di un bug è Test Factory di default, a meno che la suite collegata non lo identifichi come Test Agenti, Business o DSI (i bug DSI sono conteggiati nella tile KPI qui sopra, senza un pannello proprio qui)."
         },
         "kpiLegend": {
           "title": "Guida alla Scheda Stato Sprint",

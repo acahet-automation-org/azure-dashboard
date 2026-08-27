@@ -311,12 +311,15 @@ export function SprintDefectReportTab({
   const [headerSubtitle, setHeaderSubtitle] = useState(defaultHeaderSubtitle);
   const [uatDeadline, setUatDeadline] = useState("2026-07-20");
 
-  // Seeded as two paragraphs (blank-line separated) so each lands in its
-  // own box below - defaultActionsText callers only ever supply one or
-  // two paragraphs today, so anything past the second is dropped. The
-  // System Integrator note only makes sense when there's actually a bug
-  // missing a resolution date to act on.
-  const [defaultActionText1, defaultActionText2] = (
+  // Two paragraphs (blank-line separated) so each lands in its own box
+  // below - defaultActionsText callers only ever supply one or two
+  // paragraphs today, so anything past the second is dropped. The System
+  // Integrator note only makes sense when there's actually a bug missing a
+  // resolution date to act on. Azione 1/2 themselves start empty (see
+  // actionText1/actionText2 below) - this auto text is offered as a preset
+  // in each field's dropdown instead of being force-filled, so a report
+  // with nothing to say doesn't ship half-written boilerplate by default.
+  const [autoActionText1, autoActionText2] = (
     defaultActionsText
       ? defaultActionsText(report)
       : report.withoutResolutionDateCount > 0
@@ -326,8 +329,8 @@ export function SprintDefectReportTab({
   )
     .split(/\n\s*\n/)
     .map((p) => p.trim());
-  const [actionText1, setActionText1] = useState(defaultActionText1 ?? "");
-  const [actionText2, setActionText2] = useState(defaultActionText2 ?? "");
+  const [actionText1, setActionText1] = useState("");
+  const [actionText2, setActionText2] = useState("");
   const actionsText = [actionText1, actionText2]
     .map((text) => text.trim())
     .filter(Boolean)
@@ -438,6 +441,17 @@ export function SprintDefectReportTab({
   // rule as the default Action 1 text above - when there's actually a bug
   // without one to act on.
   const action1Presets: { key: string; label: string; text: string }[] = [
+    ...(autoActionText1.trim()
+      ? [
+          {
+            key: "auto-suggested",
+            label: t(
+              "defectManagementPage.sprintReport.statusCard.actionsPresetAutoSuggested",
+            ),
+            text: autoActionText1,
+          },
+        ]
+      : []),
     {
       key: "si-deadline",
       label: t(
@@ -461,6 +475,17 @@ export function SprintDefectReportTab({
   ];
 
   const action2Presets: { key: string; label: string; text: string }[] = [
+    ...(autoActionText2.trim()
+      ? [
+          {
+            key: "auto-suggested",
+            label: t(
+              "defectManagementPage.sprintReport.statusCard.actionsPresetAutoSuggested",
+            ),
+            text: autoActionText2,
+          },
+        ]
+      : []),
     {
       key: "test-management-out-of-scope",
       label: t(

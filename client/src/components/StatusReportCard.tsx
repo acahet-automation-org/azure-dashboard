@@ -256,6 +256,11 @@ const useStyles = makeStyles({
         fontWeight: 600,
         color: "#f3f2f1",
     },
+    sectionTitleRow: {
+        display: "flex",
+        alignItems: "center",
+        gap: "5px",
+    },
     section: {
         display: "flex",
         flexDirection: "column",
@@ -526,6 +531,25 @@ function KpiTile({
                 </Tooltip>
             </span>
         </div>
+    );
+}
+
+// Same (i) icon/tooltip as KpiTile's helpKey, for a section title rather
+// than a single KPI value - covers the parts of the card (Suite Progress,
+// Bug Status, Bugs by Suite) that aren't broken into individual tiles, so
+// they don't stay unexplained just because they render as one block
+// instead of a grid. helpKey is a translation key under
+// statusCard.sectionHelp.
+function SectionHelp({ helpKey }: { helpKey: string }) {
+    const { t } = useTranslation();
+    const styles = useStyles();
+
+    return (
+        <Tooltip content={t(helpKey)} relationship="description" withArrow>
+            <span className={styles.kpiHelpIcon} tabIndex={0}>
+                <InfoRegular fontSize={12} />
+            </span>
+        </Tooltip>
     );
 }
 
@@ -817,11 +841,14 @@ export const StatusReportCard = forwardRef<
             )}
 
             <div className={styles.section}>
-                <span className={styles.sectionTitle}>
-                    📈{" "}
-                    {t(
-                        "defectManagementPage.sprintReport.statusCard.suiteProgressTitle"
-                    )}
+                <span className={styles.sectionTitleRow}>
+                    <span className={styles.sectionTitle}>
+                        📈{" "}
+                        {t(
+                            "defectManagementPage.sprintReport.statusCard.suiteProgressTitle"
+                        )}
+                    </span>
+                    <SectionHelp helpKey="defectManagementPage.sprintReport.statusCard.sectionHelp.suiteProgress" />
                 </span>
 
                 {suiteGroups.length > 0 ? (
@@ -844,11 +871,14 @@ export const StatusReportCard = forwardRef<
 
             <div className={styles.section}>
                 <div className={styles.sectionHeader}>
-                    <span className={styles.sectionTitle}>
-                        🐛{" "}
-                        {t(
-                            "defectManagementPage.sprintReport.statusCard.bugStatusTitle"
-                        )}
+                    <span className={styles.sectionTitleRow}>
+                        <span className={styles.sectionTitle}>
+                            🐛{" "}
+                            {t(
+                                "defectManagementPage.sprintReport.statusCard.bugStatusTitle"
+                            )}
+                        </span>
+                        <SectionHelp helpKey="defectManagementPage.sprintReport.statusCard.sectionHelp.bugStatus" />
                     </span>
                     <span className={styles.sectionSubtitle}>
                         {t(
@@ -943,10 +973,13 @@ export const StatusReportCard = forwardRef<
             {showOriginBreakdown &&
                 originPanels.some((panel) => panel.suiteEntries.length > 0) && (
                 <div className={styles.section}>
-                    <span className={styles.sectionTitle}>
-                        {t(
-                            "defectManagementPage.sprintReport.statusCard.originBreakdown.title"
-                        )}
+                    <span className={styles.sectionTitleRow}>
+                        <span className={styles.sectionTitle}>
+                            {t(
+                                "defectManagementPage.sprintReport.statusCard.originBreakdown.title"
+                            )}
+                        </span>
+                        <SectionHelp helpKey="defectManagementPage.sprintReport.statusCard.sectionHelp.originBreakdown" />
                     </span>
 
                     {originPanels
