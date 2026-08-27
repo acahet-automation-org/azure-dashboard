@@ -121,7 +121,7 @@
         "suiteGroupsWarning": "\"{{group}}\": nessun caso di test corrisponde ({{hint}})",
         "noPlanSelected": "Nessuna suite ancora corrisponde - controlla i nomi di piano/suite configurati per questa scheda.",
         "bugStatusTitle": "Stato bug",
-        "bugStatusSubtitle": "(rilevati da {{sources}} · solo bug effettivi)",
+        "bugStatusSubtitle": "(rilevati da {{sources}})",
         "closedOutOfScopeNote": " (di cui {{count}} out of scope)",
         "bugsDetected": "{{count}} bug totali rilevati",
         "bugStatusSummary": "{{effective}} effettivi, {{outOfScope}} out of scope",
