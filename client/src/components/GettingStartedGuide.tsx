@@ -17,11 +17,7 @@ import {
 } from "@fluentui/react-components";
 import { useTranslation } from "react-i18next";
 import { AzdoPatSteps } from "./AzdoPatSteps";
-import { AUTOMATION_ITEMS, NAV_ITEMS } from "../config/navItems";
-
-const GUIDE_NAV_ITEMS = [...NAV_ITEMS, ...AUTOMATION_ITEMS].filter(
-    (item) => item.enabled
-);
+import { NAV_ITEMS } from "../config/navItems";
 
 const useStyles = makeStyles({
     content: {
@@ -70,11 +66,6 @@ export function GettingStartedGuide({
                             </Title3>
                             <Text block>
                                 {t(
-                                    "onboardingGuide.emailSection.quickExport"
-                                )}
-                            </Text>
-                            <Text block>
-                                {t(
                                     "onboardingGuide.emailSection.statusReport"
                                 )}
                             </Text>
@@ -95,7 +86,7 @@ export function GettingStartedGuide({
                                 {t("onboardingGuide.navSectionTitle")}
                             </Title3>
                             <Accordion collapsible>
-                                {GUIDE_NAV_ITEMS.map((item) => (
+                                {NAV_ITEMS.map((item) => (
                                     <AccordionItem
                                         key={item.key}
                                         value={item.key}

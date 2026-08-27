@@ -1,23 +1,8 @@
 import type {
-    SuiteStat,
-    DashboardResponse,
-    RunCard,
-    AutomationDashboardResponse,
-    ExecutionTrendResponse,
     TestPlanSummary,
-    TestSuiteSummary,
     DefectDashboardResponse,
     DefectFilters,
-    CommonErrorsResponse,
-    WorkItemSummary,
-    MyWorkItemsMode,
     PlanOverviewResponse,
-    TestPlanProgressResponse,
-    BugInfo,
-    DeleteTestCaseItem,
-    DeleteTestCasesResult,
-    ReleaseReadinessResponse,
-    NavBadgesResponse,
     IterationNode,
     ProjectSummary,
     AreaPathNode,
@@ -96,34 +81,6 @@ async function getJson<T>(url: string): Promise<T> {
     return res.json();
 }
 
-export function fetchSuites(project?: string): Promise<
-    Record<string, SuiteStat>
-> {
-    const qs = project ? `?project=${encodeURIComponent(project)}` : "";
-
-    return getJson(`/api/suites${qs}`);
-}
-
-export function fetchDashboard(
-    iteration?: string,
-    project?: string
-): Promise<DashboardResponse> {
-    const params = new URLSearchParams();
-
-    if (iteration) params.set("iteration", iteration);
-    if (project) params.set("project", project);
-
-    const qs = params.toString();
-
-    return getJson(`/api/dashboard${qs ? `?${qs}` : ""}`);
-}
-
-export function fetchRuns(project?: string): Promise<RunCard[]> {
-    const qs = project ? `?project=${encodeURIComponent(project)}` : "";
-
-    return getJson(`/api/runs${qs}`);
-}
-
 export function fetchPlans(
     project?: string,
     areaPath?: string,
@@ -154,15 +111,6 @@ export function fetchAreaPaths(project: string): Promise<AreaPathNode[]> {
     return getJson(`/api/areas?project=${encodeURIComponent(project)}`);
 }
 
-export function fetchPlanSuites(
-    planId: number,
-    project?: string
-): Promise<TestSuiteSummary[]> {
-    const qs = project ? `?project=${encodeURIComponent(project)}` : "";
-
-    return getJson(`/api/plans/${planId}/suites${qs}`);
-}
-
 export function fetchPlanOverview(
     planId: number,
     project?: string
@@ -170,53 +118,6 @@ export function fetchPlanOverview(
     const qs = project ? `?project=${encodeURIComponent(project)}` : "";
 
     return getJson(`/api/plans/${planId}/overview${qs}`);
-}
-
-export function fetchPlanProgress(
-    planId: number,
-    project?: string
-): Promise<TestPlanProgressResponse> {
-    const qs = project ? `?project=${encodeURIComponent(project)}` : "";
-
-    return getJson(`/api/plans/${planId}/progress${qs}`);
-}
-
-export function fetchPlanProgressBugs(
-    planId: number,
-    suiteIds: number[],
-    project?: string
-): Promise<BugInfo[]> {
-    const params = new URLSearchParams();
-
-    if (suiteIds.length) params.set("suiteIds", suiteIds.join(","));
-    if (project) params.set("project", project);
-
-    const qs = params.toString();
-
-    return getJson(`/api/plans/${planId}/progress/bugs${qs ? `?${qs}` : ""}`);
-}
-
-export function fetchAutomationDashboard(
-    planId?: number,
-    iteration?: string,
-    project?: string
-): Promise<AutomationDashboardResponse> {
-    const params = new URLSearchParams();
-
-    if (planId != null) params.set("planId", String(planId));
-    if (iteration) params.set("iteration", iteration);
-    if (project) params.set("project", project);
-
-    const qs = params.toString();
-    const url = qs ? `/api/automation?${qs}` : "/api/automation";
-
-    return getJson(url);
-}
-
-export function fetchExecutionTrend(project?: string): Promise<ExecutionTrendResponse> {
-    const qs = project ? `?project=${encodeURIComponent(project)}` : "";
-
-    return getJson(`/api/execution-trend${qs}`);
 }
 
 export function fetchDefects(
@@ -235,84 +136,6 @@ export function fetchDefects(
     const qs = params.toString();
 
     return getJson(`/api/defects${qs ? `?${qs}` : ""}`);
-}
-
-export function fetchReleaseReadiness(
-    iteration?: string,
-    project?: string
-): Promise<ReleaseReadinessResponse> {
-    const params = new URLSearchParams();
-
-    if (iteration) params.set("iteration", iteration);
-    if (project) params.set("project", project);
-
-    const qs = params.toString();
-
-    return getJson(`/api/release-readiness${qs ? `?${qs}` : ""}`);
-}
-
-export function fetchNavBadges(project?: string): Promise<NavBadgesResponse> {
-    const qs = project ? `?project=${encodeURIComponent(project)}` : "";
-
-    return getJson(`/api/nav-badges${qs}`);
-}
-
-export function fetchCommonErrors(project?: string): Promise<CommonErrorsResponse> {
-    const qs = project ? `?project=${encodeURIComponent(project)}` : "";
-
-    return getJson(`/api/common-errors${qs}`);
-}
-
-export function fetchMyWorkItems(
-    mode: MyWorkItemsMode,
-    project?: string
-): Promise<WorkItemSummary[]> {
-    const params = new URLSearchParams({ mode });
-
-    if (project) params.set("project", project);
-
-    return getJson(`/api/my-work-items?${params.toString()}`);
-}
-
-export async function sendEmailReport(payload: {
-    subject: string;
-    bodyHtml: string;
-    pdfBase64?: string;
-    filename?: string;
-    fromName: string;
-}): Promise<void> {
-    const res = await apiFetch("/api/email-report", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-        await throwForErrorResponse(
-            res,
-            `Email report failed (${res.status})`
-        );
-    }
-}
-
-export async function deleteTestCases(
-    items: DeleteTestCaseItem[],
-    project?: string
-): Promise<DeleteTestCasesResult> {
-    const res = await apiFetch("/api/test-cases/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items, project }),
-    });
-
-    if (!res.ok) {
-        await throwForErrorResponse(
-            res,
-            `Delete failed (${res.status})`
-        );
-    }
-
-    return res.json();
 }
 
 export interface RefreshResult {

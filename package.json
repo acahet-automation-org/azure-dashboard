@@ -26,15 +26,11 @@
     "build:client": "npm run build --prefix client",
     "build": "npm run build:client",
     "start": "tsx src/server.ts",
-    "kill:dev": "node scripts/kill-dev.js",
-    "test:teams": "tsx src/scripts/testTeamsNotification.ts",
-    "verifica:check-now": "tsx src/scripts/runVerificaCheckNow.ts",
-    "verifica:assignee-check-now": "tsx src/scripts/assigneeVerificaCheckNow.ts"
+    "kill:dev": "node scripts/kill-dev.js"
   },
   "dependencies": {
     "@azure/msal-browser": "^5.17.3",
     "@azure/msal-node": "^5.4.2",
-    "@types/nodemailer": "^8.0.1",
     "axios": "^1.18.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
@@ -44,10 +40,7 @@
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "jwks-rsa": "^3.2.0",
-    "node-cron": "^4.5.0",
-    "nodemailer": "^9.0.1",
     "open": "^11.0.1",
-    "resend": "^6.17.2",
     "sirv": "^3.0.2",
     "tsx": "^4.22.4"
   },
