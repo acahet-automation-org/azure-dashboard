@@ -1784,7 +1784,12 @@ export function computeStatusCardKpis(
 
     const bugsClosed = report.byStatusAll.Closed ?? 0;
     const bugsClosedPct = report.total ? Math.round((bugsClosed / report.total) * 100) : 0;
-    const stillOpen = report.total - bugsClosed;
+    // Effective (in-scope) bugs only, not report.total - byStatusAll.Closed -
+    // so this matches computeBugStatusData's openSeverityTotal exactly (the
+    // severity chips right below it on the card only ever break down
+    // effective bugs, never out-of-scope ones), rather than showing two
+    // different "still open" numbers on the same card.
+    const stillOpen = report.effectiveCount - (report.byStatus.Closed ?? 0);
     const reopenedPct = report.total
         ? Math.round((report.reopenedCount / report.total) * 1000) / 10
         : 0;

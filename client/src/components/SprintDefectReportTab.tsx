@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
@@ -59,6 +59,12 @@ const MONITORING_DASHBOARD_URL =
   "https://dev.azure.com/ItasMutua/Nuova%20Frontiera/_dashboards/dashboard/4665852c-cb39-4a89-ac4f-1dca396b539a";
 
 const emailReportEnabled = import.meta.env.VITE_ENABLE_EMAIL_REPORT === "true";
+
+// Matches StatusReportCard.tsx's own fixed `card` width - kept in sync
+// there (not derived from the DOM) since it drives the preview's
+// fit-to-monitor scale calculation before the card has necessarily
+// rendered/been measured yet.
+const STATUS_CARD_WIDTH = 900;
 
 const ZERO_OUTCOME_COUNTS: Record<Outcome, number> = {
   Passed: 0,
@@ -148,7 +154,7 @@ const useStyles = makeStyles({
   },
   emailPrefaceArea: {
     width: "100%",
-    maxWidth: `${900}px`,
+    maxWidth: `${STATUS_CARD_WIDTH}px`,
     margin: "0 auto",
     display: "flex",
     flexDirection: "column",
@@ -371,6 +377,47 @@ export function SprintDefectReportTab({
   const [emailPrefaceText, setEmailPrefaceText] = useState("");
   const statusCardRef = useRef<HTMLDivElement>(null);
   const dashboardLinkRef = useRef<HTMLAnchorElement>(null);
+  const statusCardPreviewRef = useRef<HTMLDivElement>(null);
+  // Purely a visual fit for the on-screen preview - every export (PDF,
+  // PPTX, email HTML) is built independently from report data in export.ts
+  // rather than by capturing this DOM node, so scaling the preview down to
+  // fit a narrower monitor never changes what actually gets sent.
+  const [previewWidth, setPreviewWidth] = useState(0);
+  // Only height needs measuring - the card's own CSS pins its width to
+  // STATUS_CARD_WIDTH, so it never varies; height does, with content.
+  const [cardHeight, setCardHeight] = useState(0);
+
+  useEffect(() => {
+    const previewEl = statusCardPreviewRef.current;
+
+    if (!previewEl) {
+      return;
+    }
+
+    const observer = new ResizeObserver(([entry]) => {
+      setPreviewWidth(entry.contentRect.width);
+    });
+
+    observer.observe(previewEl);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const cardEl = statusCardRef.current;
+
+    if (!cardEl) {
+      return;
+    }
+
+    const observer = new ResizeObserver(([entry]) => {
+      setCardHeight(entry.contentRect.height);
+    });
+
+    observer.observe(cardEl);
+    return () => observer.disconnect();
+  }, []);
+
+  const previewScale = previewWidth ? Math.min(1, previewWidth / STATUS_CARD_WIDTH) : 1;
 
   // Recomputed on every render (cheap) so "days remaining" is always
   // relative to the moment the card is viewed/exported, not frozen at
@@ -986,20 +1033,36 @@ export function SprintDefectReportTab({
           )
         )}
 
-        <div className={styles.statusCardPreviewRow}>
-          <StatusReportCard
-            ref={statusCardRef}
-            headerTitle={headerTitle}
-            headerSubtitle={headerSubtitle}
-            suiteGroups={suiteGroups}
-            report={report}
-            alertText={alertText}
-            actionsText={actionsText}
-            dashboardUrl={dashboardUrl}
-            dashboardLinkRef={dashboardLinkRef}
-            showOriginBreakdown={showOriginBreakdown}
-            includeDsiSource={includeDsiSource}
-          />
+        <div className={styles.statusCardPreviewRow} ref={statusCardPreviewRef}>
+          <div
+            style={{
+              width: STATUS_CARD_WIDTH * previewScale,
+              height: cardHeight ? cardHeight * previewScale : undefined,
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: STATUS_CARD_WIDTH,
+                transform: `scale(${previewScale})`,
+                transformOrigin: "top left",
+              }}
+            >
+              <StatusReportCard
+                ref={statusCardRef}
+                headerTitle={headerTitle}
+                headerSubtitle={headerSubtitle}
+                suiteGroups={suiteGroups}
+                report={report}
+                alertText={alertText}
+                actionsText={actionsText}
+                dashboardUrl={dashboardUrl}
+                dashboardLinkRef={dashboardLinkRef}
+                showOriginBreakdown={showOriginBreakdown}
+                includeDsiSource={includeDsiSource}
+              />
+            </div>
+          </div>
         </div>
 
         <div className={styles.statusCardControls}>
