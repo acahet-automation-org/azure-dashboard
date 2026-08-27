@@ -109,6 +109,8 @@
                 "emailFromNamePlaceholder": "Shown as the sender name",
                 "emailPrefaceLabel": "Message before report",
                 "emailPrefacePlaceholder": "Write a message to include above the status card, e.g. a greeting or summary...",
+                "emailClosingLabel": "Message after report",
+                "emailClosingPlaceholder": "Write a message to include below the status card, e.g. closing remarks or a signature...",
                 "openDashboard": "Open monitoring dashboard",
                 "casesCount": "{{count}} cases",
                 "executed": "executed",

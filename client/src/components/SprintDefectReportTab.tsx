@@ -275,6 +275,7 @@ export function SprintDefectReportTab({
   includeDsiSource = true,
   includeDeadline = true,
   enableEmailPreface = false,
+  enableEmailClosing = false,
   project,
 }: {
   stats: DefectStats;
@@ -289,6 +290,9 @@ export function SprintDefectReportTab({
   // Lets the sender type a free-text note directly above the card preview,
   // like the compose box above quoted/forwarded content in a mail client.
   enableEmailPreface?: boolean;
+  // Lets the sender type a free-text note below the card preview, appended
+  // after the report in the sent email only (mirrors enableEmailPreface).
+  enableEmailClosing?: boolean;
   // Scopes the plan/plan-overview lookups below to a specific Azure DevOps
   // project.
   project?: string;
@@ -378,6 +382,7 @@ export function SprintDefectReportTab({
   const [ccInput, setCcInput] = useState(DEFAULT_REPORT_CC.join(", "));
   const [fromDisplayName, setFromDisplayName] = useState("");
   const [emailPrefaceText, setEmailPrefaceText] = useState("");
+  const [emailClosingText, setEmailClosingText] = useState("");
   const statusCardRef = useRef<HTMLDivElement>(null);
   const dashboardLinkRef = useRef<HTMLAnchorElement>(null);
   const statusCardPreviewRef = useRef<HTMLDivElement>(null);
@@ -771,7 +776,8 @@ export function SprintDefectReportTab({
 
     const bodyHtml = buildStatusReportCardEmailDocument(
       (enableEmailPreface ? buildEmailPrefaceHtml(emailPrefaceText) : "") +
-        buildStatusReportCardEmailBodyHtml(cardData, t),
+        buildStatusReportCardEmailBodyHtml(cardData, t) +
+        (enableEmailClosing ? buildEmailPrefaceHtml(emailClosingText) : ""),
     );
 
     emailReportMutation.mutate({
@@ -893,6 +899,26 @@ export function SprintDefectReportTab({
             rows={3}
             resize="vertical"
             onChange={(_, data) => setEmailPrefaceText(data.value)}
+          />
+        </div>
+      )}
+
+      {enableEmailClosing && (
+        <div className={styles.emailPrefaceArea}>
+          <Text weight="semibold">
+            {t(
+              "defectManagementPage.sprintReport.statusCard.emailClosingLabel",
+            )}
+          </Text>
+          <Textarea
+            className={styles.emailPrefaceTextarea}
+            value={emailClosingText}
+            placeholder={t(
+              "defectManagementPage.sprintReport.statusCard.emailClosingPlaceholder",
+            )}
+            rows={3}
+            resize="vertical"
+            onChange={(_, data) => setEmailClosingText(data.value)}
           />
         </div>
       )}

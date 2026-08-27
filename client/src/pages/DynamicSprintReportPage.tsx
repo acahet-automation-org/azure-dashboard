@@ -257,6 +257,7 @@ export function DynamicSprintReportPage() {
                                     includeDsiSource={(data.stats.sprintDefectReport.byOriginDetected["DSI"] ?? 0) > 0}
                                     includeDeadline={false}
                                     enableEmailPreface
+                                    enableEmailClosing
                                 />
                             </>
                         )}

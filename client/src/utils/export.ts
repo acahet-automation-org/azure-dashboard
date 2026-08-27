@@ -618,7 +618,7 @@ export function buildStatusReportCardEmailBodyHtml(
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:4px;"><tr>` +
         lightKpiTile(`${report.effectiveCount}/${report.total}`, 6, t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"), "33%") +
         lightKpiTile(String(report.outOfScopeCount), 8, t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"), "33%") +
-        lightKpiTile(`${bugsClosed}/${report.total} (${bugsClosedPct}%)`, 2, t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio"), "33%") +
+        lightKpiTile(`${bugsClosed}/${report.total} (${bugsClosedPct}%)`, 2, t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio", { count: closedOutOfScopeCount }), "33%") +
         `</tr></table>` +
         (includeDsiSource
             ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;"><tr>` +
@@ -769,12 +769,13 @@ export function buildStatusReportCardEmailBodyHtml(
     );
 }
 
-// Renders the optional free-text note the sender can add above the status
-// card (e.g. "Hi team, see below for this week's update") - kept as its own
-// fragment, separate from the card table itself, so it only ever appears in
-// the emailed message and never leaks into the PDF/PPTX/HTML exports of the
-// card. Blank-line-separated paragraphs, single newlines become <br/> -
-// mirrors how actionsText is split elsewhere in this file.
+// Renders an optional free-text note the sender can add above or below the
+// status card (e.g. "Hi team, see below for this week's update", or a
+// closing signature) - kept as its own fragment, separate from the card
+// table itself, so it only ever appears in the emailed message and never
+// leaks into the PDF/PPTX/HTML exports of the card. Blank-line-separated
+// paragraphs, single newlines become <br/> - mirrors how actionsText is
+// split elsewhere in this file.
 export function buildEmailPrefaceHtml(prefaceText: string): string {
     const paragraphs = prefaceText
         .split(/\n\s*\n/)
@@ -1138,6 +1139,7 @@ function pdfDrawAlertBanner(ctx: PdfDrawCtx, y: number, alertText: string): numb
 function buildPdfBugRow1KpiDefs(
     kpis: StatusCardKpis,
     report: SprintDefectReport,
+    closedOutOfScopeCount: number,
     t: TranslateFn
 ): { kpi: (typeof LIGHT_KPI)[number]; label: string; value: string }[] {
     return [
@@ -1153,7 +1155,9 @@ function buildPdfBugRow1KpiDefs(
         },
         {
             kpi: LIGHT_KPI[2],
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio"),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio", {
+                count: closedOutOfScopeCount,
+            }),
             value: `${kpis.bugsClosed}/${report.total} (${kpis.bugsClosedPct}%)`,
         },
     ];
@@ -1546,6 +1550,7 @@ export function buildStatusReportCardPdfDocument(
     let y = pdfDrawAlertBanner(ctx, 30, alertText);
 
     const kpis = computeStatusCardKpis(suiteGroups, report);
+    const { closedOutOfScopeCount } = computeBugStatusData(report);
 
     y = ensurePdfSpace(doc, y, 24);
 
@@ -1614,7 +1619,7 @@ export function buildStatusReportCardPdfDocument(
     );
     y += 6;
 
-    const bugRow1Defs = buildPdfBugRow1KpiDefs(kpis, report, t);
+    const bugRow1Defs = buildPdfBugRow1KpiDefs(kpis, report, closedOutOfScopeCount, t);
 
     autoTable(doc, {
         startY: y,
@@ -1745,11 +1750,14 @@ function pdfDrawKpiLegendSection(
         body: entries.map((entry) => [
             // Some kpis.* labels carry a "\n(...)" line-wrap hint for the
             // narrow on-screen tile (e.g. bugsClosedCount) - not meaningful
-            // in a table cell, so it's flattened to a single line here.
-            t(`defectManagementPage.sprintReport.statusCard.kpis.${entry.labelKey}`).replace(
-                /\n/g,
-                " "
-            ),
+            // in a table cell, so it's flattened to a single line here. Some
+            // also carry a "({{count}} ...)" clause meant to be filled in
+            // with a live report figure (e.g. bugsClosedRatio's out-of-scope
+            // count) - this legend isn't tied to any report, so that clause
+            // is dropped rather than left showing the raw placeholder.
+            t(`defectManagementPage.sprintReport.statusCard.kpis.${entry.labelKey}`)
+                .replace(/\n/g, " ")
+                .replace(/\s*\([^)]*\{\{count\}\}[^)]*\)/g, ""),
             t(`defectManagementPage.sprintReport.statusCard.kpisHelp.${entry.helpKey}`),
         ]),
         tableWidth: innerWidth,
@@ -2163,6 +2171,7 @@ function buildPptxKpiDefs(
 function buildPptxRow2KpiDefs(
     kpis: StatusCardKpis,
     report: SprintDefectReport,
+    closedOutOfScopeCount: number,
     t: TranslateFn
 ): { value: string; label: string }[] {
     return [
@@ -2176,7 +2185,9 @@ function buildPptxRow2KpiDefs(
         },
         {
             value: `${kpis.bugsClosed}/${report.total} (${kpis.bugsClosedPct}%)`,
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio"),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio", {
+                count: closedOutOfScopeCount,
+            }),
         },
     ];
 }
@@ -2815,8 +2826,9 @@ export async function exportStatusReportCardToPptx(
     cursorY = pptxDrawAlertBanner(ctx, cursorY, alertText, heights.naturalAlertBlock);
 
     const kpis = computeStatusCardKpis(suiteGroups, report);
+    const { closedOutOfScopeCount } = computeBugStatusData(report);
     const kpiDefs = buildPptxKpiDefs(kpis, report, t);
-    const row2KpiDefs = buildPptxRow2KpiDefs(kpis, report, t);
+    const row2KpiDefs = buildPptxRow2KpiDefs(kpis, report, closedOutOfScopeCount, t);
     const row3KpiDefs = buildPptxRow3KpiDefs(kpis, report, t);
 
     pptxDrawKpiTiles(ctx, cursorY, kpiDefs, row2KpiDefs, row3KpiDefs);

@@ -109,6 +109,8 @@
         "emailFromNamePlaceholder": "Mostrato come nome del mittente",
         "emailPrefaceLabel": "Testo prima del report",
         "emailPrefacePlaceholder": "Scrivi un messaggio da includere sopra la scheda di stato, es. un saluto o un riepilogo...",
+        "emailClosingLabel": "Testo dopo del report",
+        "emailClosingPlaceholder": "Scrivi un messaggio da includere sotto la scheda di stato, es. saluti o firma...",
         "openDashboard": "Azure Dashboard",
         "casesCount": "{{count}} casi",
         "executed": "eseguito",
