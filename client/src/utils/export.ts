@@ -491,6 +491,7 @@ export function buildStatusReportCardEmailBodyHtml(
 
     const {
         totalTestCases,
+        totalPassed,
         totalNotApplicable,
         totalExecuted,
         executedPct,
@@ -608,11 +609,12 @@ export function buildStatusReportCardEmailBodyHtml(
     const kpiHtml =
         kpiSectionTitle(`🧪 ${t("defectManagementPage.sprintReport.statusCard.kpis.testCasesSection")}`) +
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:4px;"><tr>` +
-        lightKpiTile(String(totalTestCases), 0, t("defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"), "20%") +
-        lightKpiTile(`${totalExecuted} (${executedPct}%)`, 1, t("defectManagementPage.sprintReport.statusCard.kpis.executedCount"), "20%") +
-        lightKpiTile(`${totalNotApplicable} (${notApplicableRate}%)`, 5, t("defectManagementPage.sprintReport.statusCard.kpis.notApplicable"), "20%") +
-        lightKpiTile(String(totalNotRun), 2, t("defectManagementPage.sprintReport.statusCard.kpis.notRun"), "20%") +
-        lightKpiTile(`${passRate}%`, 4, t("defectManagementPage.sprintReport.statusCard.kpis.passRate"), "20%") +
+        lightKpiTile(String(totalTestCases), 0, t("defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"), "16.66%") +
+        lightKpiTile(`${totalExecuted} (${executedPct}%)`, 1, t("defectManagementPage.sprintReport.statusCard.kpis.executedCount"), "16.66%") +
+        lightKpiTile(`${totalNotApplicable} (${notApplicableRate}%)`, 5, t("defectManagementPage.sprintReport.statusCard.kpis.notApplicable"), "16.66%") +
+        lightKpiTile(String(totalNotRun), 2, t("defectManagementPage.sprintReport.statusCard.kpis.notRun"), "16.66%") +
+        lightKpiTile(String(totalPassed), 1, t("defectManagementPage.sprintReport.statusCard.kpis.totalPassed"), "16.66%") +
+        lightKpiTile(`${passRate}%`, 4, t("defectManagementPage.sprintReport.statusCard.kpis.passRate"), "16.66%") +
         `</tr></table>` +
         kpiSectionTitle(`🐛 ${t("defectManagementPage.sprintReport.statusCard.kpis.bugsSection")}`) +
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:4px;"><tr>` +
@@ -1565,7 +1567,7 @@ export function buildStatusReportCardPdfDocument(
     );
     y += 6;
 
-    const testKpiPalette = [LIGHT_KPI[0], LIGHT_KPI[1], LIGHT_KPI[5], LIGHT_KPI[2], LIGHT_KPI[4]];
+    const testKpiPalette = [LIGHT_KPI[0], LIGHT_KPI[1], LIGHT_KPI[5], LIGHT_KPI[2], LIGHT_KPI[1], LIGHT_KPI[4]];
 
     autoTable(doc, {
         startY: y,
@@ -1576,6 +1578,7 @@ export function buildStatusReportCardPdfDocument(
                 t("defectManagementPage.sprintReport.statusCard.kpis.executedCount"),
                 t("defectManagementPage.sprintReport.statusCard.kpis.notApplicable"),
                 t("defectManagementPage.sprintReport.statusCard.kpis.notRun"),
+                t("defectManagementPage.sprintReport.statusCard.kpis.totalPassed"),
                 t("defectManagementPage.sprintReport.statusCard.kpis.passRate"),
             ],
         ],
@@ -1585,6 +1588,7 @@ export function buildStatusReportCardPdfDocument(
                 `${kpis.totalExecuted} (${kpis.executedPct}%)`,
                 `${kpis.totalNotApplicable} (${kpis.notApplicableRate}%)`,
                 String(kpis.totalNotRun),
+                String(kpis.totalPassed),
                 `${kpis.passRate}%`,
             ],
         ],
@@ -1595,7 +1599,7 @@ export function buildStatusReportCardPdfDocument(
         columnStyles: Object.fromEntries(
             testKpiPalette.map((kpi, index) => [
                 index,
-                { fillColor: kpi.bg, textColor: kpi.accent, cellWidth: innerWidth / 5 },
+                { fillColor: kpi.bg, textColor: kpi.accent, cellWidth: innerWidth / 6 },
             ])
         ),
         didParseCell: (hookData) => {
@@ -1707,6 +1711,7 @@ const KPI_LEGEND_TEST_CASES: KpiLegendEntry[] = [
     { labelKey: "executedCount", helpKey: "executedCount" },
     { labelKey: "notApplicable", helpKey: "notApplicable" },
     { labelKey: "notRun", helpKey: "notRun" },
+    { labelKey: "totalPassed", helpKey: "totalPassed" },
     { labelKey: "passRate", helpKey: "passRate" },
 ];
 
@@ -2160,6 +2165,10 @@ function buildPptxKpiDefs(
         {
             value: String(kpis.totalNotRun),
             label: t("defectManagementPage.sprintReport.statusCard.kpis.notRun"),
+        },
+        {
+            value: String(kpis.totalPassed),
+            label: t("defectManagementPage.sprintReport.statusCard.kpis.totalPassed"),
         },
         {
             value: `${kpis.passRate}%`,

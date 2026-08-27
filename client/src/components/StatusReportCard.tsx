@@ -189,6 +189,11 @@ const useStyles = makeStyles({
         gridTemplateColumns: "repeat(5, 1fr)",
         gap: "8px",
     },
+    kpiGrid6: {
+        display: "grid",
+        gridTemplateColumns: "repeat(6, 1fr)",
+        gap: "8px",
+    },
     kpiGrid4: {
         display: "grid",
         gridTemplateColumns: "repeat(4, 1fr)",
@@ -592,6 +597,7 @@ export const StatusReportCard = forwardRef<
     // never drifts from what gets exported for the same report.
     const {
         totalTestCases,
+        totalPassed,
         totalNotApplicable,
         totalExecuted,
         executedPct,
@@ -689,7 +695,7 @@ export const StatusReportCard = forwardRef<
                     <span className={styles.kpiSectionTitle}>
                         🧪 {t("defectManagementPage.sprintReport.statusCard.kpis.testCasesSection")}
                     </span>
-                    <div className={styles.kpiGrid5}>
+                    <div className={styles.kpiGrid6}>
                         <KpiTile
                             value={totalTestCases}
                             color="#3aa0f3"
@@ -713,6 +719,12 @@ export const StatusReportCard = forwardRef<
                             color="#f2b134"
                             labelKey="defectManagementPage.sprintReport.statusCard.kpis.notRun"
                             helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.notRun"
+                        />
+                        <KpiTile
+                            value={totalPassed}
+                            color="#3fb950"
+                            labelKey="defectManagementPage.sprintReport.statusCard.kpis.totalPassed"
+                            helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.totalPassed"
                         />
                         <KpiTile
                             value={`${passRate}%`}
