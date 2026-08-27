@@ -508,11 +508,13 @@ function KpiTile({
     color,
     labelKey,
     helpKey,
+    labelCount,
 }: {
     value: ReactNode;
     color: string;
     labelKey: string;
     helpKey: string;
+    labelCount?: number;
 }) {
     const { t } = useTranslation();
     const styles = useStyles();
@@ -523,7 +525,11 @@ function KpiTile({
                 {value}
             </span>
             <span className={styles.kpiLabelRow}>
-                <span className={styles.kpiLabel}>{t(labelKey)}</span>
+                <span className={styles.kpiLabel}>
+                    {labelCount === undefined
+                        ? t(labelKey)
+                        : t(labelKey, { count: labelCount })}
+                </span>
                 <Tooltip content={t(helpKey)} relationship="description" withArrow>
                     <span className={styles.kpiHelpIcon} tabIndex={0}>
                         <InfoRegular fontSize={12} />
@@ -756,6 +762,7 @@ export const StatusReportCard = forwardRef<
                             color="#f2b134"
                             labelKey="defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio"
                             helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.bugsClosedRatio"
+                            labelCount={closedOutOfScopeCount}
                         />
                         <KpiTile
                             value={criticalCount}
