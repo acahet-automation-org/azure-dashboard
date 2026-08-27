@@ -245,9 +245,13 @@ function buildDefaultActionText2(activity: VerificaActivitySummary): string {
       stillPendingVerification > 0
         ? `; restano ancora ${stillPendingVerification} bug in fase di verifica.`
         : ".";
+    // Same "drop the zero" reasoning as pendingClause above - "e 0 riaperti"
+    // is noise, not a fact worth reporting.
+    const reopenedClause =
+      reopenedToday > 0 ? ` e ${reopenedToday} riaperti` : "";
 
     lines.push(
-      `Test Management: Test Factory ha verificato ${verifiedToday} bug oggi, di cui ${closedToday} chiusi${closedOutOfScopeNote} e ${reopenedToday} riaperti${pendingClause}`,
+      `Test Management: Test Factory ha verificato ${verifiedToday} bug oggi, di cui ${closedToday} chiusi${closedOutOfScopeNote}${reopenedClause}${pendingClause}`,
     );
   }
 
