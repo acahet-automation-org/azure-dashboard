@@ -149,6 +149,19 @@ function statusCountLabel(
     return `${count} ${label}${suffix}`;
 }
 
+// "Bug da chiudere" KPI label - the out-of-scope note only shows up when
+// there actually are open out-of-scope bugs (in practice rare, since
+// out-of-scope bugs tend to get closed as soon as they're triaged - see
+// computeBugStatusData's closedOutOfScopeCount comment), unlike the "Bug
+// chiusi" tile's note which is basically always shown.
+export function bugsToCloseLabel(t: TranslateFn, toCloseOutOfScopeCount: number): string {
+    return toCloseOutOfScopeCount > 0
+        ? t("defectManagementPage.sprintReport.statusCard.kpis.bugsToCloseRatio", {
+              count: toCloseOutOfScopeCount,
+          })
+        : t("defectManagementPage.sprintReport.statusCard.kpis.bugsToClose");
+}
+
 function formatEmailTimestamp(date: Date): { datePart: string; timePart: string } {
     const day = String(date.getDate()).padStart(2, "0");
     const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -500,6 +513,9 @@ export function buildStatusReportCardEmailBodyHtml(
         notApplicableRate,
         bugsClosed,
         bugsClosedPct,
+        bugsToClose,
+        toClosePct,
+        toCloseOutOfScopeCount,
         stillOpen,
         reopenedPct,
         avgClosureDays,
@@ -618,9 +634,10 @@ export function buildStatusReportCardEmailBodyHtml(
         `</tr></table>` +
         kpiSectionTitle(`🐛 ${t("defectManagementPage.sprintReport.statusCard.kpis.bugsSection")}`) +
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:4px;"><tr>` +
-        lightKpiTile(`${report.effectiveCount}/${report.total}`, 6, t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"), "33%") +
-        lightKpiTile(String(report.outOfScopeCount), 8, t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"), "33%") +
-        lightKpiTile(`${bugsClosed}/${report.total} (${bugsClosedPct}%)`, 2, t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio", { count: closedOutOfScopeCount }), "33%") +
+        lightKpiTile(`${report.effectiveCount}/${report.total}`, 6, t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"), "25%") +
+        lightKpiTile(String(report.outOfScopeCount), 8, t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"), "25%") +
+        lightKpiTile(`${bugsClosed}/${report.total} (${bugsClosedPct}%)`, 2, t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio", { count: closedOutOfScopeCount }), "25%") +
+        lightKpiTile(`${bugsToClose}/${report.total} (${toClosePct}%)`, 5, bugsToCloseLabel(t, toCloseOutOfScopeCount), "25%") +
         `</tr></table>` +
         (includeDsiSource
             ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;"><tr>` +
@@ -915,6 +932,9 @@ export interface StatusCardKpis {
     notApplicableRate: number;
     bugsClosed: number;
     bugsClosedPct: number;
+    bugsToClose: number;
+    toClosePct: number;
+    toCloseOutOfScopeCount: number;
     stillOpen: number;
     reopenedPct: number;
     avgClosureDays: number;
@@ -953,6 +973,13 @@ export function computeStatusCardKpis(
 
     const bugsClosed = report.byStatusAll.Closed ?? 0;
     const bugsClosedPct = report.total ? Math.round((bugsClosed / report.total) * 100) : 0;
+    const bugsToClose = report.total - bugsClosed;
+    const toClosePct = report.total ? Math.round((bugsToClose / report.total) * 100) : 0;
+    // Out-of-scope bugs still open - mirrors computeBugStatusData's
+    // closedOutOfScopeCount (total out-of-scope minus the closed subset),
+    // just for the not-yet-closed side instead.
+    const closedOutOfScope = bugsClosed - (report.byStatus.Closed ?? 0);
+    const toCloseOutOfScopeCount = report.outOfScopeCount - closedOutOfScope;
     // Effective (in-scope) bugs only, not report.total - byStatusAll.Closed -
     // so this matches computeBugStatusData's openSeverityTotal exactly (the
     // severity chips right below it on the card only ever break down
@@ -986,6 +1013,9 @@ export function computeStatusCardKpis(
         notApplicableRate,
         bugsClosed,
         bugsClosedPct,
+        bugsToClose,
+        toClosePct,
+        toCloseOutOfScopeCount,
         stillOpen,
         reopenedPct,
         avgClosureDays,
@@ -1161,6 +1191,11 @@ function buildPdfBugRow1KpiDefs(
                 count: closedOutOfScopeCount,
             }),
             value: `${kpis.bugsClosed}/${report.total} (${kpis.bugsClosedPct}%)`,
+        },
+        {
+            kpi: LIGHT_KPI[5],
+            label: bugsToCloseLabel(t, kpis.toCloseOutOfScopeCount),
+            value: `${kpis.bugsToClose}/${report.total} (${kpis.toClosePct}%)`,
         },
     ];
 }
@@ -1721,6 +1756,7 @@ const KPI_LEGEND_BUGS: KpiLegendEntry[] = [
     { labelKey: "bugsByUs", helpKey: "bugsByUs" },
     { labelKey: "bugsByDsi", helpKey: "bugsByDsi" },
     { labelKey: "bugsClosedRatio", helpKey: "bugsClosedRatio" },
+    { labelKey: "bugsToClose", helpKey: "bugsToClose" },
     { labelKey: "criticalBugs", helpKey: "criticalBugs" },
     { labelKey: "reopenedBugs", helpKey: "reopenedBugs" },
     { labelKey: "avgClosureTime", helpKey: "avgClosureTime" },
@@ -2197,6 +2233,10 @@ function buildPptxRow2KpiDefs(
             label: t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio", {
                 count: closedOutOfScopeCount,
             }),
+        },
+        {
+            value: `${kpis.bugsToClose}/${report.total} (${kpis.toClosePct}%)`,
+            label: bugsToCloseLabel(t, kpis.toCloseOutOfScopeCount),
         },
     ];
 }

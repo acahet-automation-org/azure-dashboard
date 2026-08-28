@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Tooltip, makeStyles } from "@fluentui/react-components";
 import { InfoRegular } from "@fluentui/react-icons";
 import { SuiteProgressBar } from "./SuiteProgressBar";
-import { computeBugStatusData, computeStatusCardKpis } from "../utils/export";
+import { bugsToCloseLabel, computeBugStatusData, computeStatusCardKpis } from "../utils/export";
 import type { Outcome, SprintDefectReport } from "../types";
 
 function formatUpdatedTimestamp(date: Date): {
@@ -512,17 +512,28 @@ function KpiTile({
     value,
     color,
     labelKey,
+    label,
     helpKey,
     labelCount,
 }: {
     value: ReactNode;
     color: string;
-    labelKey: string;
+    labelKey?: string;
+    label?: string;
     helpKey: string;
     labelCount?: number;
 }) {
     const { t } = useTranslation();
     const styles = useStyles();
+
+    // `label` (already-resolved text) wins over the labelKey/labelCount
+    // translation lookup - used when the label needs conditional wording
+    // that a single translation key can't express (e.g. bugsToCloseLabel).
+    const resolvedLabel =
+        label ??
+        (labelCount === undefined
+            ? t(labelKey ?? "")
+            : t(labelKey ?? "", { count: labelCount }));
 
     return (
         <div className={styles.kpiTile}>
@@ -530,11 +541,7 @@ function KpiTile({
                 {value}
             </span>
             <span className={styles.kpiLabelRow}>
-                <span className={styles.kpiLabel}>
-                    {labelCount === undefined
-                        ? t(labelKey)
-                        : t(labelKey, { count: labelCount })}
-                </span>
+                <span className={styles.kpiLabel}>{resolvedLabel}</span>
                 <Tooltip content={t(helpKey)} relationship="description" withArrow>
                     <span className={styles.kpiHelpIcon} tabIndex={0}>
                         <InfoRegular fontSize={12} />
@@ -606,6 +613,9 @@ export const StatusReportCard = forwardRef<
         notApplicableRate,
         bugsClosed,
         bugsClosedPct,
+        bugsToClose,
+        toClosePct,
+        toCloseOutOfScopeCount,
         stillOpen,
         reopenedPct,
         avgClosureDays,
@@ -775,6 +785,12 @@ export const StatusReportCard = forwardRef<
                             labelKey="defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio"
                             helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.bugsClosedRatio"
                             labelCount={closedOutOfScopeCount}
+                        />
+                        <KpiTile
+                            value={`${bugsToClose}/${report.total} (${toClosePct}%)`}
+                            color="#eda100"
+                            label={bugsToCloseLabel(t, toCloseOutOfScopeCount)}
+                            helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.bugsToClose"
                         />
                         <KpiTile
                             value={criticalCount}
