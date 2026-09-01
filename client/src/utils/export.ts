@@ -521,6 +521,7 @@ export function buildStatusReportCardEmailBodyHtml(
         avgClosureDays,
         bugsByDsi,
         bugsByUs,
+        bugsByBusiness,
     } = computeStatusCardKpis(suiteGroups, report);
 
     const {
@@ -639,12 +640,13 @@ export function buildStatusReportCardEmailBodyHtml(
         lightKpiTile(`${bugsClosed}/${report.total} (${bugsClosedPct}%)`, 2, t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio", { count: closedOutOfScopeCount }), "25%") +
         lightKpiTile(`${bugsToClose}/${report.total} (${toClosePct}%)`, 5, bugsToCloseLabel(t, toCloseOutOfScopeCount), "25%") +
         `</tr></table>` +
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;"><tr>` +
         (includeDsiSource
-            ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;"><tr>` +
-              lightKpiTile(String(bugsByUs), 4, t("defectManagementPage.sprintReport.statusCard.kpis.bugsByUs"), "50%") +
-              lightKpiTile(String(bugsByDsi), 0, t("defectManagementPage.sprintReport.statusCard.kpis.bugsByDsi"), "50%") +
-              `</tr></table>`
-            : "") +
+            ? lightKpiTile(String(bugsByUs), 4, t("defectManagementPage.sprintReport.statusCard.kpis.bugsByUs"), "33%") +
+              lightKpiTile(String(bugsByDsi), 0, t("defectManagementPage.sprintReport.statusCard.kpis.bugsByDsi"), "33%") +
+              lightKpiTile(String(bugsByBusiness), 1, t("defectManagementPage.sprintReport.statusCard.kpis.bugsByBusiness"), "33%")
+            : lightKpiTile(String(bugsByBusiness), 1, t("defectManagementPage.sprintReport.statusCard.kpis.bugsByBusiness"), "100%")) +
+        `</tr></table>` +
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;"><tr>` +
         lightKpiTile(String(openSeverityEntries[0][1]), 3, t("defectManagementPage.sprintReport.statusCard.kpis.criticalBugs"), "25%") +
         lightKpiTile(`${report.reopenedCount} (${reopenedPct}%)`, 4, t("defectManagementPage.sprintReport.statusCard.kpis.reopenedBugs"), "25%") +
@@ -940,6 +942,9 @@ export interface StatusCardKpis {
     avgClosureDays: number;
     bugsByDsi: number;
     bugsByUs: number;
+    // Detected bugs whose Custom.Suite = "Test Business" (origin "Business").
+    // Shown as its own KPI tile even when 0.
+    bugsByBusiness: number;
     criticalCount: number;
 }
 
@@ -992,6 +997,7 @@ export function computeStatusCardKpis(
     const avgClosureDays = Math.round(report.mttrDays ?? 0);
     const bugsByDsi = report.byOriginDetected["DSI"] ?? 0;
     const bugsByUs = report.total - bugsByDsi;
+    const bugsByBusiness = report.byOriginDetected["Business"] ?? 0;
 
     // Only non-closed bugs count here - a closed critical bug isn't
     // something the reader still needs to act on. Mirrors
@@ -1021,6 +1027,7 @@ export function computeStatusCardKpis(
         avgClosureDays,
         bugsByDsi,
         bugsByUs,
+        bugsByBusiness,
         criticalCount,
     };
 }
@@ -1755,6 +1762,7 @@ const KPI_LEGEND_BUGS: KpiLegendEntry[] = [
     { labelKey: "outOfScopeBugsDetected", helpKey: "outOfScopeBugsDetected" },
     { labelKey: "bugsByUs", helpKey: "bugsByUs" },
     { labelKey: "bugsByDsi", helpKey: "bugsByDsi" },
+    { labelKey: "bugsByBusiness", helpKey: "bugsByBusiness" },
     { labelKey: "bugsClosedRatio", helpKey: "bugsClosedRatio" },
     { labelKey: "bugsToClose", helpKey: "bugsToClose" },
     { labelKey: "criticalBugs", helpKey: "criticalBugs" },
