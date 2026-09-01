@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Tooltip, makeStyles } from "@fluentui/react-components";
 import { InfoRegular } from "@fluentui/react-icons";
 import { SuiteProgressBar } from "./SuiteProgressBar";
-import { bugsToCloseLabel, computeBugStatusData, computeStatusCardKpis } from "../utils/export";
+import { computeBugStatusData, computeStatusCardKpis } from "../utils/export";
 import type { Outcome, SprintDefectReport } from "../types";
 
 function formatUpdatedTimestamp(date: Date): {
@@ -604,7 +604,6 @@ export const StatusReportCard = forwardRef<
     // never drifts from what gets exported for the same report.
     const {
         totalTestCases,
-        totalPassed,
         totalNotApplicable,
         totalExecuted,
         executedPct,
@@ -613,9 +612,6 @@ export const StatusReportCard = forwardRef<
         notApplicableRate,
         bugsClosed,
         bugsClosedPct,
-        bugsToClose,
-        toClosePct,
-        toCloseOutOfScopeCount,
         stillOpen,
         reopenedPct,
         avgClosureDays,
@@ -706,7 +702,7 @@ export const StatusReportCard = forwardRef<
                     <span className={styles.kpiSectionTitle}>
                         🧪 {t("defectManagementPage.sprintReport.statusCard.kpis.testCasesSection")}
                     </span>
-                    <div className={styles.kpiGrid6}>
+                    <div className={styles.kpiGrid5}>
                         <KpiTile
                             value={totalTestCases}
                             color="#3aa0f3"
@@ -730,12 +726,6 @@ export const StatusReportCard = forwardRef<
                             color="#f2b134"
                             labelKey="defectManagementPage.sprintReport.statusCard.kpis.notRun"
                             helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.notRun"
-                        />
-                        <KpiTile
-                            value={totalPassed}
-                            color="#3fb950"
-                            labelKey="defectManagementPage.sprintReport.statusCard.kpis.totalPassed"
-                            helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.totalPassed"
                         />
                         <KpiTile
                             value={`${passRate}%`}
@@ -793,12 +783,6 @@ export const StatusReportCard = forwardRef<
                             labelKey="defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio"
                             helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.bugsClosedRatio"
                             labelCount={closedOutOfScopeCount}
-                        />
-                        <KpiTile
-                            value={`${bugsToClose}/${report.total} (${toClosePct}%)`}
-                            color="#eda100"
-                            label={bugsToCloseLabel(t, toCloseOutOfScopeCount)}
-                            helpKey="defectManagementPage.sprintReport.statusCard.kpisHelp.bugsToClose"
                         />
                         <KpiTile
                             value={criticalCount}

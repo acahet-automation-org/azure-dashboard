@@ -149,19 +149,6 @@ function statusCountLabel(
     return `${count} ${label}${suffix}`;
 }
 
-// "Bug da chiudere" KPI label - the out-of-scope note only shows up when
-// there actually are open out-of-scope bugs (in practice rare, since
-// out-of-scope bugs tend to get closed as soon as they're triaged - see
-// computeBugStatusData's closedOutOfScopeCount comment), unlike the "Bug
-// chiusi" tile's note which is basically always shown.
-export function bugsToCloseLabel(t: TranslateFn, toCloseOutOfScopeCount: number): string {
-    return toCloseOutOfScopeCount > 0
-        ? t("defectManagementPage.sprintReport.statusCard.kpis.bugsToCloseRatio", {
-              count: toCloseOutOfScopeCount,
-          })
-        : t("defectManagementPage.sprintReport.statusCard.kpis.bugsToClose");
-}
-
 function formatEmailTimestamp(date: Date): { datePart: string; timePart: string } {
     const day = String(date.getDate()).padStart(2, "0");
     const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -504,7 +491,6 @@ export function buildStatusReportCardEmailBodyHtml(
 
     const {
         totalTestCases,
-        totalPassed,
         totalNotApplicable,
         totalExecuted,
         executedPct,
@@ -513,9 +499,6 @@ export function buildStatusReportCardEmailBodyHtml(
         notApplicableRate,
         bugsClosed,
         bugsClosedPct,
-        bugsToClose,
-        toClosePct,
-        toCloseOutOfScopeCount,
         stillOpen,
         reopenedPct,
         avgClosureDays,
@@ -626,19 +609,17 @@ export function buildStatusReportCardEmailBodyHtml(
     const kpiHtml =
         kpiSectionTitle(`🧪 ${t("defectManagementPage.sprintReport.statusCard.kpis.testCasesSection")}`) +
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:4px;"><tr>` +
-        lightKpiTile(String(totalTestCases), 0, t("defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"), "16.66%") +
-        lightKpiTile(`${totalExecuted} (${executedPct}%)`, 1, t("defectManagementPage.sprintReport.statusCard.kpis.executedCount"), "16.66%") +
-        lightKpiTile(`${totalNotApplicable} (${notApplicableRate}%)`, 5, t("defectManagementPage.sprintReport.statusCard.kpis.notApplicable"), "16.66%") +
-        lightKpiTile(String(totalNotRun), 2, t("defectManagementPage.sprintReport.statusCard.kpis.notRun"), "16.66%") +
-        lightKpiTile(String(totalPassed), 1, t("defectManagementPage.sprintReport.statusCard.kpis.totalPassed"), "16.66%") +
-        lightKpiTile(`${passRate}%`, 4, t("defectManagementPage.sprintReport.statusCard.kpis.passRate"), "16.66%") +
+        lightKpiTile(String(totalTestCases), 0, t("defectManagementPage.sprintReport.statusCard.kpis.totalTestCases"), "20%") +
+        lightKpiTile(`${totalExecuted} (${executedPct}%)`, 1, t("defectManagementPage.sprintReport.statusCard.kpis.executedCount"), "20%") +
+        lightKpiTile(`${totalNotApplicable} (${notApplicableRate}%)`, 5, t("defectManagementPage.sprintReport.statusCard.kpis.notApplicable"), "20%") +
+        lightKpiTile(String(totalNotRun), 2, t("defectManagementPage.sprintReport.statusCard.kpis.notRun"), "20%") +
+        lightKpiTile(`${passRate}%`, 4, t("defectManagementPage.sprintReport.statusCard.kpis.passRate"), "20%") +
         `</tr></table>` +
         kpiSectionTitle(`🐛 ${t("defectManagementPage.sprintReport.statusCard.kpis.bugsSection")}`) +
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:4px;"><tr>` +
-        lightKpiTile(`${report.effectiveCount}/${report.total}`, 6, t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"), "25%") +
-        lightKpiTile(String(report.outOfScopeCount), 8, t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"), "25%") +
-        lightKpiTile(`${bugsClosed}/${report.total} (${bugsClosedPct}%)`, 2, t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio", { count: closedOutOfScopeCount }), "25%") +
-        lightKpiTile(`${bugsToClose}/${report.total} (${toClosePct}%)`, 5, bugsToCloseLabel(t, toCloseOutOfScopeCount), "25%") +
+        lightKpiTile(`${report.effectiveCount}/${report.total}`, 6, t("defectManagementPage.sprintReport.statusCard.kpis.effectiveBugsDetected"), "33.33%") +
+        lightKpiTile(String(report.outOfScopeCount), 8, t("defectManagementPage.sprintReport.statusCard.kpis.outOfScopeBugsDetected"), "33.33%") +
+        lightKpiTile(`${bugsClosed}/${report.total} (${bugsClosedPct}%)`, 2, t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio", { count: closedOutOfScopeCount }), "33.33%") +
         `</tr></table>` +
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;"><tr>` +
         (includeDsiSource
@@ -996,8 +977,11 @@ export function computeStatusCardKpis(
         : 0;
     const avgClosureDays = Math.round(report.mttrDays ?? 0);
     const bugsByDsi = report.byOriginDetected["DSI"] ?? 0;
-    const bugsByUs = report.total - bugsByDsi;
     const bugsByBusiness = report.byOriginDetected["Business"] ?? 0;
+    // "Everything that's ours": total minus DSI minus Business. Business bugs
+    // get their own tile, so they must not also land in the Test Factory
+    // count. Test Agenti bugs stay folded in here (no separate tile).
+    const bugsByUs = report.total - bugsByDsi - bugsByBusiness;
 
     // Only non-closed bugs count here - a closed critical bug isn't
     // something the reader still needs to act on. Mirrors
@@ -1198,11 +1182,6 @@ function buildPdfBugRow1KpiDefs(
                 count: closedOutOfScopeCount,
             }),
             value: `${kpis.bugsClosed}/${report.total} (${kpis.bugsClosedPct}%)`,
-        },
-        {
-            kpi: LIGHT_KPI[5],
-            label: bugsToCloseLabel(t, kpis.toCloseOutOfScopeCount),
-            value: `${kpis.bugsToClose}/${report.total} (${kpis.toClosePct}%)`,
         },
     ];
 }
@@ -1609,7 +1588,7 @@ export function buildStatusReportCardPdfDocument(
     );
     y += 6;
 
-    const testKpiPalette = [LIGHT_KPI[0], LIGHT_KPI[1], LIGHT_KPI[5], LIGHT_KPI[2], LIGHT_KPI[1], LIGHT_KPI[4]];
+    const testKpiPalette = [LIGHT_KPI[0], LIGHT_KPI[1], LIGHT_KPI[5], LIGHT_KPI[2], LIGHT_KPI[4]];
 
     autoTable(doc, {
         startY: y,
@@ -1620,7 +1599,6 @@ export function buildStatusReportCardPdfDocument(
                 t("defectManagementPage.sprintReport.statusCard.kpis.executedCount"),
                 t("defectManagementPage.sprintReport.statusCard.kpis.notApplicable"),
                 t("defectManagementPage.sprintReport.statusCard.kpis.notRun"),
-                t("defectManagementPage.sprintReport.statusCard.kpis.totalPassed"),
                 t("defectManagementPage.sprintReport.statusCard.kpis.passRate"),
             ],
         ],
@@ -1630,7 +1608,6 @@ export function buildStatusReportCardPdfDocument(
                 `${kpis.totalExecuted} (${kpis.executedPct}%)`,
                 `${kpis.totalNotApplicable} (${kpis.notApplicableRate}%)`,
                 String(kpis.totalNotRun),
-                String(kpis.totalPassed),
                 `${kpis.passRate}%`,
             ],
         ],
@@ -1641,7 +1618,7 @@ export function buildStatusReportCardPdfDocument(
         columnStyles: Object.fromEntries(
             testKpiPalette.map((kpi, index) => [
                 index,
-                { fillColor: kpi.bg, textColor: kpi.accent, cellWidth: innerWidth / 6 },
+                { fillColor: kpi.bg, textColor: kpi.accent, cellWidth: innerWidth / 5 },
             ])
         ),
         didParseCell: (hookData) => {
@@ -1680,7 +1657,7 @@ export function buildStatusReportCardPdfDocument(
         columnStyles: Object.fromEntries(
             bugRow1Defs.map((d, index) => [
                 index,
-                { fillColor: d.kpi.bg, textColor: d.kpi.accent, cellWidth: innerWidth / 4 },
+                { fillColor: d.kpi.bg, textColor: d.kpi.accent, cellWidth: innerWidth / bugRow1Defs.length },
             ])
         ),
         didParseCell: (hookData) => {
@@ -1753,7 +1730,6 @@ const KPI_LEGEND_TEST_CASES: KpiLegendEntry[] = [
     { labelKey: "executedCount", helpKey: "executedCount" },
     { labelKey: "notApplicable", helpKey: "notApplicable" },
     { labelKey: "notRun", helpKey: "notRun" },
-    { labelKey: "totalPassed", helpKey: "totalPassed" },
     { labelKey: "passRate", helpKey: "passRate" },
 ];
 
@@ -1764,7 +1740,6 @@ const KPI_LEGEND_BUGS: KpiLegendEntry[] = [
     { labelKey: "bugsByDsi", helpKey: "bugsByDsi" },
     { labelKey: "bugsByBusiness", helpKey: "bugsByBusiness" },
     { labelKey: "bugsClosedRatio", helpKey: "bugsClosedRatio" },
-    { labelKey: "bugsToClose", helpKey: "bugsToClose" },
     { labelKey: "criticalBugs", helpKey: "criticalBugs" },
     { labelKey: "reopenedBugs", helpKey: "reopenedBugs" },
     { labelKey: "avgClosureTime", helpKey: "avgClosureTime" },
@@ -2211,10 +2186,6 @@ function buildPptxKpiDefs(
             label: t("defectManagementPage.sprintReport.statusCard.kpis.notRun"),
         },
         {
-            value: String(kpis.totalPassed),
-            label: t("defectManagementPage.sprintReport.statusCard.kpis.totalPassed"),
-        },
-        {
             value: `${kpis.passRate}%`,
             label: t("defectManagementPage.sprintReport.statusCard.kpis.passRate"),
         },
@@ -2241,10 +2212,6 @@ function buildPptxRow2KpiDefs(
             label: t("defectManagementPage.sprintReport.statusCard.kpis.bugsClosedRatio", {
                 count: closedOutOfScopeCount,
             }),
-        },
-        {
-            value: `${kpis.bugsToClose}/${report.total} (${kpis.toClosePct}%)`,
-            label: bugsToCloseLabel(t, kpis.toCloseOutOfScopeCount),
         },
     ];
 }
